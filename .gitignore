@@ -25,6 +25,8 @@ htmlcov/
 .nfs*
 
 # Local secrets (never commit)
+# Private denylist of personal terms for tools/check_local_refs.py.
+.local-refs-denylist
 idrac-probe.local.json
 
 # Kiro per-machine state: execution history and session IDs of local runs, and

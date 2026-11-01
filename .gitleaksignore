@@ -1,0 +1,11 @@
+# Exact-fingerprint suppressions for gitleaks: one line = one finding in one commit.
+#
+# Only commit-qualified fingerprints (<commit>:<file>:<rule>:<line>) are allowed here.
+# A path-only fingerprint (<file>:<rule>:<line>) would also hide a real secret added
+# to the same line by any later commit, so it must never be used.
+#
+# Both entries are redaction-test fixtures: distinctive fake passwords the tests
+# assert never leak into logs, reports, or MQTT payloads. Verified by SHA-256
+# comparison not to equal any real credential. Introduced in the initial commit.
+b3cf4c6efeca5974ba5fe2252deb0a1dd616f50c:tests/unit/test_config_models.py:generic-api-key:40
+b3cf4c6efeca5974ba5fe2252deb0a1dd616f50c:tests/unit/test_secrets.py:generic-api-key:43

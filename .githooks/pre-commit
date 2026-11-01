@@ -1,0 +1,80 @@
+#!/bin/sh
+# Pre-commit gate — mirrors .github/workflows/ci.yaml so a commit that passes
+# here also passes CI. Security first:
+# the secret scan runs before anything else and the hook FAILS CLOSED when
+# gitleaks is missing — a commit is never made unscanned.
+#
+# Enable once per clone:   git config core.hooksPath .githooks
+# Python environment:      $REMOTE_ENERGY_METER_VENV (default: ./.venv), with
+#                          `pip install -e ".[dev]"` on Python 3.12.
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+echo "═══════════════════════════════════════════"
+echo "  Pre-commit checks (same gates as CI)"
+echo "═══════════════════════════════════════════"
+
+echo ""
+echo "▶ Secret scan (gitleaks — staged changes)..."
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "✗ gitleaks is not installed; refusing to commit unscanned changes." >&2
+  echo "  Install it (brew install gitleaks) and retry." >&2
+  exit 1
+fi
+gitleaks git --staged --pre-commit --config .gitleaks.toml --redact --no-banner .
+echo "✓ No secrets detected in staged changes"
+
+venv=${REMOTE_ENERGY_METER_VENV:-$repo_root/.venv}
+py="$venv/bin/python"
+if ! "$py" -c 'import sys; raise SystemExit(sys.version_info[:2] != (3, 12))' 2>/dev/null; then
+  echo "✗ $py is missing or is not Python 3.12 (CI runs 3.12)." >&2
+  echo "  Create one:  uv venv -p 3.12 \"$venv\" && uv pip install --python \"$py\" -e '.[dev]'" >&2
+  echo "  or point REMOTE_ENERGY_METER_VENV at an existing one." >&2
+  exit 1
+fi
+
+# Keep caches and bytecode out of the working tree.
+scratch=$(mktemp -d)
+trap 'rm -rf "$scratch"' EXIT INT TERM
+export PYTHONDONTWRITEBYTECODE=1
+export HYPOTHESIS_STORAGE_DIRECTORY="$scratch/hypothesis"
+export COVERAGE_FILE="$scratch/coverage"
+
+echo ""
+echo "▶ Local-setup reference scan (staged changes; generic rules + private denylist)..."
+# Public repository: no private IPs, home/volume paths, LAN hostnames, MAC or personal
+# e-mail addresses. Personal terms live in the gitignored .local-refs-denylist.
+"$py" tools/check_local_refs.py --staged
+
+echo ""
+echo "▶ Lint (ruff check + ruff format --check)..."
+"$py" -m ruff check --no-cache
+"$py" -m ruff format --check --no-cache
+"$py" tools/validate_integration_package.py custom_components/remote_energy_meter >/dev/null
+echo "✓ Lint passed"
+
+echo ""
+echo "▶ Types (mypy --strict)..."
+"$py" -m mypy --strict --cache-dir "$scratch/mypy"
+echo "✓ Types passed"
+
+echo ""
+echo "▶ Tests (unit, property, conformance) with the 80% coverage gate..."
+"$py" -m pytest -p no:cacheprovider --basetemp "$scratch/pytest" -q -m "not integration" --cov --cov-report=term
+echo "✓ Tests passed"
+
+echo ""
+echo "▶ Dependency audit (blocking, matches CI)..."
+# Audits the whole dev environment, a superset of the runtime set CI audits. The
+# editable project itself is not on PyPI, so it is excluded from the frozen list
+# (with --strict it would otherwise fail as "could not be audited").
+"$py" -m pip freeze --exclude-editable > "$scratch/requirements.txt"
+"$py" -m pip_audit --strict --no-deps --disable-pip --progress-spinner off -r "$scratch/requirements.txt"
+echo "✓ No dependency advisories"
+
+echo ""
+echo "═══════════════════════════════════════════"
+echo "  All checks passed. Committing."
+echo "═══════════════════════════════════════════"

@@ -30,6 +30,13 @@ All notable changes to this project are documented here. The format follows
 - Complete standalone add-on documentation with secret-only Redfish and IPMI configurations, an exhaustive
   schema-derived field reference, companion-integration installation guidance, protocol/security guidance, lifecycle
   semantics, and plugin-specific troubleshooting.
+- The repository is public, so it must not describe any real installation. New `tools/check_local_refs.py` rejects
+  private, CGNAT and link-local IPv4 addresses, MAC addresses, home-directory and mounted-volume paths, LAN hostnames,
+  and personal e-mail addresses. It runs in CI (`local-refs` job, tracked files and full history), in the pre-commit
+  hook (staged changes) and in the pre-push hook (full history). Personal terms are checked from a gitignored
+  `.local-refs-denylist`.
+- Repository steering files `.kiro/steering/security.md` and `.kiro/steering/workflow.md` make security the first
+  priority and define the branch, test, gate and PR workflow.
 
 ### Changed
 
@@ -42,6 +49,15 @@ All notable changes to this project are documented here. The format follows
   `superkus/ha-addons`.
 - Examples, defaults, documentation, specs, and tests use RFC 5737 documentation addresses and RFC 2606 reserved
   names, so nothing in the repository describes a real installation.
+- CI now follows a security-first model. It runs on pushes and PRs to `dev` and
+  `main`, and adds a gitleaks secret scan over the full history, a blocking `pip-audit` of the runtime dependencies, an
+  80% coverage gate, and an amd64 image smoke test (ipmitool present, application imports). GitHub Actions moved to
+  their current major versions.
+- New `.githooks/pre-commit` (gitleaks on staged changes, then lint, types, tests with coverage, and audit) and
+  `.githooks/pre-push` (gitleaks over the commits being pushed). Both fail closed when gitleaks is missing.
+- Dev tools are pinned to exact versions. Open ranges let a new ruff release turn an unchanged tree red.
+- pytest 8.4.2 → 9.2.0 (CVE-2025-71176 / PYSEC-2026-1845, vulnerable tmpdir handling, fixed in 9.0.3), with
+  pytest-asyncio 0.26.0 → 1.4.1.post1. Dev-only: the add-on image never contained pytest.
 
 ### Fixed
 

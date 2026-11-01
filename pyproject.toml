@@ -27,14 +27,19 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Exact pins: CI and the pre-commit hook must run the same tools. With open ranges a new ruff release
+# (0.17's ASYNC240/RUF005) turned an unchanged tree red. Bump deliberately, in a reviewed PR.
 dev = [
-  "pytest>=8.2,<9",
-  "pytest-asyncio>=0.23,<1",
-  "hypothesis>=6.100,<7",
-  "ruff>=0.6,<1",
-  "mypy>=1.11,<2",
+  "pytest==9.2.0",  # >=9.0.3: CVE-2025-71176 (vulnerable tmpdir handling)
+  "pytest-asyncio==1.4.1.post1",
+  "pytest-cov==7.1.0",
+  "hypothesis==6.170.14",
+  "ruff==0.17.3",
+  "mypy==1.20.2",
   # PyYAML ships no inline types, so `mypy --strict` needs its stub distribution.
-  "types-pyyaml>=6.0.12,<7",
+  "types-pyyaml==6.0.12.20261030",
+  # Blocking audit of the runtime dependency set (CI job `audit`, pre-commit hook).
+  "pip-audit==2.10.1",
 ]
 
 [project.scripts]
@@ -130,3 +135,18 @@ addopts = [
 markers = [
   "integration: exercises a real transport (fake Redfish server over HTTPS, local Mosquitto broker, or a built container image)",
 ]
+
+
+# ---------------------------------------------------------------------------
+# coverage (gate: 80% lines+branches)
+# ---------------------------------------------------------------------------
+
+[tool.coverage.run]
+branch = true
+# Paths, not module names: the package is imported through an editable install.
+source = ["src/remote_energy_meter", "custom_components"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = true

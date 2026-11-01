@@ -65,14 +65,63 @@ cipher suite 3; DCMI was unsupported there). See the add-on's `DOCS.md` for deta
 
 ## Development
 
+### Workflow (security first)
+
+Every change, including urgent fixes, goes through the same path: a branch, tests, the local gates, a push to `dev`,
+and a reviewed pull request into `main`. Nothing is patched directly on a running Home Assistant host. CI
+(`.github/workflows/ci.yaml`) runs on every push and PR to `dev` and `main`:
+
+| Job | Gate |
+| --- | --- |
+| `secrets` | gitleaks over the full history; any finding fails the run |
+| `local-refs` | `tools/check_local_refs.py` over tracked files and the full history: no private IPs, home/volume paths, LAN hostnames, MAC or personal e-mail addresses |
+| `lint` | `ruff check`, `ruff format --check`, integration-package validation |
+| `typecheck` | `mypy --strict` |
+| `test` | unit, property, and conformance suites with an 80% line+branch coverage gate |
+| `integration` | `pytest -m integration` against a real Mosquitto |
+| `audit` | `pip-audit --strict` of the runtime dependency set; any advisory fails the run |
+| `addon-lint` | Home Assistant add-on linter |
+| `image` | the three-architecture image build, plus an amd64 smoke test |
+
+Local hooks run the same gates before anything leaves your machine. Enable them once per clone:
+
 ```bash
-uv venv                                  # or: python3 -m venv .venv
+brew install gitleaks                    # required: the hooks fail closed without it
+uv venv -p 3.12 .venv && uv pip install --python .venv/bin/python -e '.[dev]'
+git config core.hooksPath .githooks
+```
+
+- `.githooks/pre-commit` runs gitleaks and the local-setup reference scan on the staged changes, then lint,
+  `mypy --strict`, the tests with the coverage gate, and `pip-audit`.
+- `.githooks/pre-push` runs gitleaks over exactly the commits being pushed, and the local-setup reference scan over
+  the full history (a push publishes every past version).
+
+Secret scanning uses the default gitleaks ruleset with no allowlist (`.gitleaks.toml`). Reviewed false positives are
+suppressed one finding at a time by commit-qualified fingerprint in `.gitleaksignore`. Never commit real credentials: use
+Home Assistant `!secret` references.
+
+This repository is public, so nothing may describe a real installation: examples use RFC 5737 documentation addresses
+(`192.0.2.0/24`) and RFC 2606 names (`device.example`). Put your own personal terms (domain, hostnames, private
+repository names) one per line in a `.local-refs-denylist` file at the repository root. It is gitignored, and the
+hooks check it in addition to the generic rules. The full policy is in `.kiro/steering/security.md` and
+`.kiro/steering/workflow.md`.
+
+Dev tools are pinned to exact versions in `pyproject.toml`, so CI and the hooks run identical tools. Bump them
+deliberately in their own PR.
+
+### Commands
+
+```bash
+uv venv -p 3.12                          # CI runs Python 3.12
 uv pip install -e '.[dev]'
-ruff check src tests tools
-ruff format --check src tests tools
-mypy
-pytest -m "not integration"              # unit, property, and conformance
+ruff check
+ruff format --check
+mypy --strict
+pytest -m "not integration" --cov        # unit, property, conformance + coverage gate
 pytest -m integration                    # needs a mosquitto binary on PATH
+pip-audit --strict --no-deps --disable-pip -r <(pip freeze --exclude-editable)
+gitleaks git --config .gitleaks.toml --redact .
+python tools/check_local_refs.py --history
 ```
 
 The Python backend package lives in `src/remote_energy_meter/`; the add-on folder contains Supervisor/container
