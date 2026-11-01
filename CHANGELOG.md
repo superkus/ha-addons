@@ -60,6 +60,8 @@ All notable changes to this project are documented here. The format follows
 - Dev tools are pinned to exact versions. Open ranges let a new ruff release turn an unchanged tree red.
 - pytest 8.4.2 → 9.2.0 (CVE-2025-71176 / PYSEC-2026-1845, vulnerable tmpdir handling, fixed in 9.0.3), with
   pytest-asyncio 0.26.0 → 1.4.1.post1. Dev-only: the add-on image never contained pytest.
+- `startup` and `boot` are no longer set in the add-on manifest: they restated Supervisor's defaults
+  (`application`, `auto`), which the add-on linter rejects. Start order and boot behaviour are unchanged.
 
 ### Fixed
 
@@ -81,6 +83,9 @@ All notable changes to this project are documented here. The format follows
 - Structured logging now tolerates malformed third-party exception metadata without losing the JSON log record or
   bypassing credential redaction.
 - Fixed a `RUF005` lint finding in `docs/icon-candidates/generate_candidates.py` reported by current ruff releases.
+- A plain `pytest` run wrote bytecode into `custom_components/`, which made the integration-package validator
+  reject the package; the suite now never writes bytecode. CI lets the test broker read its generated
+  configuration when the runner's AppArmor profile confines mosquitto.
 
 ### Removed
 

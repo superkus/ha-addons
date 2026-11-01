@@ -26,10 +26,10 @@ arch:
   - aarch64
   - armv7
 
-# `startup: application` -- the metering process consumes the MQTT broker, so it
-# starts after the service-tier add-ons that provide it.
-startup: application
-boot: auto
+# `startup` and `boot` are deliberately omitted: their defaults (`application`,
+# `auto`) are what this add-on needs -- the metering process consumes the MQTT
+# broker, so it starts after the service-tier add-ons that provide it -- and the
+# add-on linter rejects restating a default.
 
 # Advertise the first-class companion integration through Supervisor. The add-on posts
 # only instance/topic/schema metadata; discovery failure is nonfatal to metering.

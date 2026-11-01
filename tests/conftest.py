@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import sys
 
-import pytest
+# Never write bytecode while testing. Tests import `custom_components`, and a `__pycache__`
+# left inside it makes the integration-package validator (correctly) reject the package as
+# containing generated files -- so a run without PYTHONDONTWRITEBYTECODE failed in CI.
+# Set before any first-party import below.
+sys.dont_write_bytecode = True
 
-from remote_energy_meter.plugins.ipmi.plugin import SDR_CACHE_DIR_ENV
+from collections.abc import Iterator  # noqa: E402
+
+import pytest  # noqa: E402
+
+from remote_energy_meter.plugins.ipmi.plugin import SDR_CACHE_DIR_ENV  # noqa: E402
 
 
 @pytest.fixture(autouse=True, scope="session")

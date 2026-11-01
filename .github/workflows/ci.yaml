@@ -39,6 +39,9 @@ env:
   # and mypy `python_version = "3.12"`. CI must not silently drift to a newer
   # interpreter than the tools are configured for.
   PYTHON_VERSION: "3.12"
+  # Same as the local gates: bytecode written into `custom_components/` would make the
+  # integration-package validator reject the package (tests/conftest.py also enforces it).
+  PYTHONDONTWRITEBYTECODE: "1"
 
 jobs:
   secrets:
@@ -195,6 +198,20 @@ jobs:
           # would let a test pass against the wrong broker.
           sudo systemctl disable --now mosquitto || true
           mosquitto -h | head -n 1
+
+      # The fixture's broker reads its generated config from pytest's tmp_path. If the
+      # distribution's AppArmor profile confines mosquitto to /etc/mosquitto, that read is
+      # denied ("Unable to open config file"). Report what is loaded, and only when a
+      # mosquitto profile is enforced, switch it to complain mode on this throwaway runner.
+      - name: Let the test broker read its tmp_path config (AppArmor)
+        run: |
+          sudo apt-get install -y --no-install-recommends apparmor-utils
+          if sudo aa-status 2>/dev/null | grep -q mosquitto; then
+            echo "mosquitto AppArmor profile is loaded:"; sudo aa-status | grep mosquitto
+            sudo aa-complain /usr/sbin/mosquitto
+          else
+            echo "no mosquitto AppArmor profile is loaded"
+          fi
 
       - name: Run the integration suite
         run: |
