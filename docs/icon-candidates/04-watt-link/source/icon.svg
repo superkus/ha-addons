@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Original artwork created for Remote Energy Meter. No third-party marks or artwork. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img">
+  <title>Watt Link icon</title>
+  <polygon points="256,31 481,256 256,481 31,256" fill="#10233F" stroke="#FF8A4C" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 81.714 308.503 A 48 48 0 0 1 81.714 221.497" fill="none" stroke="#58A6FF" stroke-width="12" stroke-linecap="round"/>
+  <path d="M 430.286 221.497 A 48 48 0 0 1 430.286 308.503" fill="none" stroke="#58A6FF" stroke-width="12" stroke-linecap="round"/>
+  <polyline points="91,302 156,302 207,222 258,365 315,151 360,302 421,302" fill="none" stroke="#58A6FF" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="91" cy="302" rx="21" ry="21" fill="#FF8A4C" stroke="#F7FAFC" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="421" cy="302" rx="21" ry="21" fill="#FF8A4C" stroke="#F7FAFC" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="258" cy="363" rx="14" ry="14" fill="#FF8A4C"/>
+  <ellipse cx="315" cy="151" rx="14" ry="14" fill="#FF8A4C"/>
+</svg>

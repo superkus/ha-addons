@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Original artwork created for Remote Energy Meter. No third-party marks or artwork. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img">
+  <title>Orbit Meter icon</title>
+  <polygon points="256,31 449,143 449,369 256,481 63,369 63,143" fill="#10233F" stroke="#9D7CFF" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="256" cy="256" rx="173" ry="105" fill="none" stroke="#31D6C4" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="256" cy="256" rx="97" ry="180" fill="none" stroke="#9D7CFF" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="108,256 205,256" fill="none" stroke="#31D6C4" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="307,205 394,176" fill="none" stroke="#9D7CFF" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="307,307 394,336" fill="none" stroke="#31D6C4" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="256" cy="256" rx="85" ry="85" fill="#18385D" stroke="#F7FAFC" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 205.213 291.562 A 62 62 0 1 1 306.787 291.562" fill="none" stroke="#9D7CFF" stroke-width="12" stroke-linecap="round"/>
+  <polyline points="256,271 306,211" fill="none" stroke="#31D6C4" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="256" cy="271" rx="16" ry="16" fill="#F7FAFC"/>
+  <ellipse cx="108" cy="256" rx="22" ry="22" fill="#31D6C4"/>
+  <ellipse cx="394" cy="176" rx="22" ry="22" fill="#9D7CFF"/>
+  <ellipse cx="394" cy="336" rx="22" ry="22" fill="#31D6C4"/>
+</svg>

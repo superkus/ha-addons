@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Original artwork created for Remote Energy Meter. No third-party marks or artwork. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img">
+  <title>Server Current icon</title>
+  <rect x="34" y="34" width="444" height="444" rx="92" fill="#10233F" stroke="#39D98A" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="86" y="92" width="340" height="94" rx="25" fill="#18385D" stroke="#39D98A" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="128" cy="139" rx="16" ry="16" fill="#4DB8FF"/>
+  <polyline points="166,139 216,139" fill="none" stroke="#F7FAFC" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="360,139 390,139" fill="none" stroke="#39D98A" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="86" y="224" width="340" height="94" rx="25" fill="#18385D" stroke="#39D98A" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="128" cy="271" rx="16" ry="16" fill="#4DB8FF"/>
+  <polyline points="166,271 216,271" fill="none" stroke="#F7FAFC" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="360,271 390,271" fill="none" stroke="#39D98A" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="86" y="356" width="340" height="94" rx="25" fill="#18385D" stroke="#39D98A" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="128" cy="403" rx="16" ry="16" fill="#4DB8FF"/>
+  <polyline points="166,403 216,403" fill="none" stroke="#F7FAFC" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="360,403 390,403" fill="none" stroke="#39D98A" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="174,271 224,271 253,230 289,318 322,271 392,271" fill="none" stroke="#4DB8FF" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="254" cy="271" rx="11" ry="11" fill="#F7FAFC"/>
+</svg>

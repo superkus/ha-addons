@@ -1,0 +1,35 @@
+{
+  "title": "Remote Energy Meter",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Remote Energy Meter",
+        "description": "Use manual setup only when Supervisor discovery is unavailable.",
+        "data": {
+          "base_topic": "MQTT base topic"
+        }
+      },
+      "hassio_confirm": {
+        "title": "Confirm Remote Energy Meter",
+        "description": "Set up the discovered {addon} add-on instance."
+      }
+    },
+    "error": {
+      "invalid_base_topic": "The MQTT base topic is invalid."
+    },
+    "abort": {
+      "already_configured": "Remote Energy Meter is already configured.",
+      "invalid_discovery_info": "Supervisor supplied invalid or unsupported discovery data."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "power": {
+        "name": "Power"
+      },
+      "energy": {
+        "name": "Energy"
+      }
+    }
+  }
+}

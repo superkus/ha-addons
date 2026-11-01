@@ -1,0 +1,21 @@
+# The image build only needs the packaging metadata and the Python package.
+# Keeping the context small matters here: `.venv` and `.git` are far larger than
+# everything the image actually installs.
+.git
+.github
+.kiro
+.venv
+venv
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.hypothesis
+**/__pycache__
+._*
+.nfs*
+**/*.pyc
+build
+dist
+*.egg-info
+docs
+tests

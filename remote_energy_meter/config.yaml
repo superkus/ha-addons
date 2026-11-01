@@ -1,0 +1,112 @@
+---
+# Home Assistant add-on manifest (Requirement 1.1).
+#
+# `schema` below covers every Addon_Configuration field the Configuration_Parser
+# reads. It deliberately constrains only the value ranges whose violation is
+# already fatal to the whole configuration:
+#
+#   * `poll_interval_s` (global)  -- Requirement 2.7 rejects the configuration
+#   * `mqtt.port`                 -- Requirement 2.11 rejects the configuration
+#
+# Every other value-domain rule (device identifier form, per-device poll
+# interval bounds, plugin parameter ranges, credential length) is left to the
+# Configuration_Parser on purpose. Supervisor refuses to save the whole options
+# blob when its schema fails, which would contradict Requirements 2.3, 2.12,
+# 5.7, 8.5, and 8.8: those require the offending Device_Entry to be excluded,
+# logged, and the remaining entries retained.
+name: Remote Energy Meter
+version: "0.1.0"
+slug: remote_energy_meter
+description: >-
+  Meters network-attached devices and publishes credential-free versioned MQTT
+  inventory plus power, energy, attributes, and availability state.
+url: https://github.com/superkus/ha-addons/tree/main/remote_energy_meter
+arch:
+  - amd64
+  - aarch64
+  - armv7
+
+# `startup: application` -- the metering process consumes the MQTT broker, so it
+# starts after the service-tier add-ons that provide it.
+startup: application
+boot: auto
+
+# Advertise the first-class companion integration through Supervisor. The add-on posts
+# only instance/topic/schema metadata; discovery failure is nonfatal to metering.
+discovery:
+  - remote_energy_meter
+
+# The base image supplies the s6-overlay init, so Supervisor must not inject its
+# own. Signal forwarding for Requirement 1.5 depends on this.
+init: false
+
+# Read-only access to the Home Assistant configuration directory so the
+# Configuration_Parser can resolve `!secret <name>` references (Requirement 8.4).
+map:
+  - homeassistant_config:ro
+
+options:
+  poll_interval_s: 30
+  log_level: info
+  mqtt:
+    host: core-mosquitto
+    port: 1883
+  devices:
+    - device_id: poweredge_a
+      plugin: idrac
+      display_name: PowerEdge A
+      params:
+        host: 192.0.2.9
+        username: root
+        password: "!secret idrac_a_password"
+        verify_tls: false
+    - device_id: poweredge_b
+      plugin: ipmi
+      display_name: PowerEdge B
+      params:
+        host: 192.0.2.20
+        username: root
+        password: "!secret idrac_b_password"
+        sensor_name: System Level
+        interface: lanplus
+        cipher_suite: 3
+
+schema:
+  # --- global ---------------------------------------------------------------
+  poll_interval_s: int(5,3600)?
+  log_level: list(debug|info|warning|error)?
+
+  # --- MQTT connection section ---------------------------------------------
+  mqtt:
+    host: str
+    port: port
+    username: str?
+    password: password?
+    client_id: str?
+    base_topic: str?
+    discovery_prefix: str?
+    tls: bool?
+
+  # --- device list ----------------------------------------------------------
+  devices:
+    - device_id: str
+      plugin: str
+      display_name: str?
+      poll_interval_s: int?
+      # `params` is plugin-specific and validated against the configuration
+      # schema published by the named Device_Plugin (Requirement 2.2). The
+      # fields below are the union of the currently shipped plugin schemas, all
+      # declared optional here so that each plugin requires only its own fields.
+      params:
+        # Shared connection fields
+        host: str?
+        username: str?
+        password: password?
+        request_timeout_s: float?
+        # iDRAC Redfish plugin
+        verify_tls: bool?
+        power_path: str?
+        # Generic IPMI sensor plugin
+        sensor_name: str?
+        interface: str?
+        cipher_suite: int?

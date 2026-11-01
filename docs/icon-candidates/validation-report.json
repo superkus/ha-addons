@@ -1,0 +1,670 @@
+{
+  "result": "pass",
+  "artwork_origin": "Original artwork created for Remote Energy Meter",
+  "candidate_count": 4,
+  "deployment_assets_per_candidate": 6,
+  "editable_sources_per_candidate": 2,
+  "dark_variants": "not needed; opaque high-contrast plates were validated on light and dark backgrounds",
+  "png": [
+    {
+      "path": "01-pulse-dial/addon/icon.png",
+      "dimensions": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        6,
+        6,
+        122,
+        122
+      ],
+      "bytes": 15352,
+      "sha256": "2bc9dc07f35b365ead6555396af8fea6d4dd1b4339724dccc5b3ffe33070ea4d",
+      "png_interlace_method": 0,
+      "downscaled_32_alpha_bbox": [
+        0,
+        0,
+        32,
+        32
+      ],
+      "downscaled_32_light_luminance_span": 242.8,
+      "downscaled_32_dark_luminance_span": 234.3
+    },
+    {
+      "path": "01-pulse-dial/addon/logo.png",
+      "dimensions": [
+        250,
+        100
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        4,
+        250,
+        96
+      ],
+      "bytes": 25186,
+      "sha256": "d96d368ec086dd8b7876256a56e54dbccce7d5338c8fea3463dc77036b90035a",
+      "png_interlace_method": 0
+    },
+    {
+      "path": "01-pulse-dial/integration/brand/icon.png",
+      "dimensions": [
+        256,
+        256
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        14,
+        14,
+        242,
+        242
+      ],
+      "bytes": 30243,
+      "sha256": "d64f0f961e6f0557a81e18a7f2192acf5244a34931f1758cc8408a3a157fd92e",
+      "png_interlace_method": 0,
+      "downscaled_32_alpha_bbox": [
+        0,
+        0,
+        32,
+        32
+      ],
+      "downscaled_32_light_luminance_span": 241.2,
+      "downscaled_32_dark_luminance_span": 232.3
+    },
+    {
+      "path": "01-pulse-dial/integration/brand/icon@2x.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        31,
+        31,
+        481,
+        481
+      ],
+      "bytes": 61900,
+      "sha256": "b60b96af69728f784a255f605fc5a7b7ed5f227b4dfdda8e8747b43ac41b5fe7",
+      "png_interlace_method": 0,
+      "downscaled_32_alpha_bbox": [
+        0,
+        0,
+        32,
+        32
+      ],
+      "downscaled_32_light_luminance_span": 241.2,
+      "downscaled_32_dark_luminance_span": 231.6
+    },
+    {
+      "path": "01-pulse-dial/integration/brand/logo.png",
+      "dimensions": [
+        640,
+        256
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        1,
+        15,
+        639,
+        241
+      ],
+      "bytes": 43145,
+      "sha256": "ed3cee60abf08506141c9d4830098e68699b7c74ffd2590231382858aa96291b",
+      "png_interlace_method": 0
+    },
+    {
+      "path": "01-pulse-dial/integration/brand/logo@2x.png",
+      "dimensions": [
+        1280,
+        512
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        5,
+        33,
+        1275,
+        479
+      ],
+      "bytes": 88994,
+      "sha256": "1a59505be5ba71689fdfd0696e65fe9cba75839d126aa21ac956b7f8ea2e2a67",
+      "png_interlace_method": 0
+    },
+    {
+      "path": "02-server-current/addon/icon.png",
+      "dimensions": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        6,
+        6,
+        122,
+        122
+      ],
+      "bytes": 7813,
+      "sha256": "82c46966ee925f80ba08303146622d9e578826240d720dea1553f9b181b665ca",
+      "png_interlace_method": 0,
+      "downscaled_32_alpha_bbox": [
+        0,
+        0,
+        32,
+        32
+      ],
+      "downscaled_32_light_luminance_span": 234.5,
+      "downscaled_32_dark_luminance_span": 202.6
+    },
+    {
+      "path": "02-server-current/addon/logo.png",
+      "dimensions": [
+        250,
+        100
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        4,
+        250,
+        96
+      ],
+      "bytes": 22552,
+      "sha256": "1b0a104eb541d01265f18944afdc705655bef728f6382103cb844cc45dc4b331",
+      "png_interlace_method": 0
+    },
+    {
+      "path": "02-server-current/integration/brand/icon.png",
+      "dimensions": [
+        256,
+        256
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        14,
+        14,
+        242,
+        242
+      ],
+      "bytes": 19640,
+      "sha256": "cd2250c1bf2516f356eafb1ce315395609bee82f6c426437539758897acf4fd4",
+      "png_interlace_method": 0,
+      "downscaled_32_alpha_bbox": [
+        0,
+        0,
+        32,
+        32
+      ],
+      "downscaled_32_light_luminance_span": 235.3,
+      "downscaled_32_dark_luminance_span": 202.0
+    },
+    {
+      "path": "02-server-current/integration/brand/icon@2x.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        31,
+        31,
+        481,
+        481
+      ],
+      "bytes": 39142,
+      "sha256": "ee5843bc62eaa1e35239a83fa1a16d1ffc0315a6d34cf3047984f1f2779b01ec",
+      "png_interlace_method": 0,
+      "downscaled_32_alpha_bbox": [
+        0,
+        0,
+        32,
+        32
+      ],
+      "downscaled_32_light_luminance_span": 235.3,
+      "downscaled_32_dark_luminance_span": 201.0
+    },
+    {
+      "path": "02-server-current/integration/brand/logo.png",
+      "dimensions": [
+        640,
+        256
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        1,
+        15,
+        639,
+        241
+      ],
+      "bytes": 33270,
+      "sha256": "b926d453a6517022f3b5659b73e95ea0e2f6bcd51523ce6b0e62069e1251add6",
+      "png_interlace_method": 0
+    },
+    {
+      "path": "02-server-current/integration/brand/logo@2x.png",
+      "dimensions": [
+        1280,
+        512
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        5,
+        33,
+        1275,
+        479
+      ],
+      "bytes": 68230,
+      "sha256": "b5586b7765af5000999da4b2f46e92ba18f064b29330e8fb7ed5cc64d17fdc7d",
+      "png_interlace_method": 0
+    },
+    {
+      "path": "03-orbit-meter/addon/icon.png",
+      "dimensions": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        11,
+        4,
+        117,
+        125
+      ],
+      "bytes": 17594,
+      "sha256": "884256e2a09dc2d7b6206f13c855519d16847880f10e241abd36a6f9f5de5f7c",
+      "png_interlace_method": 0,
+      "downscaled_32_alpha_bbox": [
+        1,
+        0,
+        31,
+        32
+      ],
+      "downscaled_32_light_luminance_span": 237.1,
+      "downscaled_32_dark_luminance_span": 238.6
+    },
+    {
+      "path": "03-orbit-meter/addon/logo.png",
+      "dimensions": [
+        250,
+        100
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        4,
+        250,
+        96
+      ],
+      "bytes": 26823,
+      "sha256": "1f631e627cc2072d4dfa05d47a524fdd3a4294959460562e8b66dc00ac1970ea",
+      "png_interlace_method": 0
+    },
+    {
+      "path": "03-orbit-meter/integration/brand/icon.png",
+      "dimensions": [
+        256,
+        256
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        24,
+        9,
+        232,
+        248
+      ],
+      "bytes": 40450,
+      "sha256": "d403cf408e343bd63b88d0d91a99337b483c2a377f6620df13ab549b0346c630",
+      "png_interlace_method": 0,
+      "downscaled_32_alpha_bbox": [
+        1,
+        0,
+        31,
+        32
+      ],
+      "downscaled_32_light_luminance_span": 236.3,
+      "downscaled_32_dark_luminance_span": 238.2
+    },
+    {
+      "path": "03-orbit-meter/integration/brand/icon@2x.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        51,
+        21,
+        461,
+        493
+      ],
+      "bytes": 86615,
+      "sha256": "b8e11c469c79e9b0142dd41f2cf59ae8d355c0cba014baadbe85019ccc4a8705",
+      "png_interlace_method": 0,
+      "downscaled_32_alpha_bbox": [
+        1,
+        0,
+        31,
+        32
+      ],
+      "downscaled_32_light_luminance_span": 236.3,
+      "downscaled_32_dark_luminance_span": 238.0
+    },
+    {
+      "path": "03-orbit-meter/integration/brand/logo.png",
+      "dimensions": [
+        640,
+        256
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        1,
+        15,
+        639,
+        241
+      ],
+      "bytes": 52121,
+      "sha256": "69a600c4106658e1c8541540517a978e09f664fb5d436d4f7dc1df9472d45c1e",
+      "png_interlace_method": 0
+    },
+    {
+      "path": "03-orbit-meter/integration/brand/logo@2x.png",
+      "dimensions": [
+        1280,
+        512
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        5,
+        33,
+        1275,
+        479
+      ],
+      "bytes": 112451,
+      "sha256": "acc62d68ecfc1bbe60da763967c947d44e125962fc1635cf9a45b58dcd4ee98f",
+      "png_interlace_method": 0
+    },
+    {
+      "path": "04-watt-link/addon/icon.png",
+      "dimensions": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        3,
+        4,
+        125,
+        125
+      ],
+      "bytes": 7517,
+      "sha256": "885c984ca5a2dde325b8c515a8da412127e549d7a5035d5e77646e1e3a7fd5e1",
+      "png_interlace_method": 0,
+      "downscaled_32_alpha_bbox": [
+        0,
+        0,
+        32,
+        32
+      ],
+      "downscaled_32_light_luminance_span": 236.3,
+      "downscaled_32_dark_luminance_span": 192.5
+    },
+    {
+      "path": "04-watt-link/addon/logo.png",
+      "dimensions": [
+        250,
+        100
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        4,
+        250,
+        96
+      ],
+      "bytes": 22035,
+      "sha256": "92a578a1e1d544aa99c2226c89a6a7f6eb05fa10b6a6eb91cc58455b8cdf4fa1",
+      "png_interlace_method": 0
+    },
+    {
+      "path": "04-watt-link/integration/brand/icon.png",
+      "dimensions": [
+        256,
+        256
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        9,
+        10,
+        248,
+        248
+      ],
+      "bytes": 13921,
+      "sha256": "b5eca7b49a1861a8d21cfe9127f0a1906a4099645039d9faa44f832d50d35874",
+      "png_interlace_method": 0,
+      "downscaled_32_alpha_bbox": [
+        0,
+        0,
+        32,
+        32
+      ],
+      "downscaled_32_light_luminance_span": 236.5,
+      "downscaled_32_dark_luminance_span": 193.8
+    },
+    {
+      "path": "04-watt-link/integration/brand/icon@2x.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        20,
+        22,
+        493,
+        493
+      ],
+      "bytes": 28104,
+      "sha256": "a67ad992c9a4a8e651e027cb5f27c3a236faec8c814c6f887890c980b884ef33",
+      "png_interlace_method": 0,
+      "downscaled_32_alpha_bbox": [
+        0,
+        0,
+        32,
+        32
+      ],
+      "downscaled_32_light_luminance_span": 236.5,
+      "downscaled_32_dark_luminance_span": 193.0
+    },
+    {
+      "path": "04-watt-link/integration/brand/logo.png",
+      "dimensions": [
+        640,
+        256
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        1,
+        15,
+        639,
+        241
+      ],
+      "bytes": 30725,
+      "sha256": "6f1b3c39f2286a3930d9a22c5dce9438c207feb47c51c35c3ca510678eb17645",
+      "png_interlace_method": 0
+    },
+    {
+      "path": "04-watt-link/integration/brand/logo@2x.png",
+      "dimensions": [
+        1280,
+        512
+      ],
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        5,
+        33,
+        1275,
+        479
+      ],
+      "bytes": 63643,
+      "sha256": "fce1990ca63e051ea4c0a8863a060bcdcabd146a1e94ad05f1a27c6b27b271d5",
+      "png_interlace_method": 0
+    }
+  ],
+  "svg": [
+    {
+      "path": "01-pulse-dial/source/icon.svg",
+      "view_box": "0 0 512 512",
+      "bytes": 1360,
+      "sha256": "de2a107c58eb31f7dee737fec56f550fa42549b1c3758f931c87868d5645f0e1"
+    },
+    {
+      "path": "01-pulse-dial/source/logo.svg",
+      "view_box": "0 0 1280 512",
+      "bytes": 26080,
+      "sha256": "cab8e464a8876b12940ce60fc93d29acf9d25cbd700696ff79cff198ea4dc79f"
+    },
+    {
+      "path": "02-server-current/source/icon.svg",
+      "view_box": "0 0 512 512",
+      "bytes": 2100,
+      "sha256": "5b0bd1420019f97ac757f70ccde8f6d88d401585a01de932ed6c812446cd5e95"
+    },
+    {
+      "path": "02-server-current/source/logo.svg",
+      "view_box": "0 0 1280 512",
+      "bytes": 26898,
+      "sha256": "3e4786c3af051ae96cdcd6b8a55b306e8db89165414fa14d5e2066f033295054"
+    },
+    {
+      "path": "03-orbit-meter/source/icon.svg",
+      "view_box": "0 0 512 512",
+      "bytes": 1776,
+      "sha256": "797056ca1730f4240db61d47ea7aba86c24e0823b867f40e8683b85b6d66c569"
+    },
+    {
+      "path": "03-orbit-meter/source/logo.svg",
+      "view_box": "0 0 1280 512",
+      "bytes": 26544,
+      "sha256": "7e6ac87cdc14c9fddce8e790bf043c1a5c9e9af907ca0fd8e853fe6557dd207b"
+    },
+    {
+      "path": "04-watt-link/source/icon.svg",
+      "view_box": "0 0 512 512",
+      "bytes": 1261,
+      "sha256": "82631aca48e1805c75295cca153bd6d46a87a8fdb69d6adcf1a09c09095d0f16"
+    },
+    {
+      "path": "04-watt-link/source/logo.svg",
+      "view_box": "0 0 1280 512",
+      "bytes": 25980,
+      "sha256": "0c68177dfa69be4558b01c5ab9336a696f6977bc0a7de7766079b833e929fde4"
+    }
+  ],
+  "contact_sheet": {
+    "path": "contact-sheet.png",
+    "dimensions": [
+      1500,
+      1280
+    ],
+    "mode": "RGBA",
+    "bytes": 311723,
+    "sha256": "ddfcbc29a6fd766759fedee037cd5c71b76be0078d8f574e352b54b0c7e361ff"
+  }
+}

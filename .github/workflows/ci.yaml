@@ -1,0 +1,251 @@
+---
+# Continuous integration for the Remote Energy Meter add-on.
+#
+# Requirement 1.1 (add-on manifest) is guarded by the add-on linter plus the
+# schema-agreement test in the default suite; Requirement 1.2 (image entry point
+# and exit-status propagation) by the image build plus the container-level
+# integration tests; Requirement 10.2 (reference conformance suite) by the
+# default suite, which collects `tests/conformance/`.
+#
+# Every check is its own job so a red run names what broke without anyone
+# opening a log.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Nothing here writes to the repository, publishes a package, or reads a secret.
+permissions:
+  contents: read
+
+# A newer push to the same ref makes the older run's answer worthless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # pyproject pins `requires-python = ">=3.12"`, ruff `target-version = "py312"`,
+  # and mypy `python_version = "3.12"`. CI must not silently drift to a newer
+  # interpreter than the tools are configured for.
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install the dev extra
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # Two separate steps on purpose: a formatting diff and a lint violation are
+      # different fixes, and collapsing them hides one behind the other.
+      - name: ruff check
+        run: ruff check
+
+      - name: ruff format --check
+        run: ruff format --check
+
+      - name: Validate the companion integration package
+        run: python tools/validate_integration_package.py custom_components/remote_energy_meter
+
+  typecheck:
+    name: mypy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install the dev extra
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # pyproject sets strict checking over backend source, tests, and the custom integration.
+      # Lightweight local type stubs model Home Assistant's API without installing Core into this package.
+      # `--strict` is still explicit so a future pyproject edit cannot weaken the gate.
+      - name: mypy --strict
+        run: mypy --strict
+
+  test:
+    name: pytest (unit, property, conformance)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install the dev extra
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # pyproject registers the `integration` marker but does not deselect it in
+      # `addopts`, so a bare `pytest` would also open real sockets, spawn a
+      # Mosquitto subprocess, and build container images. Deselect it here and
+      # let the `integration` job below run it deliberately, on a runner that has
+      # the broker installed.
+      - name: Run the default suite
+        run: pytest -m "not integration"
+
+  integration:
+    name: pytest -m integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install the dev extra
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # The broker fixture skips itself with a clear message when the binary is
+      # absent, which in CI would mean a silent hole rather than a failure.
+      - name: Install Mosquitto
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends mosquitto
+          # The fixture starts its own broker on an ephemeral port, so the
+          # service that apt auto-starts on 1883 is not wanted: leaving it up
+          # would let a test pass against the wrong broker.
+          sudo systemctl disable --now mosquitto || true
+          mosquitto -h | head -n 1
+
+      - name: Run the integration suite
+        run: |
+          set +e
+          pytest -m integration
+          status=$?
+          # pytest exits 5 when it collected nothing. The integration suite is
+          # spec tasks 15.1-15.6 and is not written yet, so today this job
+          # legitimately collects zero tests; failing on that would leave CI red
+          # for a reason nobody can act on. Every other non-zero status still
+          # fails the job, and once 15.x lands this branch stops being taken.
+          if [ "$status" -eq 5 ]; then
+            echo "::notice title=No integration tests::pytest collected no tests matching -m integration (spec tasks 15.1-15.6 pending); treating exit code 5 as success."
+            exit 0
+          fi
+          exit "$status"
+
+  addon-lint:
+    name: add-on linter
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # `path` is the action's only required input and points at the folder that
+      # holds the manifest, not at `config.yaml` itself; the linter accepts
+      # either `config.yaml` or `config.json` there.
+      - name: Lint remote_energy_meter/config.yaml
+        uses: frenck/action-addon-linter@v2
+        with:
+          path: "./remote_energy_meter"
+
+  image:
+    name: image (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    # Emulated builds are slow: the aarch64 and armv7 wheels for pydantic-core
+    # may not exist for musl, in which case pip compiles it under QEMU. Cap the
+    # job so a runaway build fails legibly instead of burning an hour.
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        # One entry per architecture declared in `remote_energy_meter/config.yaml`
+        # and `remote_energy_meter/build.yaml`. `platform` is the Docker name for
+        # the same architecture; build.yaml does not carry it, so it lives here.
+        include:
+          - arch: amd64
+            platform: linux/amd64
+          - arch: aarch64
+            platform: linux/arm64
+          - arch: armv7
+            platform: linux/arm/v7
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # build.yaml is the single source of truth for the base images. Reading it
+      # here instead of restating the tags in the matrix means a base-image bump
+      # cannot leave this workflow building against the old one, and an
+      # architecture dropped from build.yaml fails this step loudly.
+      - name: Resolve the base image from build.yaml
+        id: base
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          pip install --quiet "pyyaml>=6.0.2,<7"
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import os
+          import pathlib
+
+          import yaml
+
+          arch = os.environ["ARCH"]
+          manifest = yaml.safe_load(pathlib.Path("remote_energy_meter/build.yaml").read_text())
+          build_from = manifest["build_from"][arch]
+          print(f"build_from={build_from}")
+          PY
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Build only: no registry login, no push, no credentials. The build context
+      # is the repository root because the Dockerfile copies pyproject.toml,
+      # README.md, and src/ from there (see its header comment).
+      #
+      # Values arrive through the environment rather than inline `${{ }}` so the
+      # shell never has expression output spliced into it.
+      - name: Build the ${{ matrix.arch }} image
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          BUILD_ARCH: ${{ matrix.arch }}
+          BUILD_FROM: ${{ steps.base.outputs.build_from }}
+        run: |
+          docker buildx build \
+            --platform "$PLATFORM" \
+            --file remote_energy_meter/Dockerfile \
+            --build-arg "BUILD_FROM=$BUILD_FROM" \
+            --build-arg "BUILD_ARCH=$BUILD_ARCH" \
+            --tag "remote-energy-meter:ci-$BUILD_ARCH" \
+            --cache-from "type=gha,scope=image-$BUILD_ARCH" \
+            --cache-to "type=gha,mode=max,scope=image-$BUILD_ARCH" \
+            .

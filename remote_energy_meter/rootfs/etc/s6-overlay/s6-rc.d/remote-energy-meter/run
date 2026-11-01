@@ -1,0 +1,16 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# Start the Remote Energy Meter metering process.
+#
+# `exec` replaces this shell, so the metering process *is* the s6 service
+# process. Two requirements depend on that:
+#
+#   * Requirement 1.5 -- s6 delivers SIGTERM directly to the Python process on
+#     shutdown, so its own handler runs the shutdown sequence.
+#   * Requirement 1.2 -- the status the process exits with is the status `finish`
+#     receives, and `finish` makes it the container exit status.
+# ==============================================================================
+
+bashio::log.info "Starting Remote Energy Meter..."
+
+exec python3 -m remote_energy_meter

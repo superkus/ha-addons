@@ -1,0 +1,15 @@
+---
+# Per-architecture base image. The Home Assistant base-python images supply
+# Python 3.12, tzdata, bashio, and the s6-overlay init that Requirement 1.5
+# depends on for SIGTERM forwarding.
+build_from:
+  amd64: ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.22
+  aarch64: ghcr.io/home-assistant/aarch64-base-python:3.12-alpine3.22
+  armv7: ghcr.io/home-assistant/armv7-base-python:3.12-alpine3.22
+
+labels:
+  org.opencontainers.image.title: Remote Energy Meter
+  org.opencontainers.image.description: >-
+    Home Assistant add-on that meters power of network-attached devices through
+    per-family plugins and publishes power and energy over MQTT discovery.
+  org.opencontainers.image.licenses: MIT

@@ -1,0 +1,43 @@
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
+
+from .core import HomeAssistant
+
+ConfigFlowResult = dict[str, Any]
+
+class ConfigEntry[T]:
+    data: Mapping[str, Any]
+    unique_id: str | None
+    title: str
+    entry_id: str
+    runtime_data: T
+    def async_on_unload(self, func: Callable[[], None]) -> Callable[[], None]: ...
+
+class ConfigEntries:
+    async def async_forward_entry_setups(self, entry: ConfigEntry[Any], platforms: Sequence[object]) -> None: ...
+    async def async_unload_platforms(self, entry: ConfigEntry[Any], platforms: Sequence[object]) -> bool: ...
+    def async_schedule_reload(self, entry_id: str) -> None: ...
+
+class ConfigFlow:
+    VERSION: int
+    hass: HomeAssistant
+    context: dict[str, Any]
+    def __init_subclass__(cls, *, domain: str, **kwargs: object) -> None: ...
+    async def async_set_unique_id(self, unique_id: str) -> None: ...
+    def _async_current_entries(self, **kwargs: object) -> Sequence[ConfigEntry[Any]]: ...
+    def async_show_form(self, *, step_id: str, **kwargs: object) -> ConfigFlowResult: ...
+    def async_abort(self, *, reason: str) -> ConfigFlowResult: ...
+    def async_create_entry(self, *, title: str, data: Mapping[str, Any]) -> ConfigFlowResult: ...
+    def async_update_reload_and_abort(
+        self,
+        entry: ConfigEntry[Any],
+        *,
+        unique_id: str | None = ...,
+        title: str = ...,
+        data: Mapping[str, Any] = ...,
+        data_updates: Mapping[str, Any] = ...,
+        reload_even_if_entry_is_unchanged: bool = ...,
+        reason: str = ...,
+    ) -> ConfigFlowResult: ...
+    async def async_step_user(self, user_input: dict[str, Any] | None = ...) -> ConfigFlowResult: ...
+    async def async_step_hassio(self, discovery_info: Any) -> ConfigFlowResult: ...

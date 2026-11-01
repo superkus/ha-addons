@@ -1,0 +1,11 @@
+{
+  "codeowners": ["@superkus"],
+  "config_flow": true,
+  "dependencies": ["mqtt"],
+  "documentation": "https://github.com/superkus/ha-addons/tree/main/remote_energy_meter",
+  "domain": "remote_energy_meter",
+  "integration_type": "hub",
+  "iot_class": "local_push",
+  "name": "Remote Energy Meter",
+  "version": "0.1.0"
+}

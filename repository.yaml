@@ -1,0 +1,9 @@
+---
+# Home Assistant add-on repository metadata.
+#
+# Add this repository in Home Assistant via
+#   Settings -> Add-ons -> Add-on Store -> ... -> Repositories
+# and paste the `url` below.
+name: Remote Energy Meter Add-ons
+url: https://github.com/superkus/ha-addons
+maintainer: Remote Energy Meter maintainers <noreply@example.invalid>

@@ -1,0 +1,132 @@
+[build-system]
+requires = ["hatchling>=1.25,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "remote-energy-meter"
+version = "0.1.0"
+description = "Home Assistant addon that meters power of network-attached devices through per-family plugins"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Remote Energy Meter maintainers" }]
+keywords = ["home-assistant", "addon", "energy", "power", "idrac", "redfish", "mqtt"]
+classifiers = [
+  "Private :: Do Not Upload",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Home Automation",
+]
+dependencies = [
+  "aiohttp>=3.9,<4",
+  "aiomqtt>=2.3,<3",
+  "pydantic>=2.7,<3",
+  # Home Assistant `secrets.yaml` is real YAML: quoted scalars, comments inside values,
+  # and block scalars all occur in passwords. Parsing it with a hand-rolled subset would
+  # mis-read a legitimate credential, so the reference resolver uses `yaml.safe_load`.
+  "pyyaml>=6.0.2,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2,<9",
+  "pytest-asyncio>=0.23,<1",
+  "hypothesis>=6.100,<7",
+  "ruff>=0.6,<1",
+  "mypy>=1.11,<2",
+  # PyYAML ships no inline types, so `mypy --strict` needs its stub distribution.
+  "types-pyyaml>=6.0.12,<7",
+]
+
+[project.scripts]
+remote-energy-meter = "remote_energy_meter.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/remote_energy_meter"]
+
+# ---------------------------------------------------------------------------
+# ruff
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests", "custom_components", "tools"]
+# Spec documents and Markdown carry illustrative code blocks that ruff would rewrite.
+extend-exclude = [".kiro", ".venv", "build", "dist", "*.md", "._*"]
+
+[tool.ruff.lint]
+select = [
+  "E",    # pycodestyle errors
+  "W",    # pycodestyle warnings
+  "F",    # pyflakes
+  "I",    # isort
+  "N",    # pep8-naming
+  "UP",   # pyupgrade
+  "B",    # flake8-bugbear
+  "A",    # flake8-builtins
+  "C4",   # flake8-comprehensions
+  "DTZ",  # flake8-datetimez -- timezone-aware UTC timestamps are load-bearing here
+  "ASYNC",# flake8-async
+  "LOG",  # flake8-logging
+  "G",    # flake8-logging-format
+  "PTH",  # flake8-use-pathlib
+  "RET",  # flake8-return
+  "SIM",  # flake8-simplify
+  "TID",  # flake8-tidy-imports
+  "TRY",  # tryceratops
+  "RUF",  # ruff-specific
+]
+ignore = [
+  "TRY003",  # long messages outside the exception class are fine for classified failures
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+  "S101",    # asserts are the point
+  "PLR2004", # magic values in assertions are clearer inline
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["remote_energy_meter"]
+
+# ---------------------------------------------------------------------------
+# mypy
+# ---------------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "tests", "custom_components"]
+mypy_path = "src:typings"
+explicit_package_bases = true
+warn_unreachable = true
+warn_no_return = true
+enable_error_code = [
+  "redundant-expr",
+  "truthy-bool",
+  "ignore-without-code",
+  "possibly-undefined",
+]
+
+[[tool.mypy.overrides]]
+module = ["aiomqtt.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = [
+  "--strict-markers",
+  "--strict-config",
+  "-ra",
+]
+markers = [
+  "integration: exercises a real transport (fake Redfish server over HTTPS, local Mosquitto broker, or a built container image)",
+]

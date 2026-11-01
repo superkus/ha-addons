@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+
+# Editors / OS
+.DS_Store
+*.swp
+# AppleDouble sidecars: on filesystems without extended attributes (network
+# shares, FAT volumes) macOS writes these binary companions. Never source.
+._*
+# NFS silly-rename stubs for files deleted while still held open.
+.nfs*
+
+# Local secrets (never commit)
+idrac-probe.local.json
+
+# Kiro per-machine state: execution history and session IDs of local runs, and
+# local settings (may contain tokens). Specs and steering files are tracked.
+.kiro/specs/*/tasks.meta.json
+.kiro/settings/

@@ -1,0 +1,44 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# Bring the container down when the metering process exits, and make the
+# container exit status equal the metering process exit status (Requirement 1.2).
+#
+# s6 invokes a `finish` script with:
+#   $1 -- the service exit status, or 256 when the service was killed by a signal
+#   $2 -- the signal number, meaningful only when $1 is 256
+#
+# Writing to /run/s6-linux-init-container-results/exitcode sets the status the
+# container will report; it is only written while it still holds 0 so the first
+# non-zero cause wins rather than being overwritten by a later teardown.
+# ==============================================================================
+
+declare exit_code_container
+declare exit_code_service="${1}"
+declare exit_code_signal="${2}"
+
+readonly service="remote-energy-meter"
+readonly results="/run/s6-linux-init-container-results/exitcode"
+
+exit_code_container="$(cat "${results}" 2>/dev/null || echo 0)"
+
+if [[ "${exit_code_service}" -eq 256 ]]; then
+    # Killed by a signal. 128 + signal is the shell convention for reporting it
+    # as a wait status, and it is the closest available representation of "the
+    # metering process ended on signal N".
+    bashio::log.warning "${service} was killed by signal ${exit_code_signal}"
+    if [[ "${exit_code_container}" -eq 0 ]]; then
+        echo "$((128 + exit_code_signal))" > "${results}"
+    fi
+elif [[ "${exit_code_service}" -ne 0 ]]; then
+    bashio::log.error "${service} exited with status ${exit_code_service}"
+    if [[ "${exit_code_container}" -eq 0 ]]; then
+        echo "${exit_code_service}" > "${results}"
+    fi
+else
+    bashio::log.info "${service} exited cleanly"
+fi
+
+# The metering process is the whole add-on: when it stops, the container stops.
+# Requirement 1.4 relies on this, so a failed startup step exits the container
+# non-zero instead of leaving an idle supervision tree behind.
+exec /run/s6/basedir/bin/halt
