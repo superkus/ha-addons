@@ -5,9 +5,10 @@ from __future__ import annotations
 import asyncio
 import os
 from collections import deque
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Final
 
 import pytest
@@ -37,6 +38,18 @@ PASSWORD: Final = "not-on-the-command-line"
 RECEIVED_AT: Final = datetime(2026, 9, 5, 12, 0, 0, tzinfo=UTC)
 VALID_PARAMS: Final[dict[str, Any]] = {"host": HOST, "username": USERNAME, "password": PASSWORD}
 SUCCESS_OUTPUT: Final = b"Sensor ID              : System Level (0x1)\nSensor Reading         : 112 (+/- 0) Watts\n"
+
+_cache_dir: Path | None = None
+
+
+@pytest.fixture(autouse=True)
+def _per_test_sdr_cache_dir(tmp_path: Path) -> Iterator[None]:
+    """Give every test its own SDR cache directory; ``make_plugin`` pre-populates it by default."""
+    global _cache_dir
+    _cache_dir = tmp_path / "sdr-cache"
+    _cache_dir.mkdir()
+    yield
+    _cache_dir = None
 
 
 @dataclass(slots=True)
@@ -88,16 +101,26 @@ def make_plugin(
     device_id: str = DEVICE_ID,
     executable: str = "ipmitool",
     clock: Any = None,
+    cache_ready: bool = True,
     **overrides: Any,
 ) -> IpmiPlugin:
+    """Build a plugin whose SDR cache already exists, so one operation is exactly one ``sdr get``.
+
+    The cache lifecycle (dump, rebuild, throttling) is covered in ``test_ipmi_sdr_cache.py``.
+    """
+    assert _cache_dir is not None
     parsed = IpmiParams(**(VALID_PARAMS | overrides))
-    return IpmiPlugin(
+    plugin = IpmiPlugin(
         device_id,
         parsed,
         command_runner=runner,
         executable=executable,
         clock=clock if clock is not None else lambda: RECEIVED_AT,
+        sdr_cache_dir=_cache_dir,
     )
+    if cache_ready:
+        plugin.sdr_cache_path.write_bytes(b"cached-sdr-repository")
+    return plugin
 
 
 async def read(plugin: IpmiPlugin, timeout_s: float = 5.0) -> PowerReading | ReadFailure:
@@ -147,15 +170,21 @@ async def test_successful_read_uses_exact_safe_argv_and_child_environment(
         "-E",
         "-C",
         "3",
+        # A short retransmission interval: floor(4.2 / 4) = 1 s, so one lost datagram costs
+        # one second rather than the whole attempt.
         "-N",
-        "5",
-        "-R",
         "1",
+        "-R",
+        "2",
+        "-v",
+        "-S",
+        str(plugin.sdr_cache_path),
         "sdr",
         "get",
         "System Level",
     )
-    assert call.timeout_s == 4.2
+    # The plugin ends its own child 0.5 s before the caller's 4.2 s deadline.
+    assert 3.6 < call.timeout_s <= 3.7
     assert call.env == (dict(os.environ) | {IPMI_PASSWORD_ENV: PASSWORD})
     assert PASSWORD not in call.argv
     assert "-P" not in call.argv
@@ -198,15 +227,42 @@ async def test_password_is_absent_from_argv_representations_details_and_logs(
 @pytest.mark.parametrize(
     "stderr",
     [
-        b"RAKP 2 message indicates an error : unauthorized name",
-        b"Error: Unable to establish IPMI v2 / RMCP+ session",
+        # Verbatim ipmitool 1.8.19 output against an iDRAC 6, captured with -v.
+        b"RAKP 2 message indicates an error : unauthorized name\nError: Unable to establish IPMI v2 / RMCP+ session",
+        b"> RAKP 2 HMAC is invalid\nError: Unable to establish IPMI v2 / RMCP+ session",
         b"password verification failed",
     ],
 )
-async def test_session_or_authentication_rejection_is_authentication(stderr: bytes) -> None:
+async def test_credential_rejection_is_authentication(stderr: bytes) -> None:
     result = await failure(make_plugin(runner_with(completed(1, stdout=b"", stderr=stderr))))
 
     assert result.classification is FailureClassification.AUTHENTICATION
+    assert result.detail == "the IPMI credentials were rejected"
+
+
+@pytest.mark.parametrize(
+    "stderr",
+    [
+        # ipmitool prints this one line, with no RAKP detail, for an unreachable controller and for a
+        # controller whose session slots are exhausted. It is not evidence of a bad credential.
+        b"Error: Unable to establish IPMI v2 / RMCP+ session",
+        b"Get Auth Capabilities error\nError issuing Get Channel Authentication Capabilities request\n"
+        b"Error: Unable to establish IPMI v2 / RMCP+ session",
+    ],
+)
+async def test_bare_session_setup_failure_is_communication_not_authentication(stderr: bytes) -> None:
+    result = await failure(make_plugin(runner_with(completed(1, stdout=b"", stderr=stderr))))
+
+    assert result.classification is FailureClassification.COMMUNICATION
+    assert "no IPMI session could be established" in result.detail
+
+
+async def test_exhausted_session_slots_are_named_in_the_detail() -> None:
+    stderr = b"Error in open session response message : insufficient resources for session\n"
+    result = await failure(make_plugin(runner_with(completed(1, stdout=b"", stderr=stderr))))
+
+    assert result.classification is FailureClassification.COMMUNICATION
+    assert result.detail == "the controller has no free IPMI session slot"
 
 
 async def test_network_or_tool_failure_is_communication() -> None:

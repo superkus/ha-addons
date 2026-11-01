@@ -223,6 +223,7 @@ def next_retry_delay(
     elapsed_s: float,
     interval_s: float,
     classification: FailureClassification,
+    attempt_timeout_s: float = 0.0,
 ) -> float | None:
     """How long to wait before the next attempt, or ``None`` when the cycle is over (Requirement 5.5).
 
@@ -234,7 +235,10 @@ def next_retry_delay(
     * every other classification is retried up to twice, waiting 1 s then 2 s (:data:`RETRY_DELAYS_S`);
     * no attempt is *started* once the elapsed cycle time for this device, retry delays included, would reach its poll
       interval. The check is made before sleeping, so the budget bounds the sleep as well as the attempt -- a cycle
-      that stopped after sleeping into the next scheduled time would have spent the budget to learn nothing.
+      that stopped after sleeping into the next scheduled time would have spent the budget to learn nothing;
+    * the attempt's own worst case, ``attempt_timeout_s``, counts against the budget too. Without it a 30 s interval
+      with a 10 s timeout started a third attempt at ~21 s that could run to ~33 s, overran the interval, and made
+      the next scheduled cycle be skipped -- turning one slow controller into a missing reading every other cycle.
 
     The budget comparison is strict (``<``): Requirement 5.5 stops once the elapsed time *reaches* the interval, so an
     attempt that would begin exactly at the next scheduled time does not begin.
@@ -243,6 +247,7 @@ def next_retry_delay(
     :param elapsed_s: seconds since the cycle began, measured on the scheduler's clock.
     :param interval_s: this device's resolved poll interval, which is also the cycle's wall-clock budget.
     :param classification: why the attempt just completed failed.
+    :param attempt_timeout_s: the longest the next attempt may take; ``0`` keeps the delay-only check.
     :returns: the delay to wait before the next attempt, or ``None`` to end the cycle.
     """
     if attempt_count < 1:
@@ -252,7 +257,7 @@ def next_retry_delay(
     if attempt_count >= MAX_ATTEMPTS_PER_CYCLE:
         return None
     delay_s = RETRY_DELAYS_S[attempt_count - 1]
-    if elapsed_s + delay_s >= interval_s:
+    if elapsed_s + delay_s + max(0.0, attempt_timeout_s) >= interval_s:
         return None
     return delay_s
 
@@ -470,6 +475,7 @@ class PollCycleExecutor:
                 elapsed_s=self._clock() - started_at,
                 interval_s=device.interval_s,
                 classification=result.classification,
+                attempt_timeout_s=device.timeout_s,
             )
             if delay_s is None:
                 break

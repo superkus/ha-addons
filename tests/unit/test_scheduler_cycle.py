@@ -332,6 +332,31 @@ def test_a_retry_decision_needs_a_completed_attempt() -> None:
         next_retry_delay(0, 0.0, 30, FailureClassification.TIMEOUT)
 
 
+@pytest.mark.parametrize(
+    ("attempt_count", "elapsed_s", "expected"),
+    [
+        (1, 10.0, 1.0),  # 10 + 1 + 10 = 21 < 30: the second attempt can finish inside the interval
+        (1, 18.9, 1.0),  # 18.9 + 1 + 10 = 29.9 < 30
+        (1, 19.0, None),  # 19 + 1 + 10 == 30: it could still be running at the next poll
+        (2, 17.9, 2.0),  # 17.9 + 2 + 10 = 29.9 < 30
+        (2, 21.0, None),  # the production overrun: a third attempt at ~21 s ran to ~33 s
+    ],
+)
+def test_a_retry_only_starts_when_its_own_timeout_also_fits(
+    attempt_count: int, elapsed_s: float, expected: float | None
+) -> None:
+    """The retry's worst case counts against the budget, so a cycle never runs into its next scheduled poll."""
+    assert (
+        next_retry_delay(attempt_count, elapsed_s, 30, FailureClassification.TIMEOUT, attempt_timeout_s=10.0)
+        == expected
+    )
+
+
+def test_a_negative_attempt_timeout_does_not_extend_the_budget() -> None:
+    """29 + 1 reaches the interval; an unclamped negative timeout would wrongly let the retry start."""
+    assert next_retry_delay(1, 29.0, 30, FailureClassification.TIMEOUT, attempt_timeout_s=-100.0) is None
+
+
 # --------------------------------------------------------------------------------------------------
 # duration conversion (Requirements 9.4, 9.5)
 # --------------------------------------------------------------------------------------------------
@@ -452,6 +477,33 @@ async def test_the_budget_stops_a_cycle_before_the_next_scheduled_poll() -> None
     assert cycle.classifications == (FailureClassification.TIMEOUT, FailureClassification.TIMEOUT)
     assert clock.now == pytest.approx(2 * timeout_s + 1.0)
     assert clock.now < 5
+
+
+async def test_a_hung_controller_never_makes_the_cycle_overrun_its_interval() -> None:
+    """The production failure: 30 s interval, 10 s timeout, a controller that never answers.
+
+    Before the fix the cycle ran 10 + 1 + 10 + 2 + 10 = 33 s, so the poll scheduled at 30 s was skipped. The third
+    attempt must not start, because 21 + 2 + 10 would reach the interval.
+    """
+    clock = VirtualClock()
+    plugin = ScriptedPlugin(script=[Stall(3600.0)], clock=clock)
+    cycle = await make_executor(clock).run_cycle(make_device(plugin, interval_s=30, timeout_s=10.0))
+
+    assert plugin.read_calls == 2
+    assert cycle.retry_delays_s == (1.0,)
+    assert cycle.classifications == (FailureClassification.TIMEOUT, FailureClassification.TIMEOUT)
+    assert clock.now == pytest.approx(21.0)
+    assert clock.now < 30
+
+
+async def test_fast_failures_still_receive_the_whole_retry_allowance() -> None:
+    """The attempt-timeout budget only trims retries that could overrun; quick failures keep all three attempts."""
+    clock = VirtualClock()
+    plugin = ScriptedPlugin(script=[Stall(0.3, failure(FailureClassification.COMMUNICATION))], clock=clock)
+    cycle = await make_executor(clock).run_cycle(make_device(plugin, interval_s=30, timeout_s=10.0))
+
+    assert plugin.read_calls == MAX_ATTEMPTS_PER_CYCLE
+    assert cycle.retry_delays_s == RETRY_DELAYS_S
 
 
 # --------------------------------------------------------------------------------------------------

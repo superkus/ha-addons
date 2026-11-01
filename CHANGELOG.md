@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1]
+
 ### Added
 
 - User-selected original **Pulse Dial** branding: `icon.png`/`logo.png` as Supervisor presentation metadata at the
@@ -61,6 +63,19 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- IPMI readings timed out on legacy iDRAC 6. `sdr get` without a local SDR cache walked the whole repository on
+  every read (6–37 s against a 10 s budget). The plugin now dumps the repository once, in the background, into
+  `/data/ipmi-sdr-cache/` and reads with `-S`, which takes well under a second.
+- `ipmitool -N` was set to the whole request timeout, so one lost datagram consumed the entire attempt. It is now
+  `-N 2 -R 2`, and the plugin ends its own child 0.5 s before the caller's deadline so the child is reaped and the
+  failure classified rather than cancelled from outside.
+- IPMI session-setup failures were reported as `authentication`. ipmitool prints the same "Unable to establish IPMI
+  v2 / RMCP+ session" for an unreachable controller and for one whose session slots are exhausted (by sessions
+  orphaned by the timeouts above). Only RAKP-level rejections, made visible with `-v`, are now `authentication`;
+  everything else is `communication` with a specific detail, and is retried.
+- Poll cycles overran their interval and caused "poll cycle skipped" records. The retry budget ignored the retry's
+  own timeout, so a 30 s interval with a 10 s timeout started a third attempt at ~21 s that ran to ~33 s. A retry
+  now starts only when its delay plus its timeout fits before the next deadline.
 - Graceful shutdown now closes each plugin-owned async resource exactly once, including after partial startup, while
   isolating cleanup failures so one device cannot prevent sibling cleanup.
 - Structured logging now tolerates malformed third-party exception metadata without losing the JSON log record or

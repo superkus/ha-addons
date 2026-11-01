@@ -15,7 +15,7 @@
 # 5.7, 8.5, and 8.8: those require the offending Device_Entry to be excluded,
 # logged, and the remaining entries retained.
 name: Remote Energy Meter
-version: "0.1.0"
+version: "0.1.1"
 slug: remote_energy_meter
 description: >-
   Meters network-attached devices and publishes credential-free versioned MQTT

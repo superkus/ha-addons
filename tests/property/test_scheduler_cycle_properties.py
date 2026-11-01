@@ -974,10 +974,11 @@ class RetryScenario:
         """The attempts and delays Requirement 5.5 demands, computed from the requirement alone.
 
         One pass over the attempts, ending at the first of the four things the requirement says ends a
-        cycle: a successful reading, an authentication failure, the third attempt, or a retry delay that
-        would carry the elapsed cycle time to the poll interval. The budget comparison is ``>=`` because
-        the requirement stops once the elapsed time *reaches* the interval, so an attempt that would begin
-        exactly at the next scheduled time does not begin.
+        cycle: a successful reading, an authentication failure, the third attempt, or a retry whose delay
+        plus its own attempt timeout would carry the elapsed cycle time to the poll interval. The budget
+        comparison is ``>=`` because the requirement stops once the elapsed time *reaches* the interval, so
+        an attempt that could still be running at the next scheduled time does not begin -- otherwise the
+        cycle overruns and the next scheduled poll is skipped.
         """
         attempts = 0
         elapsed_s = 0.0
@@ -991,7 +992,7 @@ class RetryScenario:
             if attempts >= EXPECTED_MAX_ATTEMPTS:
                 break
             delay_s = EXPECTED_RETRY_DELAYS_S[attempts - 1]
-            if elapsed_s + delay_s >= self.interval_s:
+            if elapsed_s + delay_s + self.timeout_s >= self.interval_s:
                 break
             delays_s.append(delay_s)
             elapsed_s += delay_s
@@ -1172,12 +1173,19 @@ def test_the_retry_schedule_follows_classification_and_budget(scenario: RetrySce
         )
 
     # --- no attempt starts once the elapsed cycle time reaches the poll interval (Requirement 5.5) ---
+    # Stronger than "starts before the interval": a retry must also be able to *finish* within it, so the
+    # cycle never runs into the next scheduled poll and causes it to be skipped.
     for attempt in attempts:
         offset_s = attempt.started_at - scenario.start_s
         assert offset_s < scenario.interval_s, (
             f"attempt {attempt.index} started {offset_s:g} s into a {scenario.interval_s} s interval,"
             " at or after the next scheduled poll"
         )
+        if attempt.index > 1:
+            assert offset_s + scenario.timeout_s < scenario.interval_s, (
+                f"retry {attempt.index} started {offset_s:g} s in with a {scenario.timeout_s:g} s timeout,"
+                f" so it could run past the {scenario.interval_s} s interval"
+            )
 
     # --- and the cycle stopped short only when the budget made it: the count is maximal ---
     # The other side of the clause above. Without it, an implementation that gave up after one retry would
@@ -1189,9 +1197,10 @@ def test_the_retry_schedule_follows_classification_and_budget(scenario: RetrySce
     if ended_early and retryable:
         elapsed_s = attempts[-1].ended_at - scenario.start_s
         next_delay_s = EXPECTED_RETRY_DELAYS_S[len(attempts) - 1]
-        assert elapsed_s + next_delay_s >= scenario.interval_s, (
+        assert elapsed_s + next_delay_s + scenario.timeout_s >= scenario.interval_s, (
             f"the cycle stopped after {len(attempts)} attempts on a retryable {final_outcome} with"
             f" {scenario.interval_s - elapsed_s:g} s of its budget left, enough for a {next_delay_s:g} s delay"
+            f" and a {scenario.timeout_s:g} s attempt"
         )
 
 

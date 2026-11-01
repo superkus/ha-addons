@@ -258,11 +258,20 @@ belongs only to `idrac`; never add it to an `ipmi` entry.
 
 ### Plugin `ipmi` (`devices[].params`)
 
-The `ipmi` plugin runs exactly one shell-free, read-only subprocess per attempt, equivalent to:
+The `ipmi` plugin runs one shell-free, read-only subprocess per attempt, equivalent to:
 
 ```text
-ipmitool -I INTERFACE -H HOST -U USER -E -C CIPHER -N TIMEOUT -R 1 sdr get SENSOR_NAME
+ipmitool -I INTERFACE -H HOST -U USER -E -C CIPHER -N 2 -R 2 -v -S CACHE sdr get SENSOR_NAME
 ```
+
+`CACHE` is a local copy of the controller's Sensor Data Repository under `/data/ipmi-sdr-cache/`. Without it,
+`sdr get` walks the whole repository on every read, which took 6–37 s on a legacy iDRAC 6 and exceeded the request
+timeout. The plugin builds the cache once with `ipmitool sdr dump` in the background, with its own 180 s bound. Until
+that finishes, attempts report `communication` with the detail "building the local IPMI SDR cache". After that, a read
+takes well under a second. The cache survives restarts. It is rebuilt when ipmitool reports it unreadable, or when the
+sensor is missing from a cache older than 10 minutes. A failed build is retried at most once a minute. `-N 2 -R 2`
+retransmits a lost datagram after 2 s rather than letting it consume the whole attempt. `-v` adds the RAKP detail that
+separates rejected credentials from an unreachable or saturated controller; it never prints the password.
 
 Arguments are passed directly, not through a shell. The image installs Alpine's `ipmitool`; no host-side executable
 or add-on package installation is required. A successful `Sensor Reading` must contain a finite value from `0` through
@@ -302,7 +311,8 @@ instead. Neither DCMI nor SNMP is required.
   attempt. When the field is omitted, the scheduler uses one third of the device interval, capped at 10 seconds.
 - `authentication` failures are not retried, reducing account-lockout pressure. Every other failure can receive two
   additional attempts in the same cycle, after 1 second and then 2 seconds.
-- No retry starts when its delay would reach the next poll deadline. A successful attempt ends the cycle immediately.
+- No retry starts when its delay plus the attempt's own timeout would reach the next poll deadline, so a cycle never
+  overruns its interval. A successful attempt ends the cycle immediately.
   A cycle with no success publishes the device offline, adds no energy, and remains scheduled for its next interval.
 - Startup connection validation performs one operation under the same effective timeout. Its result is diagnostic;
   failure does not remove the device from regular polling.
@@ -381,7 +391,7 @@ Read failures expose exactly these operator-facing classifications:
 
 | Classification | Meaning | Retry in the same poll cycle |
 | --- | --- | --- |
-| `authentication` | Redfish HTTP `401`/`403`, rejected IPMI credentials/session, or broker credentials refused | No for device polling; MQTT reconnect continues |
+| `authentication` | Redfish HTTP `401`/`403`, IPMI RAKP credential rejection, or broker credentials refused | No for device polling; MQTT reconnect continues |
 | `timeout` | The request/process or scheduler attempt exceeded its bound | Yes, while retry and interval budgets remain |
 | `tls_validation` | Redfish or MQTT certificate validation failed | Yes for device polling; MQTT reconnect continues |
 | `read` | Communication, HTTP/tool error, missing/malformed response, invalid measurement, or plugin failure | Yes, while budgets remain |
@@ -393,7 +403,7 @@ shapes to expect, not promised readings, defaults, health thresholds, or test ex
 
 - iDRAC 7+ (`idrac`): Redfish returned a numeric `PowerConsumedWatts` from the default chassis power resource.
 - Legacy iDRAC 6 (`ipmi`): DCMI was unsupported; IPMI v2/RMCP+ with `lanplus`, cipher suite `3`, returned
-  `Sensor Reading : 112 (+/- 0) Watts` for `System Level`.
+  `Sensor Reading : 112 (+/- 0) Watts` for `System Level`. Without the local SDR cache, a read took 6–37 s there.
 
 Real power changes with workload, firmware, power state, sensor calibration, and time. A different live value is not by
 itself an error.
@@ -425,7 +435,9 @@ copies or installs the companion integration itself.
 
 | Symptom/classification | Checks |
 | --- | --- |
-| `authentication` | Confirm the secret names/values, IPMI-over-LAN channel access, account privilege, lockout state, `interface`, and mutually supported `cipher_suite`. |
+| `authentication` | Confirm the secret names/values, IPMI-over-LAN channel access, account privilege, lockout state, `interface`, and mutually supported `cipher_suite`. Only RAKP-level rejections (`unauthorized name`, `RAKP 2 HMAC is invalid`) are classified this way. |
+| `communication` / no IPMI session could be established | The controller did not answer session setup, or every session slot is taken. Legacy iDRACs have five; sessions orphaned by killed clients are held until the controller's idle timeout. Check `ipmitool session info all`, wait, or reset the iDRAC. |
+| `communication` / building the local IPMI SDR cache | Expected for the first poll(s) after install or a cache rebuild. It clears once the background `sdr dump` completes. |
 | `timeout` | Confirm UDP `623` routing/firewall, controller responsiveness, and `request_timeout_s`. The add-on cleans up the timed-out child. |
 | `read` / sensor not found | Copy the exact SDR sensor name, including spaces and case used by the controller. `System Level` is a validated default, not a universal sensor name. |
 | `read` / malformed measurement | The `Sensor Reading` line must be a finite `0`–`100000` watt value, optionally with a `(+/- ...)` uncertainty. Volts, `na`, and non-finite values are rejected. |
