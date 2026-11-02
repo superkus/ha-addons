@@ -37,18 +37,6 @@ and confirm the discovered **Remote Energy Meter** card; use manual base-topic s
 unavailable. Review each generated `LOCAL_INSTALL.md` first. GitHub/HACS is an optional later path; the local artifacts
 are the primary installation route.
 
-## Branding
-
-The user selected the original **Pulse Dial** candidate. The add-on artifact carries `icon.png` (128×128) and
-`logo.png` (250×100) beside `config.yaml` as Supervisor presentation metadata; the Dockerfile does not copy them into
-the container image. The separately installed companion integration carries `brand/icon.png`, `brand/icon@2x.png`,
-`brand/logo.png`, and `brand/logo@2x.png`, which Home Assistant Core 2026.3 and newer serves as local integration
-branding without a manifest icon field.
-
-After replacing the integration, restart Core and refresh the browser if the Devices & services tile is cached. After
-replacing the add-on source, reload **Local add-ons**, rebuild the add-on, and refresh the browser. No brand asset is
-published to GitHub or `home-assistant/brands`, and the add-on never installs the companion integration.
-
 ## Hardware validation
 
 Both plugins have been validated against real Dell hardware: `idrac` against an iDRAC 7+ controller through
