@@ -20,7 +20,7 @@ slug: remote_energy_meter
 description: >-
   Meters network-attached devices and publishes credential-free versioned MQTT
   inventory plus power, energy, attributes, and availability state.
-url: https://github.com/superkus/ha-addons/tree/main/remote_energy_meter
+url: https://github.com/superkus/remote_energy_meter/tree/main/remote_energy_meter
 arch:
   - amd64
   - aarch64

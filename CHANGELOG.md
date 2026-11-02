@@ -60,6 +60,9 @@ All notable changes to this project are documented here. The format follows
 - Dev tools are pinned to exact versions. Open ranges let a new ruff release turn an unchanged tree red.
 - pytest 8.4.2 → 9.2.0 (CVE-2025-71176 / PYSEC-2026-1845, vulnerable tmpdir handling, fixed in 9.0.3), with
   pytest-asyncio 0.26.0 → 1.4.1.post1. Dev-only: the add-on image never contained pytest.
+- The project moved to its own repository, `superkus/remote_energy_meter`: one repository per add-on, grouped by
+  the `ha-addons` GitHub topic. Repository, add-on, and integration documentation links point there; the old
+  `superkus/ha-addons` URL redirects.
 - `startup` and `boot` are no longer set in the add-on manifest: they restated Supervisor's defaults
   (`application`, `auto`), which the add-on linter rejects. Start order and boot behaviour are unchanged.
 
