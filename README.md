@@ -56,8 +56,9 @@ cipher suite 3; DCMI was unsupported there). See the add-on's `DOCS.md` for deta
 ### Workflow (security first)
 
 Every change, including urgent fixes, goes through the same path: a branch, tests, the local gates, a push to `dev`,
-and a reviewed pull request into `main`. Nothing is patched directly on a running Home Assistant host. CI
-(`.github/workflows/ci.yaml`) runs on every push and PR to `dev` and `main`:
+and a reviewed pull request into `main`. Nothing is patched directly on a running Home Assistant host. `main` is
+protected on GitHub: no direct pushes or web edits (admins included), and every CI job below is a required check
+before a PR can merge. CI (`.github/workflows/ci.yaml`) runs on every push and PR to `dev` and `main`:
 
 | Job | Gate |
 | --- | --- |

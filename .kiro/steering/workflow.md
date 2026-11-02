@@ -19,6 +19,24 @@ Security comes first (see `security.md`). Every change, including an urgent fix,
    Stage files by name.
 7. **Push and open a PR** into `main`; wait for CI to be green and for the user to merge.
 
+## Branch protection on `main` (enforced by GitHub)
+
+`main` is protected, so step 7 is the only way in — there are no direct pushes or web-UI edits, for
+admins either:
+
+- pull request required (0 approvals: a solo maintainer cannot approve their own PR); review
+  conversations must be resolved;
+- required status checks, branch up to date before merge — all 11 CI jobs: `Secret scan (gitleaks)`,
+  `Local-setup reference scan`, `Dependency audit (runtime deps, blocking)`, `ruff`, `mypy`,
+  `pytest (unit, property, conformance) + coverage gate`, `pytest -m integration`, `add-on linter`,
+  `image (amd64)`, `image (aarch64)`, `image (armv7)`;
+- force pushes and deletion blocked.
+
+When a CI job is added, removed, or **renamed**, update the required checks in the same PR
+(`gh api -X PUT repos/superkus/remote_energy_meter/branches/main/protection ...`): a required check
+whose name no longer reports blocks every PR. Verify protection through the API, never by pushing to
+`main`.
+
 ## Gates (identical locally and in CI)
 
 | Gate | Local | CI job |

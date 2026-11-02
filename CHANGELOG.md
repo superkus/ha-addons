@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `main` is protected on GitHub: pull requests only (admins included), all 11 CI jobs are required checks on an
+  up-to-date branch, and force pushes and deletion are blocked. `.kiro/steering/workflow.md` records the
+  configuration and the rule to update required checks whenever a CI job is renamed.
+
 ## [0.1.1]
 
 ### Added
