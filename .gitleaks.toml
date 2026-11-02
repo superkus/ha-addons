@@ -1,0 +1,14 @@
+# gitleaks configuration — secret scanning for the Remote Energy Meter add-on.
+#
+# Extends the built-in default ruleset (comprehensive provider coverage) with no
+# allowlist at all. Real credentials live only in Home Assistant's secrets.yaml /
+# add-on options on the host and are never committed (see .gitignore).
+#
+# Known false positives are suppressed one finding at a time in .gitleaksignore
+# (commit-qualified fingerprint: commit + file + rule + line). That fails
+# safe: editing the line, or a new secret anywhere, makes the scan fail again.
+# Regex/path allowlists are deliberately not used; they can hide real secrets.
+title = "remote-energy-meter gitleaks config"
+
+[extend]
+useDefault = true

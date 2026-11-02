@@ -275,8 +275,14 @@ def test_interpolated_arguments_reach_the_message(target: logging.Logger, sink: 
     assert record["message"] == "device poweredge_a took 42 ms"
 
 
-def test_a_mismatched_format_string_still_produces_a_record(target: logging.Logger, sink: io.StringIO) -> None:
+def test_a_mismatched_format_string_still_produces_a_record(
+    target: logging.Logger, sink: io.StringIO, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A logging mistake must not silently drop the diagnostic it was carrying."""
+    # pytest >= 9 also attaches its capture handler to non-propagating loggers, and that handler
+    # deliberately fails a test on a malformed message. This test logs one on purpose, so only
+    # pytest's handler is relaxed; the assertion is on the add-on's own handler output.
+    monkeypatch.setattr(logging, "raiseExceptions", False)
     configure_logging(LogLevel.DEBUG, registry=CredentialRegistry(), stream=sink, logger=target)
 
     target.info("expects two: %s %s", "only-one")

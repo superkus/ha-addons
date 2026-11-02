@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1]
+
 ### Added
 
 - User-selected original **Pulse Dial** branding: `icon.png`/`logo.png` as Supervisor presentation metadata at the
@@ -30,6 +32,13 @@ All notable changes to this project are documented here. The format follows
 - Complete standalone add-on documentation with secret-only Redfish and IPMI configurations, an exhaustive
   schema-derived field reference, companion-integration installation guidance, protocol/security guidance, lifecycle
   semantics, and plugin-specific troubleshooting.
+- The repository is public, so it must not describe any real installation. New `tools/check_local_refs.py` rejects
+  private, CGNAT and link-local IPv4 addresses, MAC addresses, home-directory and mounted-volume paths, LAN hostnames,
+  and personal e-mail addresses. It runs in CI (`local-refs` job, tracked files and full history), in the pre-commit
+  hook (staged changes) and in the pre-push hook (full history). Personal terms are checked from a gitignored
+  `.local-refs-denylist`.
+- Repository steering files `.kiro/steering/security.md` and `.kiro/steering/workflow.md` make security the first
+  priority and define the branch, test, gate and PR workflow.
 
 ### Changed
 
@@ -42,14 +51,44 @@ All notable changes to this project are documented here. The format follows
   `superkus/ha-addons`.
 - Examples, defaults, documentation, specs, and tests use RFC 5737 documentation addresses and RFC 2606 reserved
   names, so nothing in the repository describes a real installation.
+- CI now follows a security-first model. It runs on pushes and PRs to `dev` and
+  `main`, and adds a gitleaks secret scan over the full history, a blocking `pip-audit` of the runtime dependencies, an
+  80% coverage gate, and an amd64 image smoke test (ipmitool present, application imports). GitHub Actions moved to
+  their current major versions.
+- New `.githooks/pre-commit` (gitleaks on staged changes, then lint, types, tests with coverage, and audit) and
+  `.githooks/pre-push` (gitleaks over the commits being pushed). Both fail closed when gitleaks is missing.
+- Dev tools are pinned to exact versions. Open ranges let a new ruff release turn an unchanged tree red.
+- pytest 8.4.2 → 9.2.0 (CVE-2025-71176 / PYSEC-2026-1845, vulnerable tmpdir handling, fixed in 9.0.3), with
+  pytest-asyncio 0.26.0 → 1.4.1.post1. Dev-only: the add-on image never contained pytest.
+- The project moved to its own repository, `superkus/remote_energy_meter`: one repository per add-on, grouped by
+  the `ha-addons` GitHub topic. Repository, add-on, and integration documentation links point there; the old
+  `superkus/ha-addons` URL redirects.
+- `startup` and `boot` are no longer set in the add-on manifest: they restated Supervisor's defaults
+  (`application`, `auto`), which the add-on linter rejects. Start order and boot behaviour are unchanged.
 
 ### Fixed
 
+- IPMI readings timed out on legacy iDRAC 6. `sdr get` without a local SDR cache walked the whole repository on
+  every read (6–37 s against a 10 s budget). The plugin now dumps the repository once, in the background, into
+  `/data/ipmi-sdr-cache/` and reads with `-S`, which takes well under a second.
+- `ipmitool -N` was set to the whole request timeout, so one lost datagram consumed the entire attempt. It is now
+  `-N 2 -R 2`, and the plugin ends its own child 0.5 s before the caller's deadline so the child is reaped and the
+  failure classified rather than cancelled from outside.
+- IPMI session-setup failures were reported as `authentication`. ipmitool prints the same "Unable to establish IPMI
+  v2 / RMCP+ session" for an unreachable controller and for one whose session slots are exhausted (by sessions
+  orphaned by the timeouts above). Only RAKP-level rejections, made visible with `-v`, are now `authentication`;
+  everything else is `communication` with a specific detail, and is retried.
+- Poll cycles overran their interval and caused "poll cycle skipped" records. The retry budget ignored the retry's
+  own timeout, so a 30 s interval with a 10 s timeout started a third attempt at ~21 s that ran to ~33 s. A retry
+  now starts only when its delay plus its timeout fits before the next deadline.
 - Graceful shutdown now closes each plugin-owned async resource exactly once, including after partial startup, while
   isolating cleanup failures so one device cannot prevent sibling cleanup.
 - Structured logging now tolerates malformed third-party exception metadata without losing the JSON log record or
   bypassing credential redaction.
 - Fixed a `RUF005` lint finding in `docs/icon-candidates/generate_candidates.py` reported by current ruff releases.
+- A plain `pytest` run wrote bytecode into `custom_components/`, which made the integration-package validator
+  reject the package; the suite now never writes bytecode. CI lets the test broker read its generated
+  configuration when the runner's AppArmor profile confines mosquitto.
 
 ### Removed
 

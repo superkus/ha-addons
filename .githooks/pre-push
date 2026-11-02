@@ -1,0 +1,49 @@
+#!/bin/sh
+# Pre-push gate — scan exactly the commits about to leave this machine for
+# secrets before they reach the remote. Fails closed when gitleaks is missing.
+#
+# git feeds one line per ref on stdin: <local ref> <local sha> <remote ref> <remote sha>
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "✗ gitleaks is not installed; refusing to push unscanned commits (brew install gitleaks)." >&2
+  exit 1
+fi
+
+zero=0000000000000000000000000000000000000000
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # A deleted ref sends nothing new.
+  [ "$local_sha" = "$zero" ] && continue
+  if [ "$remote_sha" = "$zero" ]; then
+    # New branch on the remote: scan every commit not already on any remote branch.
+    range="$local_sha --not --remotes"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  echo "▶ Secret scan of commits to push ($local_ref → $remote_ref)..."
+  if ! gitleaks git --config .gitleaks.toml --redact --no-banner --log-opts="$range" .; then
+    status=1
+  fi
+done
+
+if [ "$status" -ne 0 ]; then
+  echo "✗ Secrets detected; push refused. Remove them from history before pushing." >&2
+  exit 1
+fi
+echo "✓ No secrets in the commits being pushed"
+
+# A push publishes history, not just the tip: every file version reachable from any
+# ref must be free of local-setup references (generic rules + private denylist).
+echo "▶ Local-setup reference scan (full history)..."
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "✗ python3 is required for tools/check_local_refs.py; refusing to push unscanned history." >&2
+  exit 1
+fi
+if ! python3 tools/check_local_refs.py --history; then
+  echo "✗ Local-setup references in history; push refused. Rewrite the affected commits first." >&2
+  exit 1
+fi

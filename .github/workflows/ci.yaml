@@ -1,6 +1,11 @@
 ---
 # Continuous integration for the Remote Energy Meter add-on.
 #
+# Security + quality gate: work lands on
+# `dev` first; `main` only receives reviewed PR merges. Security is the #1
+# priority: the `secrets` job (gitleaks, full history) and the `audit` job
+# (runtime dependency advisories) hard-fail the pipeline.
+#
 # Requirement 1.1 (add-on manifest) is guarded by the add-on linter plus the
 # schema-agreement test in the default suite; Requirement 1.2 (image entry point
 # and exit-status propagation) by the image build plus the container-level
@@ -8,18 +13,19 @@
 # default suite, which collects `tests/conformance/`.
 #
 # Every check is its own job so a red run names what broke without anyone
-# opening a log.
+# opening a log. `.githooks/pre-commit` runs the same gates locally.
 
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [dev, main]
   pull_request:
-    branches: [main]
+    branches: [dev, main]
   workflow_dispatch:
 
-# Nothing here writes to the repository, publishes a package, or reads a secret.
+# Least privilege: nothing here writes to the repository, publishes a package,
+# or reads a repository secret. Jobs that need more ask for it explicitly.
 permissions:
   contents: read
 
@@ -33,16 +39,63 @@ env:
   # and mypy `python_version = "3.12"`. CI must not silently drift to a newer
   # interpreter than the tools are configured for.
   PYTHON_VERSION: "3.12"
+  # Same as the local gates: bytecode written into `custom_components/` would make the
+  # integration-package validator reject the package (tests/conftest.py also enforces it).
+  PYTHONDONTWRITEBYTECODE: "1"
 
 jobs:
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # gitleaks-action reads the PR's commit list on pull_request events.
+    # Read-only scopes only; the token never gets write access.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history so gitleaks can scan every commit
+      # Uses .gitleaks.toml (default ruleset, no allowlist) and .gitleaksignore
+      # (commit-qualified fingerprints for two reviewed test fixtures).
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+
+  local-refs:
+    name: Local-setup reference scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # every file version, not just the tip, is published
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # This repository is public: no private IPs, home/volume paths, LAN hostnames,
+      # MAC addresses, or personal e-mail addresses (tools/check_local_refs.py).
+      # Standard library only, so nothing is installed.
+      - name: Tracked files
+        run: python tools/check_local_refs.py
+
+      - name: Full history
+        run: python tools/check_local_refs.py --history
+
   lint:
     name: ruff
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -69,9 +122,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -89,13 +142,13 @@ jobs:
         run: mypy --strict
 
   test:
-    name: pytest (unit, property, conformance)
+    name: pytest (unit, property, conformance) + coverage gate
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -111,17 +164,19 @@ jobs:
       # Mosquitto subprocess, and build container images. Deselect it here and
       # let the `integration` job below run it deliberately, on a runner that has
       # the broker installed.
-      - name: Run the default suite
-        run: pytest -m "not integration"
+      #
+      # Coverage gate: 80% lines+branches ([tool.coverage] in pyproject).
+      - name: Run the default suite with the coverage gate
+        run: pytest -m "not integration" --cov --cov-report=term
 
   integration:
     name: pytest -m integration
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -144,6 +199,20 @@ jobs:
           sudo systemctl disable --now mosquitto || true
           mosquitto -h | head -n 1
 
+      # The fixture's broker reads its generated config from pytest's tmp_path. If the
+      # distribution's AppArmor profile confines mosquitto to /etc/mosquitto, that read is
+      # denied ("Unable to open config file"). Report what is loaded, and only when a
+      # mosquitto profile is enforced, switch it to complain mode on this throwaway runner.
+      - name: Let the test broker read its tmp_path config (AppArmor)
+        run: |
+          sudo apt-get install -y --no-install-recommends apparmor-utils
+          if sudo aa-status 2>/dev/null | grep -q mosquitto; then
+            echo "mosquitto AppArmor profile is loaded:"; sudo aa-status | grep mosquitto
+            sudo aa-complain /usr/sbin/mosquitto
+          else
+            echo "no mosquitto AppArmor profile is loaded"
+          fi
+
       - name: Run the integration suite
         run: |
           set +e
@@ -160,12 +229,38 @@ jobs:
           fi
           exit "$status"
 
+  audit:
+    name: Dependency audit (runtime deps, blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # Audit exactly what the image installs (`pip install .`, no dev extra) in
+      # an isolated venv, so a dev-only tool cannot mask or add a finding. The
+      # project itself is then uninstalled: it is not on PyPI, so `--strict`
+      # would otherwise refuse it as "could not be audited".
+      - name: Install the runtime dependency set
+        run: |
+          python -m venv /tmp/runtime
+          /tmp/runtime/bin/python -m pip install --upgrade pip
+          /tmp/runtime/bin/python -m pip install .
+          /tmp/runtime/bin/python -m pip uninstall --yes remote-energy-meter
+          python -m pip install "pip-audit==2.10.1"
+
+      - name: pip-audit (any known vulnerability fails the job)
+        run: pip-audit --strict --progress-spinner off --path "$(/tmp/runtime/bin/python -c 'import sysconfig;print(sysconfig.get_paths()["purelib"])')"
+
   addon-lint:
     name: add-on linter
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # `path` is the action's only required input and points at the folder that
       # holds the manifest, not at `config.yaml` itself; the linter accepts
@@ -178,6 +273,7 @@ jobs:
   image:
     name: image (${{ matrix.arch }})
     runs-on: ubuntu-latest
+    needs: [secrets, local-refs, lint, typecheck, test]
     # Emulated builds are slow: the aarch64 and armv7 wheels for pydantic-core
     # may not exist for musl, in which case pip compiles it under QEMU. Cap the
     # job so a runaway build fails legibly instead of burning an hour.
@@ -196,9 +292,9 @@ jobs:
           - arch: armv7
             platform: linux/arm/v7
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -224,13 +320,14 @@ jobs:
           print(f"build_from={build_from}")
           PY
 
-      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@v4
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # Build only: no registry login, no push, no credentials. The build context
       # is the repository root because the Dockerfile copies pyproject.toml,
-      # README.md, and src/ from there (see its header comment).
+      # README.md, and src/ from there (see its header comment). `--load` puts
+      # the image in the local daemon so the smoke test below can run it.
       #
       # Values arrive through the environment rather than inline `${{ }}` so the
       # shell never has expression output spliced into it.
@@ -248,4 +345,17 @@ jobs:
             --tag "remote-energy-meter:ci-$BUILD_ARCH" \
             --cache-from "type=gha,scope=image-$BUILD_ARCH" \
             --cache-to "type=gha,mode=max,scope=image-$BUILD_ARCH" \
+            --load \
             .
+
+      # Native architecture only: under QEMU this would only re-test emulation.
+      # Proves the runtime prerequisites the IPMI plugin depends on are really in
+      # the image, and that the whole application imports there.
+      - name: Smoke-test the image (ipmitool present, application imports)
+        if: matrix.arch == 'amd64'
+        env:
+          BUILD_ARCH: ${{ matrix.arch }}
+        run: |
+          docker run --rm --entrypoint ipmitool "remote-energy-meter:ci-$BUILD_ARCH" -V
+          docker run --rm --entrypoint python3 "remote-energy-meter:ci-$BUILD_ARCH" -c \
+            "import remote_energy_meter.__main__, remote_energy_meter.plugins.ipmi.plugin as p; print('imports ok; sdr cache dir:', p.default_sdr_cache_dir())"

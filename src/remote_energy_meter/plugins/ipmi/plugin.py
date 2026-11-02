@@ -1,17 +1,33 @@
-"""Generic IPMI SDR sensor plugin implemented through one bounded ``ipmitool`` process.
+"""Generic IPMI SDR sensor plugin implemented through bounded ``ipmitool`` processes.
 
 Both public operations call :meth:`IpmiPlugin._read_once`; therefore validation and a
 normal read have identical command, timeout, parsing, and classification behaviour.
 The password leaves ``SecretStr`` only while constructing the child environment.  It
 never appears in argv, a result representation, a failure detail, or a log record.
+
+**Local SDR cache.** ``ipmitool sdr get NAME`` without ``-S`` walks the controller's whole
+Sensor Data Repository to find the named sensor. On a legacy iDRAC 6 that is dozens of
+request/response pairs and was measured at 6-37 s per read, routinely exceeding the
+request timeout. Every timeout killed ``ipmitool`` mid-session, so the controller kept
+the orphaned RMCP+ session until its own idle timeout; with only five session slots the
+controller then refused new sessions. The plugin therefore dumps the repository once
+(``sdr dump``) into a persistent per-device cache file, outside the per-read budget, and
+reads with ``-S CACHE`` -- one sensor reading request, measured at 0.3-0.5 s.
+
+**Short retransmission timer.** ``-N`` is the per-packet retransmission interval, not an
+operation bound. A value equal to the whole request timeout meant a single lost UDP
+datagram consumed the entire attempt, so a short interval with a few retransmissions is
+used instead; the operation as a whole stays bounded by the request timeout.
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import math
 import os
 import re
+import tempfile
 from collections.abc import Awaitable, Callable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -35,6 +51,7 @@ __all__ = [
     "DEFAULT_EXECUTABLE",
     "IPMI_PASSWORD_ENV",
     "PLUGIN_ID",
+    "SDR_CACHE_DIR_ENV",
     "AsyncioCommandRunner",
     "CommandLaunchError",
     "CommandResult",
@@ -48,17 +65,45 @@ __all__ = [
 PLUGIN_ID: Final = "ipmi"
 DEFAULT_EXECUTABLE: Final = "ipmitool"
 IPMI_PASSWORD_ENV: Final = "IPMI_PASSWORD"
-IPMITOOL_RETRY_COUNT: Final = 1
+#: ``ipmitool -R``: retransmissions per request after the first send.
+IPMITOOL_RETRY_COUNT: Final = 2
+#: ``ipmitool -N`` upper bound: seconds between retransmissions of one request.
+MAX_PACKET_TIMEOUT_S: Final = 2
+#: The cache dump is many requests; it runs in the background with its own generous bound.
+SDR_CACHE_BUILD_TIMEOUT_S: Final = 180.0
+#: After a failed cache build, wait this long before contacting the controller for another one.
+SDR_CACHE_RETRY_AFTER_S: Final = 60.0
+#: Overrides the cache directory; otherwise ``/data/ipmi-sdr-cache`` in the add-on, a temp dir elsewhere.
+SDR_CACHE_DIR_ENV: Final = "REMOTE_ENERGY_METER_SDR_CACHE_DIR"
+_ADDON_DATA_DIR: Final = Path("/data")
+#: The plugin ends its own child this long before the caller's deadline, so a slow read is
+#: classified and reaped here rather than cancelled from outside.
+_DEADLINE_MARGIN_S: Final = 0.5
+#: Upper bound on the share of an attempt held back for the cached read while a build is awaited.
+_CACHED_READ_RESERVE_S: Final = 1.0
 _TERMINATION_GRACE_S: Final = 0.25
 
+# ``ipmitool`` prints the same "Unable to establish IPMI v2 / RMCP+ session" for a refused
+# credential, an unreachable controller, and a controller out of session slots, so that line
+# alone is *not* evidence of a credential problem. ``-v`` adds the RAKP detail that is.
 _AUTHENTICATION_OUTPUT: Final = re.compile(
     r"(?:unauthori[sz]ed\s+name|invalid\s+user(?:\s*name)?|password\s+verification\s+failed|"
-    r"authentication\s+(?:failed|type)|rakp\s+[24]\s+message|"
-    r"unable\s+to\s+establish\s+ipmi\s+v2\s*/\s*rmcp\+\s+session)",
+    r"authentication\s+(?:failed|type)|rakp\s+[24]\s+hmac\s+is\s+invalid|"
+    r"invalid\s+integrity\s+check\s+value|unauthori[sz]ed\s+role\s+or\s+privilege)",
     re.IGNORECASE,
 )
+_SESSION_EXHAUSTED_OUTPUT: Final = re.compile(
+    r"(?:insufficient\s+resources\s+for\s+session|no\s+session\s+slot\s+available|"
+    r"session\s+limit\s+reached)",
+    re.IGNORECASE,
+)
+_SESSION_OUTPUT: Final = re.compile(r"unable\s+to\s+establish\s+ipmi\s+v[12]", re.IGNORECASE)
 _SENSOR_MISSING_OUTPUT: Final = re.compile(
     r"(?:sensor\s+data\s+record\s+not\s+found|sensor\s+not\s+found|unable\s+to\s+find\s+sensor)",
+    re.IGNORECASE,
+)
+_CACHE_UNUSABLE_OUTPUT: Final = re.compile(
+    r"(?:invalid\s+sdr\s+header|unable\s+to\s+open\s+sdr\s+cache|does\s+not\s+exist)",
     re.IGNORECASE,
 )
 
@@ -212,12 +257,58 @@ def _decode(payload: bytes) -> str:
 
 
 def classify_ipmitool_failure(output: str) -> FailureClassification:
-    """Classify a failed command from its text without returning or logging that text."""
+    """Classify a failed command from its text without returning or logging that text.
+
+    Only RAKP-level detail (printed under ``-v``) counts as a credential rejection. The bare
+    "Unable to establish IPMI v2 / RMCP+ session" line is also what an unreachable
+    controller and a controller with every session slot taken produce, so it classifies
+    as ``communication``; calling those ``authentication`` sends an administrator to check a
+    password that is fine and suppresses the retry that would have succeeded.
+    """
     if _AUTHENTICATION_OUTPUT.search(output) is not None:
         return FailureClassification.AUTHENTICATION
     if _SENSOR_MISSING_OUTPUT.search(output) is not None:
         return FailureClassification.RESPONSE_FORMAT
     return FailureClassification.COMMUNICATION
+
+
+def _failure_detail(classification: FailureClassification, output: str, returncode: int) -> str:
+    """A credential-free, output-free description of a failed command."""
+    if classification is FailureClassification.AUTHENTICATION:
+        return "the IPMI credentials were rejected"
+    if classification is FailureClassification.RESPONSE_FORMAT:
+        return "the configured IPMI sensor was not found"
+    if _SESSION_EXHAUSTED_OUTPUT.search(output) is not None:
+        return "the controller has no free IPMI session slot"
+    if _SESSION_OUTPUT.search(output) is not None:
+        return "no IPMI session could be established (controller unreachable, not answering, or out of session slots)"
+    return f"ipmitool could not read the configured host (exit status {returncode})"
+
+
+def default_sdr_cache_dir() -> Path:
+    """Where SDR cache files live: the environment override, else the add-on's persistent ``/data``."""
+    configured = os.environ.get(SDR_CACHE_DIR_ENV)
+    if configured:
+        return Path(configured)
+    if _ADDON_DATA_DIR.is_dir() and os.access(_ADDON_DATA_DIR, os.W_OK):
+        return _ADDON_DATA_DIR / "ipmi-sdr-cache"
+    return Path(tempfile.gettempdir()) / "remote-energy-meter-ipmi-sdr"
+
+
+def _cache_file_name(device_id: str, params: IpmiParams) -> str:
+    """One file per device and controller endpoint, so re-pointing a device never reuses a foreign repository."""
+    safe_id = re.sub(r"[^A-Za-z0-9_.-]", "_", device_id)[:64] or "device"
+    endpoint = f"{params.host}|{params.interface}|{params.cipher_suite}".encode()
+    return f"{safe_id}-{hashlib.sha256(endpoint).hexdigest()[:12]}.sdr"
+
+
+@dataclass(frozen=True, slots=True)
+class _CacheFailure:
+    """Why the last SDR cache build failed, and when (loop time) another may be attempted."""
+
+    classification: FailureClassification
+    detail: str
+    retry_at: float
 
 
 class IpmiPlugin:
@@ -226,7 +317,20 @@ class IpmiPlugin:
     plugin_id: ClassVar[str] = PLUGIN_ID
     config_model: ClassVar[type[BaseModel]] = IpmiParams
 
-    __slots__ = ("_clock", "_device_id", "_executable", "_params", "_runner")
+    #: A cache younger than this is not discarded merely because the sensor is missing from it:
+    #: that is a configuration error, and re-dumping the repository every poll would not fix it.
+    CACHE_MIN_AGE_FOR_INVALIDATION_S: ClassVar[float] = 600.0
+
+    __slots__ = (
+        "_cache_build",
+        "_cache_failure",
+        "_cache_path",
+        "_clock",
+        "_device_id",
+        "_executable",
+        "_params",
+        "_runner",
+    )
 
     def __init__(
         self,
@@ -236,6 +340,7 @@ class IpmiPlugin:
         command_runner: CommandRunner | None = None,
         executable: str = DEFAULT_EXECUTABLE,
         clock: Callable[[], datetime] | None = None,
+        sdr_cache_dir: Path | None = None,
     ) -> None:
         if not isinstance(params, IpmiParams):
             raise TypeError(
@@ -246,12 +351,21 @@ class IpmiPlugin:
         self._runner = command_runner if command_runner is not None else _default_command_runner()
         self._executable = executable
         self._clock = clock if clock is not None else _utc_now
+        directory = sdr_cache_dir if sdr_cache_dir is not None else default_sdr_cache_dir()
+        self._cache_path = directory / _cache_file_name(device_id, params)
+        self._cache_build: asyncio.Task[_CacheFailure | None] | None = None
+        self._cache_failure: _CacheFailure | None = None
 
     def __repr__(self) -> str:
         return (
             f"{type(self).__name__}(device_id={self._device_id!r}, host={self._params.host!r}, "
             f"executable={_executable_name((self._executable,))!r})"
         )
+
+    @property
+    def sdr_cache_path(self) -> Path:
+        """The local SDR cache file this instance reads with ``-S``."""
+        return self._cache_path
 
     async def read_power(self, timeout_s: float) -> ReadResult:
         return await self._read_once(timeout_s)
@@ -262,16 +376,19 @@ class IpmiPlugin:
             return ValidationResult.failure(outcome.classification)
         return ValidationResult.success()
 
+    # -- command construction ----------------------------------------------------------------------
+
     def _effective_timeout(self, timeout_s: float) -> float:
         if math.isfinite(timeout_s) and timeout_s > 0:
             return min(float(timeout_s), MAX_REQUEST_TIMEOUT_S)
         return self._params.request_timeout_s
 
     @staticmethod
-    def _network_timeout(timeout_s: float) -> int:
-        return max(1, min(math.ceil(timeout_s), int(MAX_REQUEST_TIMEOUT_S)))
+    def _packet_timeout(timeout_s: float) -> int:
+        """``-N``: short enough that a lost datagram costs a fraction of the attempt, never under 1 s."""
+        return max(1, min(MAX_PACKET_TIMEOUT_S, math.floor(timeout_s / 4)))
 
-    def _argv(self, timeout_s: float) -> tuple[str, ...]:
+    def _base_argv(self, packet_timeout_s: int) -> tuple[str, ...]:
         return (
             self._executable,
             "-I",
@@ -284,13 +401,26 @@ class IpmiPlugin:
             "-C",
             str(self._params.cipher_suite),
             "-N",
-            str(self._network_timeout(timeout_s)),
+            str(packet_timeout_s),
             "-R",
             str(IPMITOOL_RETRY_COUNT),
+            # Verbose output carries the RAKP detail that separates a refused credential from an
+            # unreachable or saturated controller; it never echoes the password.
+            "-v",
+        )
+
+    def _read_argv(self, timeout_s: float) -> tuple[str, ...]:
+        return (
+            *self._base_argv(self._packet_timeout(timeout_s)),
+            "-S",
+            str(self._cache_path),
             "sdr",
             "get",
             self._params.sensor_name,
         )
+
+    def _dump_argv(self, target: Path) -> tuple[str, ...]:
+        return (*self._base_argv(MAX_PACKET_TIMEOUT_S), "sdr", "dump", str(target))
 
     def _environment(self) -> dict[str, str]:
         environment = os.environ.copy()
@@ -300,54 +430,173 @@ class IpmiPlugin:
     def _failure(self, classification: FailureClassification, detail: str) -> ReadFailure:
         return ReadFailure(device_id=self._device_id, classification=classification, detail=detail)
 
-    async def _read_once(self, timeout_s: float) -> ReadResult:
-        """One read-only command, shared by both interface operations."""
-        effective_timeout = self._effective_timeout(timeout_s)
+    # -- one child process -------------------------------------------------------------------------
+
+    async def _run(self, argv: tuple[str, ...], timeout_s: float) -> CommandResult | ReadFailure:
+        """Run one command, mapping every launch and timeout failure to a classified failure."""
+        name = _executable_name((self._executable,))
         try:
-            result = await self._runner.run(
-                self._argv(effective_timeout),
-                self._environment(),
-                effective_timeout,
-            )
+            return await self._runner.run(argv, self._environment(), timeout_s)
         except ExecutableUnavailableError:
-            return self._failure(
-                FailureClassification.COMMUNICATION,
-                f"{_executable_name((self._executable,))} executable is unavailable",
-            )
+            return self._failure(FailureClassification.COMMUNICATION, f"{name} executable is unavailable")
         except CommandLaunchError:
-            return self._failure(
-                FailureClassification.COMMUNICATION,
-                f"{_executable_name((self._executable,))} executable could not be started",
-            )
+            return self._failure(FailureClassification.COMMUNICATION, f"{name} executable could not be started")
         except CommandTimeoutError:
-            return self._failure(
-                FailureClassification.TIMEOUT,
-                f"{_executable_name((self._executable,))} did not complete within {effective_timeout:g}s",
-            )
+            return self._failure(FailureClassification.TIMEOUT, f"{name} did not complete within {timeout_s:.1f}s")
         except FileNotFoundError:
             # An injected runner may surface the operating-system error directly.
-            return self._failure(
-                FailureClassification.COMMUNICATION,
-                f"{_executable_name((self._executable,))} executable is unavailable",
-            )
+            return self._failure(FailureClassification.COMMUNICATION, f"{name} executable is unavailable")
         except OSError:
+            return self._failure(FailureClassification.COMMUNICATION, f"{name} executable could not be run")
+
+    # -- SDR cache ---------------------------------------------------------------------------------
+
+    async def _ready_cache(self, deadline: float) -> Path | ReadFailure:
+        """Return the cache file, starting or awaiting its background build when it is missing.
+
+        The build is a separate task, so cancelling this attempt -- the scheduler's own timeout,
+        or shutdown -- never cancels a dump that the next attempt can use. ``asyncio.wait`` does
+        not cancel what it waits for.
+        """
+        if self._cache_path.is_file():
+            return self._cache_path
+
+        loop = asyncio.get_running_loop()
+        task = self._cache_build
+        if task is None:
+            failure = self._cache_failure
+            if failure is not None and loop.time() < failure.retry_at:
+                return self._failure(
+                    failure.classification,
+                    f"IPMI SDR cache unavailable ({failure.detail}); next build in "
+                    f"{failure.retry_at - loop.time():.0f} s",
+                )
+            task = asyncio.create_task(self._build_cache(), name=f"ipmi-sdr-cache-{self._device_id}")
+            self._cache_build = task
+            task.add_done_callback(self._on_cache_built)
+
+        # Keep part of the attempt for the cached read itself: up to 1 s, but never the whole of a
+        # short attempt, or a sub-second timeout could never wait for even an instant build.
+        remaining_s = deadline - loop.time()
+        wait_s = remaining_s - min(_CACHED_READ_RESERVE_S, remaining_s / 4)
+        if wait_s > 0 and not task.done():
+            await asyncio.wait({task}, timeout=wait_s)
+        if not task.done():
             return self._failure(
                 FailureClassification.COMMUNICATION,
-                f"{_executable_name((self._executable,))} executable could not be run",
+                "building the local IPMI SDR cache (one-time); readings start once it completes",
             )
+        # The done callback has run by now only if the loop got a turn; apply it directly too.
+        self._on_cache_built(task)
+        if self._cache_path.is_file():
+            return self._cache_path
+        failure = self._cache_failure
+        if failure is None:
+            return self._failure(FailureClassification.COMMUNICATION, "the IPMI SDR cache could not be built")
+        return self._failure(failure.classification, f"IPMI SDR cache unavailable ({failure.detail})")
+
+    def _on_cache_built(self, task: asyncio.Task[_CacheFailure | None]) -> None:
+        if self._cache_build is not task:
+            return
+        self._cache_build = None
+        if task.cancelled():
+            return
+        error = task.exception()
+        if error is not None:
+            self._cache_failure = _CacheFailure(
+                FailureClassification.PLUGIN,
+                f"{type(error).__name__} while building the cache",
+                asyncio.get_running_loop().time() + SDR_CACHE_RETRY_AFTER_S,
+            )
+            return
+        self._cache_failure = task.result()
+
+    async def _build_cache(self) -> _CacheFailure | None:
+        """Dump the controller's SDR repository to the cache file, atomically. ``None`` on success."""
+        loop = asyncio.get_running_loop()
+
+        def failed(classification: FailureClassification, detail: str) -> _CacheFailure:
+            return _CacheFailure(classification, detail, loop.time() + SDR_CACHE_RETRY_AFTER_S)
+
+        try:
+            self._cache_path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            return failed(FailureClassification.COMMUNICATION, "the SDR cache directory is not writable")
+
+        staging = self._cache_path.with_name(f"{self._cache_path.name}.{os.getpid()}.tmp")
+        try:
+            outcome = await self._run(self._dump_argv(staging), SDR_CACHE_BUILD_TIMEOUT_S)
+            if isinstance(outcome, ReadFailure):
+                return failed(outcome.classification, outcome.detail)
+            output = f"{_decode(outcome.stdout)}\n{_decode(outcome.stderr)}"
+            if outcome.returncode != 0:
+                classification = classify_ipmitool_failure(output)
+                return failed(classification, _failure_detail(classification, output, outcome.returncode))
+            if not staging.is_file() or staging.stat().st_size == 0:
+                return failed(FailureClassification.RESPONSE_FORMAT, "ipmitool sdr dump wrote no repository")
+            staging.replace(self._cache_path)
+            return None
+        finally:
+            with suppress(OSError):
+                staging.unlink(missing_ok=True)
+
+    def _invalidate_cache(self, *, force: bool) -> None:
+        """Drop the cache so the next attempt rebuilds it.
+
+        ``force`` is for a cache ipmitool itself reports as unreadable. A merely *missing sensor*
+        only invalidates a cache old enough that the repository may have changed since.
+        """
+        try:
+            if not force:
+                age_s = datetime.now(tz=UTC).timestamp() - self._cache_path.stat().st_mtime
+                if age_s < self.CACHE_MIN_AGE_FOR_INVALIDATION_S:
+                    return
+            self._cache_path.unlink(missing_ok=True)
+        except OSError:
+            return
+
+    # -- one read ----------------------------------------------------------------------------------
+
+    async def _read_once(self, timeout_s: float) -> ReadResult:
+        """One cached, read-only sensor request, shared by both interface operations."""
+        effective_timeout = self._effective_timeout(timeout_s)
+        loop = asyncio.get_running_loop()
+        # Finish inside the caller's bound so the child is reaped and the outcome classified here.
+        deadline = loop.time() + max(effective_timeout - _DEADLINE_MARGIN_S, effective_timeout / 2)
+
+        cache = await self._ready_cache(deadline)
+        if isinstance(cache, ReadFailure):
+            return cache
+        remaining_s = deadline - loop.time()
+        if remaining_s <= 0:
+            return self._failure(
+                FailureClassification.TIMEOUT,
+                "the IPMI SDR cache became ready too late for this attempt",
+            )
+
+        outcome = await self._run(self._read_argv(effective_timeout), remaining_s)
+        if isinstance(outcome, ReadFailure):
+            return outcome
 
         received_at = _as_utc(self._clock())
-        if result.returncode != 0:
-            classification = classify_ipmitool_failure(f"{_decode(result.stdout)}\n{_decode(result.stderr)}")
-            if classification is FailureClassification.AUTHENTICATION:
-                detail = "the IPMI session or credentials were rejected"
-            elif classification is FailureClassification.RESPONSE_FORMAT:
-                detail = "the configured IPMI sensor was not found"
-            else:
-                detail = f"ipmitool could not read the configured host (exit status {result.returncode})"
-            return self._failure(classification, detail)
+        output = f"{_decode(outcome.stdout)}\n{_decode(outcome.stderr)}"
+        # ipmitool exits 0 even when the cache file is corrupt and the sensor cannot be found in it.
+        if _CACHE_UNUSABLE_OUTPUT.search(output) is not None:
+            self._invalidate_cache(force=True)
+            return self._failure(
+                FailureClassification.RESPONSE_FORMAT,
+                "the local IPMI SDR cache was unreadable and will be rebuilt",
+            )
+        if outcome.returncode != 0:
+            classification = classify_ipmitool_failure(output)
+            if classification is FailureClassification.RESPONSE_FORMAT:
+                self._invalidate_cache(force=False)
+            return self._failure(classification, _failure_detail(classification, output, outcome.returncode))
 
-        watts = parse_sensor_output(_decode(result.stdout), device_id=self._device_id)
+        watts = parse_sensor_output(_decode(outcome.stdout), device_id=self._device_id)
         if isinstance(watts, ReadFailure):
+            if _SENSOR_MISSING_OUTPUT.search(output) is not None:
+                self._invalidate_cache(force=False)
+                return self._failure(FailureClassification.RESPONSE_FORMAT, "the configured IPMI sensor was not found")
             return watts
         return PowerReading(device_id=self._device_id, watts=watts, measured_at=received_at)
