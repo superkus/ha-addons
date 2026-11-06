@@ -111,9 +111,21 @@ through `IPMI_PASSWORD` and `ipmitool -E`, never as a command-line argument, and
 `LC_ALL`, and `IPMI_PASSWORD`: it never inherits the add-on's environment (which carries the Supervisor token), so a
 compromised `ipmitool` cannot read it. The IPMI username is necessarily visible in the child's arguments; `ipmitool`
 offers no other way to pass it. A Redfish response larger than 1 MiB is refused as a response-format failure before it
-is parsed. Configuration values still exist in
-Supervisor's protected options and in process memory; restrict access to Home Assistant backups, the host, add-on
-configuration, and diagnostic exports.
+is parsed. Configuration values still exist in Supervisor's protected options and in process memory; restrict access
+to Home Assistant backups, the host, add-on configuration, and diagnostic exports.
+
+### What the add-on can reach, and why
+
+Like most Home Assistant add-ons, the metering process runs as root inside its container, and `map:
+homeassistant_config:ro` mounts your whole Home Assistant configuration directory read-only so that `!secret`
+references can be resolved from `secrets.yaml`. Supervisor cannot map a single file, so this is all-or-nothing: the
+process could read anything in that directory, not only the secrets it needs. The add-on asks for nothing else: no
+host network, no privileged mode, no Docker or Home Assistant API, and the Supervisor token it receives is scoped to
+discovery announcements. The hardening above (minimal child environment, response caps, strict host and sensor-name
+validation, hash-locked dependencies) exists to keep a compromised controller or library from turning that mount into
+a disclosure. If you prefer not to grant it, put the credentials directly in the add-on options instead of `!secret`
+references; Supervisor stores those in the add-on's own protected `/data/options.json`, and you can then remove the
+`map:` entry from `config.yaml` in a local copy of the add-on.
 
 ## Full configuration: Redfish (`idrac`)
 

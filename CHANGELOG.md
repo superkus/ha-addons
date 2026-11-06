@@ -24,6 +24,8 @@ library, or `ipmitool` could reach.
 - The SDR cache staging file is now created by the add-on with `O_EXCL` (mode 0600) before `ipmitool` writes into it,
   and is checked not to be a symlink before it replaces the cache.
 - `display_name` is capped at 128 characters (it is published verbatim in the retained MQTT inventory).
+- `DOCS.md` now states plainly what the add-on can reach (root in its container, the whole Home Assistant
+  configuration directory read-only for `!secret` resolution) and why, and how to run without that mount.
 - Supply chain: the image now installs its Python dependencies only from a hash-locked `requirements.txt`
   (`pip install --require-hashes`, then the package with `--no-deps`), so what CI audits is byte-for-byte what the
   user's host builds; a mismatched or unlisted wheel fails the build. `ipmitool` is pinned to the exact Alpine package
