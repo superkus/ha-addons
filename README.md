@@ -68,7 +68,7 @@ before a PR can merge. CI (`.github/workflows/ci.yaml`) runs on every push and P
 | `typecheck` | `mypy --strict` |
 | `test` | unit, property, and conformance suites with an 80% line+branch coverage gate |
 | `integration` | `pytest -m integration` against a real Mosquitto |
-| `audit` | `pip-audit --strict` of the runtime dependency set; any advisory fails the run |
+| `audit` | `pip-audit --strict` of the hash-locked `requirements.txt` the image installs from; any advisory, or a lock that drifted from `pyproject.toml`, fails the run |
 | `addon-lint` | Home Assistant add-on linter |
 | `image` | the three-architecture image build, plus an amd64 smoke test |
 
@@ -95,8 +95,17 @@ repository names) one per line in a `.local-refs-denylist` file at the repositor
 hooks check it in addition to the generic rules. The full policy is in `.kiro/steering/security.md` and
 `.kiro/steering/workflow.md`.
 
-Dev tools are pinned to exact versions in `pyproject.toml`, so CI and the hooks run identical tools. Bump them
-deliberately in their own PR.
+Dev tools are pinned to exact versions in `pyproject.toml`, so CI and the hooks run identical tools. Runtime
+dependencies are declared as ranges in `pyproject.toml` and resolved into the hash-locked `requirements.txt` that the
+Dockerfile installs with `--require-hashes`. After changing a runtime dependency, regenerate the lock:
+
+```bash
+uv pip compile pyproject.toml --python-version 3.12 --python-platform linux --generate-hashes -o requirements.txt
+```
+
+Base images (`remote_energy_meter/build.yaml`), `ipmitool`, and GitHub Actions are pinned by digest, exact package
+version, and commit SHA respectively. Dependabot opens weekly bump PRs against `dev`; bump anything else deliberately
+in its own PR.
 
 ### Commands
 

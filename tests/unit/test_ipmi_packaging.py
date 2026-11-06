@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Final
@@ -24,9 +25,24 @@ def _mapping(value: object) -> Mapping[str, object]:
 def test_dockerfile_installs_ipmitool_before_python_dependencies() -> None:
     dockerfile = DOCKERFILE.read_text(encoding="utf-8")
 
-    install = dockerfile.index("apk add --no-cache ipmitool")
-    pip = dockerfile.index("pip3 install --no-cache-dir .")
+    install = dockerfile.index("apk add --no-cache ipmitool=")
+    pip = dockerfile.index("pip3 install --no-cache-dir --require-hashes -r requirements.txt")
     assert install < pip
+
+
+def test_dockerfile_pins_ipmitool_to_an_exact_alpine_package_version() -> None:
+    """A floating `apk add ipmitool` would silently change the parser that handles untrusted controller bytes."""
+    dockerfile = DOCKERFILE.read_text(encoding="utf-8")
+    assert re.search(r"apk add --no-cache ipmitool=\d+\.\d+\.\d+-r\d+\b", dockerfile)
+
+
+def test_dockerfile_installs_only_hash_locked_dependencies() -> None:
+    """The image is built on the user's host; the lock is what makes CI's audit and the shipped set identical."""
+    dockerfile = DOCKERFILE.read_text(encoding="utf-8")
+    assert "pip3 install --no-cache-dir --require-hashes -r requirements.txt" in dockerfile
+    assert "pip3 install --no-cache-dir --no-deps ." in dockerfile, "the package itself must not resolve anything"
+    assert "pip3 install --no-cache-dir .\n" not in dockerfile and "pip3 install --no-cache-dir . " not in dockerfile
+    assert "requirements.txt" in dockerfile.split("COPY pyproject.toml", 1)[1].split("\n", 1)[0]
 
 
 def test_shipped_defaults_keep_redfish_first_and_add_ipmi_second() -> None:

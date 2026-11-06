@@ -277,8 +277,8 @@ sensor is missing from a cache older than 10 minutes. A failed build is retried 
 retransmits a lost datagram after 2 s rather than letting it consume the whole attempt. `-v` adds the RAKP detail that
 separates rejected credentials from an unreachable or saturated controller; it never prints the password.
 
-Arguments are passed directly, not through a shell. The image installs Alpine's `ipmitool`; no host-side executable
-or add-on package installation is required. A successful `Sensor Reading` must contain a finite value from `0` through
+Arguments are passed directly, not through a shell. The image installs Alpine's `ipmitool` at a pinned package
+version; no host-side executable or add-on package installation is required. A successful `Sensor Reading` must contain a finite value from `0` through
 `100000` W.
 
 | Path | Type | Required | Default | Range or form | Invalid-value behavior | Security implications |

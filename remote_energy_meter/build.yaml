@@ -2,10 +2,13 @@
 # Per-architecture base image. The Home Assistant base-python images supply
 # Python 3.12, tzdata, bashio, and the s6-overlay init that Requirement 1.5
 # depends on for SIGTERM forwarding.
+#
+# Pinned by digest so a moved tag cannot change what the image is built from;
+# Dependabot (docker ecosystem) proposes bumps. The tag is kept for readability.
 build_from:
-  amd64: ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.22
-  aarch64: ghcr.io/home-assistant/aarch64-base-python:3.12-alpine3.22
-  armv7: ghcr.io/home-assistant/armv7-base-python:3.12-alpine3.22
+  amd64: ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.22@sha256:3c68563fbe55fdda9d11d6358d030969fc52da9eb41977caa1ff2bf3713c6a00
+  aarch64: ghcr.io/home-assistant/aarch64-base-python:3.12-alpine3.22@sha256:3c4c840c9a9c8eb158facdcbfdd2d9556acc45722fddc078060a8cce1ece749f
+  armv7: ghcr.io/home-assistant/armv7-base-python:3.12-alpine3.22@sha256:bbae66c74a3b891ae188cadc8fb6d70bdae476e6bff2860da0e58182a6009974
 
 labels:
   org.opencontainers.image.title: Remote Energy Meter

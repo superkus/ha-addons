@@ -24,6 +24,12 @@ library, or `ipmitool` could reach.
 - The SDR cache staging file is now created by the add-on with `O_EXCL` (mode 0600) before `ipmitool` writes into it,
   and is checked not to be a symlink before it replaces the cache.
 - `display_name` is capped at 128 characters (it is published verbatim in the retained MQTT inventory).
+- Supply chain: the image now installs its Python dependencies only from a hash-locked `requirements.txt`
+  (`pip install --require-hashes`, then the package with `--no-deps`), so what CI audits is byte-for-byte what the
+  user's host builds; a mismatched or unlisted wheel fails the build. `ipmitool` is pinned to the exact Alpine package
+  (`1.8.19-r1`), the three base images are pinned by digest in `build.yaml`, and every GitHub Action is pinned to a
+  commit SHA. CI's `audit` job scans the lock and fails if it drifts from `pyproject.toml`. A new
+  `.github/dependabot.yml` proposes weekly bumps for actions, pip, and base images, targeting `dev`.
 
 ### Changed
 

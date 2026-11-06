@@ -54,13 +54,13 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # full history so gitleaks can scan every commit
       # Uses .gitleaks.toml (default ruleset, no allowlist) and .gitleaksignore
       # (commit-qualified fingerprints for two reviewed test fixtures).
       - name: gitleaks
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
@@ -71,11 +71,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # every file version, not just the tip, is published
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -93,9 +93,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -122,9 +122,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -146,9 +146,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -174,9 +174,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -234,39 +234,40 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      # Audit exactly what the image installs (`pip install .`, no dev extra) in
-      # an isolated venv, so a dev-only tool cannot mask or add a finding. The
-      # project itself is then uninstalled: it is not on PyPI, so `--strict`
-      # would otherwise refuse it as "could not be audited".
-      - name: Install the runtime dependency set
-        run: |
-          python -m venv /tmp/runtime
-          /tmp/runtime/bin/python -m pip install --upgrade pip
-          /tmp/runtime/bin/python -m pip install .
-          /tmp/runtime/bin/python -m pip uninstall --yes remote-energy-meter
-          python -m pip install "pip-audit==2.10.1"
+      - name: Install pip-audit
+        run: python -m pip install "pip-audit==2.10.1"
 
-      - name: pip-audit (any known vulnerability fails the job)
-        run: pip-audit --strict --progress-spinner off --path "$(/tmp/runtime/bin/python -c 'import sysconfig;print(sysconfig.get_paths()["purelib"])')"
+      # Audit the hash-locked file the Dockerfile installs from: that is exactly what
+      # ships, not a fresh resolution that may differ from the image's.
+      - name: pip-audit the locked runtime set (any known vulnerability fails the job)
+        run: pip-audit --strict --progress-spinner off --no-deps --require-hashes -r requirements.txt
+
+      # The lock must still match pyproject's declared dependencies; a drift means
+      # someone edited one without regenerating the other.
+      - name: Lock file is consistent with pyproject.toml
+        run: |
+          python -m pip install "uv==0.11.8"
+          uv pip compile pyproject.toml --python-version 3.12 --python-platform linux --generate-hashes -o /tmp/fresh.txt --quiet
+          diff <(grep -vE '^(#|\s*$)' requirements.txt) <(grep -vE '^(#|\s*$)' /tmp/fresh.txt)
 
   addon-lint:
     name: add-on linter
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # `path` is the action's only required input and points at the folder that
       # holds the manifest, not at `config.yaml` itself; the linter accepts
       # either `config.yaml` or `config.json` there.
       - name: Lint remote_energy_meter/config.yaml
-        uses: frenck/action-addon-linter@v2
+        uses: frenck/action-addon-linter@d51677290aef26cdfc835271dd3c7343ce502809 # v2.21.2
         with:
           path: "./remote_energy_meter"
 
@@ -292,9 +293,9 @@ jobs:
           - arch: armv7
             platform: linux/arm/v7
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -320,9 +321,9 @@ jobs:
           print(f"build_from={build_from}")
           PY
 
-      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       # Build only: no registry login, no push, no credentials. The build context
       # is the repository root because the Dockerfile copies pyproject.toml,

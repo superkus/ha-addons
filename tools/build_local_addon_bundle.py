@@ -313,6 +313,7 @@ def _stage_bundle(staging_dir: Path, repository_root: Path) -> None:
         (addon_source / "icon.png", staging_dir / "icon.png"),
         (addon_source / "logo.png", staging_dir / "logo.png"),
         (repository_root / "pyproject.toml", staging_dir / "pyproject.toml"),
+        (repository_root / "requirements.txt", staging_dir / "requirements.txt"),
         (repository_root / "README.md", staging_dir / "README.md"),
         (repository_root / "CHANGELOG.md", staging_dir / "CHANGELOG.md"),
     )
