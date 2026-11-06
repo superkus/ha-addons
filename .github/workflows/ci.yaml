@@ -299,14 +299,19 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      # build.yaml is the single source of truth for the base images. Reading it
-      # here instead of restating the tags in the matrix means a base-image bump
-      # cannot leave this workflow building against the old one, and an
-      # architecture dropped from build.yaml fails this step loudly.
-      - name: Resolve the base image from build.yaml
+      # build.yaml names the base image by tag because the Supervisor schema for
+      # `build_from` accepts nothing else. CI pins the same image by digest: a tag
+      # that moves (or a repository that stops matching its digest) fails here
+      # instead of silently changing what gets built. Dependabot bumps the tags;
+      # update the digest in the same PR (`docker buildx imagetools inspect`).
+      - name: Resolve the base image from build.yaml and pin it by digest
         id: base
         env:
           ARCH: ${{ matrix.arch }}
+          BASE_DIGESTS: |
+            amd64=sha256:3c68563fbe55fdda9d11d6358d030969fc52da9eb41977caa1ff2bf3713c6a00
+            aarch64=sha256:3c4c840c9a9c8eb158facdcbfdd2d9556acc45722fddc078060a8cce1ece749f
+            armv7=sha256:bbae66c74a3b891ae188cadc8fb6d70bdae476e6bff2860da0e58182a6009974
         run: |
           pip install --quiet "pyyaml>=6.0.2,<7"
           python - <<'PY' >> "$GITHUB_OUTPUT"
@@ -317,13 +322,29 @@ jobs:
 
           arch = os.environ["ARCH"]
           manifest = yaml.safe_load(pathlib.Path("remote_energy_meter/build.yaml").read_text())
-          build_from = manifest["build_from"][arch]
-          print(f"build_from={build_from}")
+          tagged = manifest["build_from"][arch]
+          digests = dict(line.split("=", 1) for line in os.environ["BASE_DIGESTS"].split() if line)
+          print(f"build_from={tagged}@{digests[arch]}")
           PY
 
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # The pinned digest must still be what the tag resolves to; otherwise the
+      # image CI tests is not the image Supervisor will build for users.
+      - name: Tag and digest agree
+        env:
+          BUILD_FROM: ${{ steps.base.outputs.build_from }}
+        run: |
+          tagged="${BUILD_FROM%@*}"; pinned="${BUILD_FROM#*@}"
+          repo="${tagged#ghcr.io/}"; repo="${repo%%:*}"; tag="${tagged##*:}"
+          token=$(curl -sSf "https://ghcr.io/token?scope=repository:${repo}:pull" | python -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+          actual=$(curl -sSfI -H "Authorization: Bearer ${token}" \
+            -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json" \
+            "https://ghcr.io/v2/${repo}/manifests/${tag}" | tr -d '\r' | awk 'tolower($1)=="docker-content-digest:"{print $2}')
+          echo "tag ${tagged} -> ${actual}"
+          [ "${actual}" = "${pinned}" ] || { echo "::error::base image tag moved: pinned ${pinned}, registry has ${actual}"; exit 1; }
 
       # Build only: no registry login, no push, no credentials. The build context
       # is the repository root because the Dockerfile copies pyproject.toml,

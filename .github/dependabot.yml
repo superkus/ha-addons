@@ -14,8 +14,5 @@ updates:
     labels: [dependencies]
     groups:
       runtime: { patterns: ["*"] }
-  - package-ecosystem: docker # digest-pinned base images in remote_energy_meter/build.yaml
-    directory: /remote_energy_meter
-    schedule: { interval: weekly }
-    target-branch: dev
-    labels: [dependencies, image]
+# Base images live in remote_energy_meter/build.yaml (Supervisor's format), which
+# Dependabot cannot read; bump their tag and the digest pinned in ci.yaml by hand.

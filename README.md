@@ -103,9 +103,10 @@ Dockerfile installs with `--require-hashes`. After changing a runtime dependency
 uv pip compile pyproject.toml --python-version 3.12 --python-platform linux --generate-hashes -o requirements.txt
 ```
 
-Base images (`remote_energy_meter/build.yaml`), `ipmitool`, and GitHub Actions are pinned by digest, exact package
-version, and commit SHA respectively. Dependabot opens weekly bump PRs against `dev`; bump anything else deliberately
-in its own PR.
+`ipmitool` is pinned to an exact Alpine package and GitHub Actions to commit SHAs. The Supervisor schema allows only
+a tag for base images in `remote_energy_meter/build.yaml`, so CI pins their digests (`BASE_DIGESTS` in `ci.yaml`) and
+fails if a tag moves; when bumping a base image, update both. Dependabot opens weekly bump PRs for actions and pip
+against `dev`; bump anything else deliberately in its own PR.
 
 ### Commands
 

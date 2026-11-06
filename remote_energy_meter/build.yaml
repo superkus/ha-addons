@@ -3,12 +3,14 @@
 # Python 3.12, tzdata, bashio, and the s6-overlay init that Requirement 1.5
 # depends on for SIGTERM forwarding.
 #
-# Pinned by digest so a moved tag cannot change what the image is built from;
-# Dependabot (docker ecosystem) proposes bumps. The tag is kept for readability.
+# Tags, not digests: the Supervisor/add-on-linter schema for `build_from` only
+# accepts `name[:tag]`, so this is the one pin the Supervisor build path cannot
+# carry. CI builds the same images by digest (see `base_digests` in ci.yaml) so a
+# moved tag is at least detected there; Dependabot proposes tag bumps.
 build_from:
-  amd64: ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.22@sha256:3c68563fbe55fdda9d11d6358d030969fc52da9eb41977caa1ff2bf3713c6a00
-  aarch64: ghcr.io/home-assistant/aarch64-base-python:3.12-alpine3.22@sha256:3c4c840c9a9c8eb158facdcbfdd2d9556acc45722fddc078060a8cce1ece749f
-  armv7: ghcr.io/home-assistant/armv7-base-python:3.12-alpine3.22@sha256:bbae66c74a3b891ae188cadc8fb6d70bdae476e6bff2860da0e58182a6009974
+  amd64: ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.22
+  aarch64: ghcr.io/home-assistant/aarch64-base-python:3.12-alpine3.22
+  armv7: ghcr.io/home-assistant/armv7-base-python:3.12-alpine3.22
 
 labels:
   org.opencontainers.image.title: Remote Energy Meter

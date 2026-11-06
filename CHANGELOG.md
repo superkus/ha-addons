@@ -29,9 +29,10 @@ library, or `ipmitool` could reach.
 - Supply chain: the image now installs its Python dependencies only from a hash-locked `requirements.txt`
   (`pip install --require-hashes`, then the package with `--no-deps`), so what CI audits is byte-for-byte what the
   user's host builds; a mismatched or unlisted wheel fails the build. `ipmitool` is pinned to the exact Alpine package
-  (`1.8.19-r1`), the three base images are pinned by digest in `build.yaml`, and every GitHub Action is pinned to a
-  commit SHA. CI's `audit` job scans the lock and fails if it drifts from `pyproject.toml`. A new
-  `.github/dependabot.yml` proposes weekly bumps for actions, pip, and base images, targeting `dev`.
+  (`1.8.19-r1`), and every GitHub Action is pinned to a commit SHA. The Supervisor schema only allows a tag in
+  `build.yaml`, so CI pins the three base images by digest itself and fails when the tag no longer resolves to that
+  digest. CI's `audit` job scans the lock and fails if it drifts from `pyproject.toml`. A new `.github/dependabot.yml`
+  proposes weekly bumps for actions and pip, targeting `dev`.
 
 ### Changed
 
