@@ -29,7 +29,7 @@ from typing import Any, Final
 
 from pydantic import BaseModel, Field, SecretStr
 
-from remote_energy_meter.config.models import CREDENTIAL_MARKER
+from remote_energy_meter.config.models import CREDENTIAL_MARKER, HOST_PATTERN, MAX_HOST_LENGTH
 
 __all__ = [
     "DEFAULT_POWER_PATH",
@@ -97,7 +97,7 @@ class IdracParams(BaseModel):
     #: not the host's own address). Kept a plain string so a hostname, an IPv4 literal,
     #: or an IPv6 literal are all accepted; reachability is the read operation's problem
     #: and is reported as a communication failure (Requirement 4.12).
-    host: str = Field(min_length=1)
+    host: str = Field(min_length=1, max_length=MAX_HOST_LENGTH, pattern=HOST_PATTERN)
 
     #: Requirement 4.1 with Requirement 8.1: a credential field, so the redaction
     #: registry shields it from every log record and MQTT payload.

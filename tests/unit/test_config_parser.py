@@ -771,7 +771,12 @@ def test_secret_references_in_non_credential_fields_stay_literal(
     registry: CredentialRegistry,
     resolver: SecretResolver,
 ) -> None:
-    """Requirement 8.4 scopes resolution to credential fields."""
+    """Requirement 8.4 scopes resolution to credential fields.
+
+    ``host`` is not a credential field, so the reference is left as literal text -- which the host pattern then
+    rejects (``!`` and a space are not host characters). Had it been resolved, the entry would have been accepted
+    with the *password* as its host, which is exactly the leak this scoping prevents.
+    """
     outcome = parse(
         options(devices=[device(params=idrac_params(host="!secret idrac_a_password"))]),
         log=log,
@@ -779,8 +784,13 @@ def test_secret_references_in_non_credential_fields_stay_literal(
         resolver=resolver,
     )
 
-    assert outcome.config is not None
-    assert outcome.config.devices[0].params["host"] == "!secret idrac_a_password"
+    # The only device is rejected, so the configuration as a whole is fatal; the rejection names the host field.
+    assert outcome.config is None
+    assert outcome.fatal is not None
+    assert outcome.fatal.reason is FatalReason.NO_ACCEPTED_DEVICES
+    (rejection,) = outcome.rejections
+    assert rejection.reason is RejectionReason.SCHEMA_VIOLATION
+    assert rejection.field_name == "params.host"
 
 
 # --------------------------------------------------------------------------------------------------

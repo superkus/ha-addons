@@ -37,6 +37,7 @@ from pydantic import BaseModel
 
 from remote_energy_meter.plugins.idrac.plugin import (
     AUTHENTICATION_STATUSES,
+    MAX_RESPONSE_BYTES,
     PLUGIN_ID,
     IdracPlugin,
     RedfishResponse,
@@ -95,6 +96,10 @@ class FakeResponse:
     status: int = 200
     body: bytes = b"{}"
     on_read: Callable[[], None] | None = None
+
+    @property
+    def content_length(self) -> int | None:
+        return None
 
     async def read(self) -> bytes:
         if self.on_read is not None:
@@ -924,3 +929,57 @@ async def test_no_failure_detail_carries_a_credential(outcome: Outcome) -> None:
     failure = await read_failure(make_plugin(session_with(outcome), password=PASSWORD))
 
     assert PASSWORD not in failure.detail
+
+
+# --------------------------------------------------------------------------------------------------
+# response size is bounded: a hostile or hijacked endpoint cannot fill memory for timeout_s
+# --------------------------------------------------------------------------------------------------
+
+
+@dataclass(slots=True)
+class SizedResponse(FakeResponse):
+    """A response whose declared Content-Length and actual body can disagree, as a dishonest server's can."""
+
+    declared_length: int | None = None
+
+    @property
+    def content_length(self) -> int | None:
+        return self.declared_length
+
+
+async def test_a_body_exactly_at_the_limit_is_still_read() -> None:
+    overhead = len(json.dumps({**idrac_body(100), "pad": ""}).encode())
+    body = json.dumps({**idrac_body(100), "pad": "x" * (MAX_RESPONSE_BYTES - overhead)}).encode()
+    assert len(body) == MAX_RESPONSE_BYTES
+    plugin = make_plugin(session_with(FakeResponse(body=body)))
+
+    reading = await read_reading(plugin)
+
+    assert reading.watts == 100.0
+
+
+async def test_an_honestly_declared_oversized_body_is_refused_without_being_read() -> None:
+    read_calls = 0
+
+    def on_read() -> None:
+        nonlocal read_calls
+        read_calls += 1
+
+    response = SizedResponse(body=b"{}", on_read=on_read, declared_length=MAX_RESPONSE_BYTES + 1)
+    failure = await read_failure(make_plugin(session_with(response)))
+
+    assert failure.classification is FailureClassification.RESPONSE_FORMAT
+    assert str(MAX_RESPONSE_BYTES) in failure.detail
+    assert read_calls == 0, "the body must not be downloaded once its declared size exceeds the limit"
+
+
+async def test_an_undeclared_oversized_body_is_refused_after_reading() -> None:
+    """No Content-Length (chunked) or a lying one: the cap is enforced on what actually arrived."""
+    oversized = b"[" + b"1," * (MAX_RESPONSE_BYTES // 2) + b"1]"
+    assert len(oversized) > MAX_RESPONSE_BYTES
+    response = SizedResponse(body=oversized, declared_length=None)
+
+    failure = await read_failure(make_plugin(session_with(response)))
+
+    assert failure.classification is FailureClassification.RESPONSE_FORMAT
+    assert str(MAX_RESPONSE_BYTES) in failure.detail

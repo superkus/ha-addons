@@ -93,3 +93,54 @@ def test_credentials_never_render_in_the_schema_representation() -> None:
 def test_interface_rejects_whitespace_or_option_like_delimiters() -> None:
     with pytest.raises(ValidationError):
         IpmiParams(**params(interface="lanplus --help"))
+
+
+# --------------------------------------------------------------------------------------------------
+# option-injection and URL-smuggling defences on free-text fields
+# --------------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("host", ["192.0.2.20", "bmc.example", "bmc.example:623", "::1", "[fd00::9]", "x_1-2.y"])
+def test_host_accepts_hostnames_and_ip_literals(host: str) -> None:
+    assert IpmiParams(**params(host=host)).host == host
+
+
+@pytest.mark.parametrize(
+    "host",
+    [
+        "-H",  # would read as an ipmitool option under a permuting getopt
+        "-f/etc/passwd",
+        "bmc example",  # whitespace
+        "bmc.example\t",
+        "user:pw@bmc.example",  # userinfo smuggled into a URL authority
+        "bmc.example/redfish",  # interior path
+        "bmc.example?x=1",
+        "bmc.example#frag",
+        "bmc\x00.example",
+        "a" * 254,  # over the 253-octet DNS limit
+    ],
+)
+def test_host_rejects_option_like_and_url_smuggling_values(host: str) -> None:
+    with pytest.raises(ValidationError):
+        IpmiParams(**params(host=host))
+
+
+@pytest.mark.parametrize("name", ["System Level", "PS1 Input Power", "Pwr Consumption", "x", "Temp (C)", "a-b"])
+def test_sensor_name_accepts_ordinary_sdr_record_names(name: str) -> None:
+    assert IpmiParams(**params(sensor_name=name)).sensor_name == name
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "-f/etc/passwd",  # GNU getopt would permute this trailing positional into a global option
+        "-S/tmp/other.sdr",
+        "--help",
+        " System Level",  # leading whitespace hides a following dash
+        "System\nLevel",
+        "System\x00Level",
+    ],
+)
+def test_sensor_name_rejects_option_like_values(name: str) -> None:
+    with pytest.raises(ValidationError):
+        IpmiParams(**params(sensor_name=name))

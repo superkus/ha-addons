@@ -215,6 +215,10 @@ class _StubResponse:
     def status(self) -> int:
         return self._status
 
+    @property
+    def content_length(self) -> int | None:
+        return None
+
     async def read(self) -> bytes:
         return self._body
 

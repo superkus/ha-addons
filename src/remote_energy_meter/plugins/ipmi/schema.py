@@ -12,7 +12,7 @@ from typing import Any, Final
 
 from pydantic import BaseModel, Field, SecretStr
 
-from remote_energy_meter.config.models import CREDENTIAL_MARKER
+from remote_energy_meter.config.models import CREDENTIAL_MARKER, HOST_PATTERN, MAX_HOST_LENGTH
 
 __all__ = [
     "DEFAULT_CIPHER_SUITE",
@@ -25,6 +25,7 @@ __all__ = [
     "MAX_USERNAME_LENGTH",
     "MIN_CIPHER_SUITE",
     "MIN_REQUEST_TIMEOUT_S",
+    "SENSOR_NAME_PATTERN",
     "IpmiParams",
 ]
 
@@ -41,6 +42,7 @@ MAX_USERNAME_LENGTH: Final = 64
 MAX_PASSWORD_LENGTH: Final = 128
 MAX_SENSOR_NAME_LENGTH: Final = 255
 MAX_INTERFACE_LENGTH: Final = 32
+SENSOR_NAME_PATTERN: Final = r"^[^\s\x00-\x1f-][^\x00-\x1f]*$"
 
 _CREDENTIAL_FIELD: Final[dict[str, Any]] = {CREDENTIAL_MARKER: True}
 
@@ -48,7 +50,7 @@ _CREDENTIAL_FIELD: Final[dict[str, Any]] = {CREDENTIAL_MARKER: True}
 class IpmiParams(BaseModel):
     """Connection parameters for one IPMI sensor-backed power meter."""
 
-    host: str = Field(min_length=1)
+    host: str = Field(min_length=1, max_length=MAX_HOST_LENGTH, pattern=HOST_PATTERN)
     username: SecretStr = Field(
         min_length=1,
         max_length=MAX_USERNAME_LENGTH,
@@ -59,7 +61,15 @@ class IpmiParams(BaseModel):
         max_length=MAX_PASSWORD_LENGTH,
         json_schema_extra=_CREDENTIAL_FIELD,
     )
-    sensor_name: str = Field(default=DEFAULT_SENSOR_NAME, min_length=1, max_length=MAX_SENSOR_NAME_LENGTH)
+    #: The trailing ``ipmitool sdr get`` positional. A leading ``-`` is refused because a permuting
+    #: ``getopt`` (glibc) would read it as a global ipmitool option; control characters are refused
+    #: because they cannot appear in an SDR record name.
+    sensor_name: str = Field(
+        default=DEFAULT_SENSOR_NAME,
+        min_length=1,
+        max_length=MAX_SENSOR_NAME_LENGTH,
+        pattern=SENSOR_NAME_PATTERN,
+    )
     interface: str = Field(
         default=DEFAULT_INTERFACE,
         min_length=1,

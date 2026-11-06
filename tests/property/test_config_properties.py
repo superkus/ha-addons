@@ -228,9 +228,19 @@ NOTABLE_PORTS: Final[tuple[int, ...]] = (MIN_PORT, 1883, 8883, MAX_PORT)
 #: Poll intervals worth drawing on purpose: both ends of the accepted range and Requirement 2.6's default.
 NOTABLE_INTERVALS: Final[tuple[int, ...]] = (MIN_POLL_INTERVAL_S, DEFAULT_POLL_INTERVAL_S, MAX_POLL_INTERVAL_S)
 
-#: Hosts worth drawing on purpose: the iDRAC management addresses of the target environment, a hostname,
-#: and an IPv6 literal, all of which ``IdracParams.host`` accepts as plain text.
-NOTABLE_HOSTS: Final[tuple[str, ...]] = ("192.0.2.9", "192.0.2.20", "idrac-a.example", "::1")
+#: Hosts worth drawing on purpose: documentation IPv4 addresses, a hostname, a bare and a bracketed IPv6
+#: literal with a port, all of which the plugin schemas accept.
+NOTABLE_HOSTS: Final[tuple[str, ...]] = ("192.0.2.9", "192.0.2.20", "idrac-a.example", "::1", "[fd00::9]:8443")
+
+#: The characters a host may contain (``HOST_PATTERN``): no whitespace, no ``/``, ``@``, ``?``, ``#``.
+_HOST_CHARS: Final = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.:[]_-"
+
+
+def hosts() -> st.SearchStrategy[str]:
+    """Hosts the plugin schemas accept: drawn from the host alphabet, never starting with ``-``."""
+    generated = st.text(alphabet=_HOST_CHARS, min_size=1, max_size=24).filter(lambda h: h[0] not in "-.]_")
+    return st.one_of(generated, st.sampled_from(NOTABLE_HOSTS))
+
 
 #: Prefix every generated non-schema parameter key carries, so an extra key cannot collide with a field
 #: of either published schema and turn into a validation failure.
@@ -447,7 +457,7 @@ def idrac_params(draw: st.DrawFn, regime: Regime) -> dict[str, Any]:
     resolve to the same number, and only the presence of the key tells them apart (Requirement 5.8).
     """
     params: dict[str, Any] = {
-        "host": draw(st.one_of(st.text(min_size=1, max_size=24), st.sampled_from(NOTABLE_HOSTS))),
+        "host": draw(hosts()),
         "username": draw(credentials(MAX_USERNAME_LENGTH)),
         "password": draw(credentials(MAX_PASSWORD_LENGTH)),
     }
@@ -856,7 +866,7 @@ def valid_idrac_params(draw: st.DrawFn) -> dict[str, Any]:
     to this base is then the entry's only defect, which is what makes the rejection deterministic.
     """
     return {
-        "host": draw(st.one_of(st.text(min_size=1, max_size=24), st.sampled_from(NOTABLE_HOSTS))),
+        "host": draw(hosts()),
         "username": draw(credentials(MAX_USERNAME_LENGTH)),
         "password": draw(credentials(MAX_PASSWORD_LENGTH)),
     }

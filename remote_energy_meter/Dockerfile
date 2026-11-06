@@ -26,7 +26,7 @@ ARG BUILD_DESCRIPTION="Meters power of network-attached devices and publishes it
 ARG BUILD_NAME="Remote Energy Meter"
 ARG BUILD_REF
 ARG BUILD_REPOSITORY
-ARG BUILD_VERSION="0.1.1"
+ARG BUILD_VERSION="0.1.2"
 
 # PYTHONUNBUFFERED is load-bearing: the Diagnostics_Logger writes one record per
 # line to stdout and Supervisor reads that stream live (Requirement 9.1).

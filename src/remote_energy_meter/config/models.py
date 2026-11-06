@@ -55,6 +55,14 @@ MAX_PORT: Final = 65535
 #: Requirement 2.12: accepted device identifier length and character set.
 MAX_DEVICE_ID_LENGTH: Final = 64
 DEVICE_ID_PATTERN: Final = r"^[A-Za-z0-9_-]+$"
+#: A network endpoint as handed to a client (``ipmitool -H``, a URL authority): no leading ``-`` (would
+#: read as a command-line option), no whitespace or control characters, no ``@``, ``?``, ``#`` or interior
+#: ``/`` (would smuggle userinfo, a query, or a path into a URL). Hostnames, IPv4, bare and bracketed IPv6,
+#: a port, an ``https://``/``http://`` prefix and one trailing ``/`` (both normalised by the iDRAC plugin) pass.
+HOST_PATTERN: Final = r"^(?:[Hh][Tt][Tt][Pp][Ss]?://)?[A-Za-z0-9\[:][A-Za-z0-9.:\[\]_-]*/?$"
+MAX_HOST_LENGTH: Final = 253
+#: Published verbatim in the retained MQTT inventory; the companion caps the whole document at 256 KiB.
+MAX_DISPLAY_NAME_LENGTH: Final = 128
 
 #: Requirement 3.1: accepted plugin identifier length.
 MAX_PLUGIN_ID_LENGTH: Final = 64
@@ -143,7 +151,7 @@ class DeviceEntry(BaseModel):
 
     device_id: str = Field(min_length=1, max_length=MAX_DEVICE_ID_LENGTH, pattern=DEVICE_ID_PATTERN)
     plugin: str = Field(min_length=1, max_length=MAX_PLUGIN_ID_LENGTH)
-    display_name: str | None = None
+    display_name: str | None = Field(default=None, max_length=MAX_DISPLAY_NAME_LENGTH)
     poll_interval_s: int | None = Field(default=None, ge=MIN_POLL_INTERVAL_S, le=MAX_POLL_INTERVAL_S)
     params: dict[str, Any]
 
