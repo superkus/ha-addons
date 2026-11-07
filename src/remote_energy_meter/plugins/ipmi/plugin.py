@@ -76,6 +76,8 @@ SDR_CACHE_RETRY_AFTER_S: Final = 60.0
 #: Overrides the cache directory; otherwise ``/data/ipmi-sdr-cache`` in the add-on, a temp dir elsewhere.
 SDR_CACHE_DIR_ENV: Final = "REMOTE_ENERGY_METER_SDR_CACHE_DIR"
 _ADDON_DATA_DIR: Final = Path("/data")
+#: Used only when the parent has no PATH of its own; the add-on image always sets one.
+_DEFAULT_CHILD_PATH: Final = "/usr/sbin:/usr/bin:/sbin:/bin"
 #: The plugin ends its own child this long before the caller's deadline, so a slow read is
 #: classified and reaped here rather than cancelled from outside.
 _DEADLINE_MARGIN_S: Final = 0.5
@@ -302,6 +304,31 @@ def _cache_file_name(device_id: str, params: IpmiParams) -> str:
     return f"{safe_id}-{hashlib.sha256(endpoint).hexdigest()[:12]}.sdr"
 
 
+def _create_staging_file(cache_path: Path) -> Path:
+    """Make the file ``ipmitool sdr dump`` will write into, next to the cache, with ``O_EXCL`` and mode 0600.
+
+    Created by this process rather than by the child: a pre-planted symlink at a predictable name could
+    otherwise redirect a root ``ipmitool`` into overwriting an arbitrary file.
+    """
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, name = tempfile.mkstemp(prefix=f"{cache_path.name}.", suffix=".tmp", dir=cache_path.parent)
+    os.close(descriptor)
+    return Path(name)
+
+
+def _install_staged_cache(staging: Path, cache_path: Path) -> bool:
+    """Atomically move a non-empty, regular staging file into place; ``False`` when there is nothing usable."""
+    if staging.is_symlink() or not staging.is_file() or staging.stat().st_size == 0:
+        return False
+    staging.replace(cache_path)
+    return True
+
+
+def _discard(path: Path) -> None:
+    with suppress(OSError):
+        path.unlink(missing_ok=True)
+
+
 @dataclass(frozen=True, slots=True)
 class _CacheFailure:
     """Why the last SDR cache build failed, and when (loop time) another may be attempted."""
@@ -423,9 +450,18 @@ class IpmiPlugin:
         return (*self._base_argv(MAX_PACKET_TIMEOUT_S), "sdr", "dump", str(target))
 
     def _environment(self) -> dict[str, str]:
-        environment = os.environ.copy()
-        environment[IPMI_PASSWORD_ENV] = self._params.password.get_secret_value()
-        return environment
+        """The child's whole environment: the password, plus only what ipmitool needs to run.
+
+        Deliberately *not* a copy of this process's environment. Supervisor injects ``SUPERVISOR_TOKEN``
+        (and the operator may set more), and ``ipmitool`` parses attacker-influenced bytes from the
+        management network with a CVE history for exactly that; a compromised child must not find a
+        token, or any other device's secrets, lying in its environment.
+        """
+        return {
+            "PATH": os.environ.get("PATH", _DEFAULT_CHILD_PATH),
+            "LC_ALL": "C",
+            IPMI_PASSWORD_ENV: self._params.password.get_secret_value(),
+        }
 
     def _failure(self, classification: FailureClassification, detail: str) -> ReadFailure:
         return ReadFailure(device_id=self._device_id, classification=classification, detail=detail)
@@ -519,11 +555,10 @@ class IpmiPlugin:
             return _CacheFailure(classification, detail, loop.time() + SDR_CACHE_RETRY_AFTER_S)
 
         try:
-            self._cache_path.parent.mkdir(parents=True, exist_ok=True)
+            staging = await asyncio.to_thread(_create_staging_file, self._cache_path)
         except OSError:
             return failed(FailureClassification.COMMUNICATION, "the SDR cache directory is not writable")
 
-        staging = self._cache_path.with_name(f"{self._cache_path.name}.{os.getpid()}.tmp")
         try:
             outcome = await self._run(self._dump_argv(staging), SDR_CACHE_BUILD_TIMEOUT_S)
             if isinstance(outcome, ReadFailure):
@@ -532,13 +567,11 @@ class IpmiPlugin:
             if outcome.returncode != 0:
                 classification = classify_ipmitool_failure(output)
                 return failed(classification, _failure_detail(classification, output, outcome.returncode))
-            if not staging.is_file() or staging.stat().st_size == 0:
+            if not await asyncio.to_thread(_install_staged_cache, staging, self._cache_path):
                 return failed(FailureClassification.RESPONSE_FORMAT, "ipmitool sdr dump wrote no repository")
-            staging.replace(self._cache_path)
             return None
         finally:
-            with suppress(OSError):
-                staging.unlink(missing_ok=True)
+            await asyncio.to_thread(_discard, staging)
 
     def _invalidate_cache(self, *, force: bool) -> None:
         """Drop the cache so the next attempt rebuilds it.

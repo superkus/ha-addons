@@ -107,9 +107,25 @@ is bounded to five seconds.
 Credential fields use protected in-memory representations and registered credential values are redacted from
 structured logs with a fixed marker. The retained inventory, state, availability, Supervisor discovery, and diagnostic
 payloads are built from a credential-free device view. For IPMI, the password is passed to the child process only
-through `IPMI_PASSWORD` and `ipmitool -E`, never as a command-line argument. Configuration values still exist in
-Supervisor's protected options and in process memory; restrict access to Home Assistant backups, the host, add-on
-configuration, and diagnostic exports.
+through `IPMI_PASSWORD` and `ipmitool -E`, never as a command-line argument, and the child receives *only* `PATH`,
+`LC_ALL`, and `IPMI_PASSWORD`: it never inherits the add-on's environment (which carries the Supervisor token), so a
+compromised `ipmitool` cannot read it. The IPMI username is necessarily visible in the child's arguments; `ipmitool`
+offers no other way to pass it. A Redfish response larger than 1 MiB is refused as a response-format failure before it
+is parsed. Configuration values still exist in Supervisor's protected options and in process memory; restrict access
+to Home Assistant backups, the host, add-on configuration, and diagnostic exports.
+
+### What the add-on can reach, and why
+
+Like most Home Assistant add-ons, the metering process runs as root inside its container, and `map:
+homeassistant_config:ro` mounts your whole Home Assistant configuration directory read-only so that `!secret`
+references can be resolved from `secrets.yaml`. Supervisor cannot map a single file, so this is all-or-nothing: the
+process could read anything in that directory, not only the secrets it needs. The add-on asks for nothing else: no
+host network, no privileged mode, no Docker or Home Assistant API, and the Supervisor token it receives is scoped to
+discovery announcements. The hardening above (minimal child environment, response caps, strict host and sensor-name
+validation, hash-locked dependencies) exists to keep a compromised controller or library from turning that mount into
+a disclosure. If you prefer not to grant it, put the credentials directly in the add-on options instead of `!secret`
+references; Supervisor stores those in the add-on's own protected `/data/options.json`, and you can then remove the
+`map:` entry from `config.yaml` in a local copy of the add-on.
 
 ## Full configuration: Redfish (`idrac`)
 
@@ -241,7 +257,7 @@ The `idrac` plugin performs one HTTPS GET with HTTP Basic authentication per att
 
 | Path | Type | Required | Default | Range or form | Invalid-value behavior | Security implications |
 | --- | --- | --- | --- | --- | --- | --- |
-| `devices[].params.host` | String | Yes | None | At least 1 character; hostname, IPv4, IPv6, optional port, and optional scheme accepted; default HTTPS port is `443` | Rejected device when missing, empty, or not text. DNS/connect/HTTP failures become runtime `read` failures. | Endpoint is shown in diagnostics. Keep it on the management network; HTTPS is forced so Basic credentials are not intentionally sent over clear HTTP. |
+| `devices[].params.host` | String | Yes | None | `1`–`253` characters; hostname, IPv4, IPv6, optional port, optional `https://` prefix and trailing `/`; default HTTPS port is `443`. Must not start with `-` or contain whitespace, `@`, `?`, `#`, or an interior `/` (these would change the request target) | Rejected device when missing, empty, or not text. DNS/connect/HTTP failures become runtime `read` failures. | Endpoint is shown in diagnostics. Keep it on the management network; HTTPS is forced so Basic credentials are not intentionally sent over clear HTTP. |
 | `devices[].params.username` | Credential string | Yes | None | `1`–`64` characters; use `!secret` | Missing, blank, unresolved, wrong type, or out-of-range value rejects the device. HTTP `401`/`403` becomes `authentication` with no poll retry. | Credential-marked, redacted, and used in HTTP Basic authentication. Use a dedicated read-only Redfish account. |
 | `devices[].params.password` | Credential string | Yes | None | `1`–`128` characters; use `!secret` | Missing, blank, unresolved, wrong type, or out-of-range value rejects the device. HTTP `401`/`403` becomes `authentication`. | Credential-marked, redacted, and excluded from MQTT. Its safety on the network depends on authenticated TLS. |
 | `devices[].params.verify_tls` | Boolean | No | `true` | `true` validates the certificate chain; `false` accepts an untrusted/self-signed peer | Wrong type rejects the device. With `true`, chain failure is `tls_validation`; with `false`, other TLS failures are `read`. | `false` preserves encryption but removes server identity verification, enabling interception and credential theft. Prefer a trusted controller certificate and `true`. |
@@ -273,16 +289,16 @@ sensor is missing from a cache older than 10 minutes. A failed build is retried 
 retransmits a lost datagram after 2 s rather than letting it consume the whole attempt. `-v` adds the RAKP detail that
 separates rejected credentials from an unreachable or saturated controller; it never prints the password.
 
-Arguments are passed directly, not through a shell. The image installs Alpine's `ipmitool`; no host-side executable
-or add-on package installation is required. A successful `Sensor Reading` must contain a finite value from `0` through
+Arguments are passed directly, not through a shell. The image installs Alpine's `ipmitool` at a pinned package
+version; no host-side executable or add-on package installation is required. A successful `Sensor Reading` must contain a finite value from `0` through
 `100000` W.
 
 | Path | Type | Required | Default | Range or form | Invalid-value behavior | Security implications |
 | --- | --- | --- | --- | --- | --- | --- |
-| `devices[].params.host` | String | Yes | None | At least 1 character; management hostname or address passed to `ipmitool -H` | Rejected device when missing, empty, or not text. Session/routing/tool failures become runtime `read` failures. | Endpoint is visible in process arguments and diagnostics. Restrict UDP `623` to the Home Assistant host or management subnet. |
+| `devices[].params.host` | String | Yes | None | `1`–`253` characters; management hostname or address passed to `ipmitool -H`. Must not start with `-` or contain whitespace, `@`, `?`, `#`, or an interior `/` | Rejected device when missing, empty, or not text. Session/routing/tool failures become runtime `read` failures. | Endpoint is visible in process arguments and diagnostics. Restrict UDP `623` to the Home Assistant host or management subnet. |
 | `devices[].params.username` | Credential string | Yes | None | `1`–`64` characters; use `!secret` | Missing, blank, unresolved, wrong type, or out-of-range value rejects the device. Session rejection becomes `authentication` with no poll retry. | Credential-marked and log-redacted, but necessarily passed as the `-U` process argument. Use a non-sensitive account name and least privilege. |
 | `devices[].params.password` | Credential string | Yes | None | `1`–`128` characters; use `!secret` | Missing, blank, unresolved, wrong type, or out-of-range value rejects the device. Session rejection becomes `authentication`. | Credential-marked and redacted. Passed only through child environment variable `IPMI_PASSWORD` with `-E`, never argv or failure detail. |
-| `devices[].params.sensor_name` | String | No | `System Level` | `1`–`255` characters; exact SDR sensor name passed as one argument | Wrong type, empty, or overlength rejects the device. A sensor-not-found result is a response-format failure logged as `read`. | Visible in process arguments and may disclose hardware inventory; never use it to carry a credential. |
+| `devices[].params.sensor_name` | String | No | `System Level` | `1`–`255` characters; exact SDR sensor name passed as one argument. Must not start with `-` or whitespace, nor contain control characters (a leading `-` would read as an `ipmitool` option) | Wrong type, empty, or overlength rejects the device. A sensor-not-found result is a response-format failure logged as `read`. | Visible in process arguments and may disclose hardware inventory; never use it to carry a credential. |
 | `devices[].params.interface` | String | No | `lanplus` | `1`–`32` characters matching letters, digits, `_`, `.`, `+`, or `-` | Wrong type, malformed, empty, or overlength rejects the device. Unsupported interfaces fail at runtime as `read`. | Keep `lanplus` where supported for IPMI v2/RMCP+. Do not downgrade to a weaker interface merely to bypass a configuration problem. |
 | `devices[].params.cipher_suite` | Integer | No | `3` | `0`–`17`, passed to `ipmitool -C` | Wrong type or out of range rejects the device. A controller that refuses the suite normally yields `authentication` or `read`. | Suite `3` is a legacy compatibility choice. Prefer a stronger mutually supported suite and isolate any device that requires suite 3. |
 | `devices[].params.request_timeout_s` | Number of seconds | No | `10` in the plugin schema | `1`–`60`; explicit values may be fractional | Wrong type or out of range rejects the device. It bounds the process and supplies bounded `-N`; timeout/cancellation terminates, then kills if necessary, and reaps the child. If omitted, scheduler fallback is `min(interval / 3, 10)`. | Prevents a stalled child from persisting. Longer values consume more of the poll-cycle budget but do not expose the password. |

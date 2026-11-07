@@ -185,7 +185,10 @@ async def test_successful_read_uses_exact_safe_argv_and_child_environment(
     )
     # The plugin ends its own child 0.5 s before the caller's 4.2 s deadline.
     assert 3.6 < call.timeout_s <= 3.7
-    assert call.env == (dict(os.environ) | {IPMI_PASSWORD_ENV: PASSWORD})
+    # The child gets the password and only what ipmitool needs to run -- never this process's environment,
+    # which carries the Supervisor token and whatever else the operator set.
+    assert call.env == {"PATH": os.environ["PATH"], "LC_ALL": "C", IPMI_PASSWORD_ENV: PASSWORD}
+    assert "REMOTE_ENERGY_METER_TEST_PARENT" not in call.env
     assert PASSWORD not in call.argv
     assert "-P" not in call.argv
 
@@ -499,3 +502,38 @@ async def test_absent_executable_is_a_safe_communication_failure() -> None:
     assert result.classification is FailureClassification.COMMUNICATION
     assert result.detail == "missing-ipmitool executable is unavailable"
     assert PASSWORD not in result.detail
+
+
+# --------------------------------------------------------------------------------------------------
+# the child's environment is the password and nothing of this process's own
+# --------------------------------------------------------------------------------------------------
+
+
+async def test_the_child_never_inherits_the_supervisor_token_or_other_parent_variables(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Supervisor injects SUPERVISOR_TOKEN into the add-on; ipmitool parses untrusted controller bytes as root.
+
+    A code-execution bug in the child must not hand an attacker the token, another device's secrets, or anything
+    else that happened to be in this process's environment.
+    """
+    monkeypatch.setenv("SUPERVISOR_TOKEN", "supervisor-token-value")
+    monkeypatch.setenv("OTHER_DEVICE_PASSWORD", "another-secret")
+    runner = runner_with(completed())
+
+    await reading(make_plugin(runner))
+
+    env = runner.calls[0].env
+    assert set(env) == {"PATH", "LC_ALL", IPMI_PASSWORD_ENV}
+    assert "supervisor-token-value" not in env.values()
+    assert "another-secret" not in env.values()
+    assert env[IPMI_PASSWORD_ENV] == PASSWORD
+
+
+async def test_the_child_gets_a_usable_path_even_when_the_parent_has_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PATH", raising=False)
+    runner = runner_with(completed())
+
+    await reading(make_plugin(runner))
+
+    assert "/usr/sbin" in runner.calls[0].env["PATH"].split(":")

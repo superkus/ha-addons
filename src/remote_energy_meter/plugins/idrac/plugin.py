@@ -66,6 +66,7 @@ from remote_energy_meter.plugins.interface import (
 
 __all__ = [
     "AUTHENTICATION_STATUSES",
+    "MAX_RESPONSE_BYTES",
     "PLUGIN_ID",
     "REQUEST_HEADERS",
     "IdracPlugin",
@@ -95,6 +96,9 @@ _SUCCESS_STATUSES: Final = range(200, 300)
 #: How much of an exception's text reaches a failure detail. The detail travels into a log message capped at 512
 #: characters (Requirement 9.1), and an aiohttp connection error can carry a long chain of causes.
 _MAX_DETAIL_CHARS: Final = 160
+#: The chassis Power resource is a few KiB; anything past this is not a Redfish answer, and an endpoint
+#: (or a man-in-the-middle, when ``verify_tls`` is off) must not be able to fill memory for ``timeout_s``.
+MAX_RESPONSE_BYTES: Final = 1_048_576
 
 #: Stripped from a configured host so that a host written as ``https://192.0.2.9`` still yields one HTTPS URL rather
 #: than a doubled scheme. Requirement 4.3 fixes the scheme, so ``http://`` is stripped too rather than honoured.
@@ -116,6 +120,10 @@ class RedfishResponse(Protocol):
     @property
     def status(self) -> int:
         """The HTTP status of the response."""
+
+    @property
+    def content_length(self) -> int | None:
+        """The declared ``Content-Length``, or ``None`` when the server sent none."""
 
     async def read(self) -> bytes:
         """The full response body."""
@@ -439,7 +447,14 @@ class IdracPlugin:
                         FailureClassification.COMMUNICATION,
                         f"{host} answered HTTP {status} for {self._params.resolved_power_path}",
                     )
+                # Refuse before reading when the server is honest about an oversized body, and after reading
+                # when it is not: either way nothing larger than the cap reaches the parser or stays in memory.
+                declared = response.content_length
+                if declared is not None and declared > MAX_RESPONSE_BYTES:
+                    return self._oversized(host, declared)
                 body = await response.read()
+                if len(body) > MAX_RESPONSE_BYTES:
+                    return self._oversized(host, len(body))
                 received_at = self._clock()
         except TimeoutError:
             # Both aiohttp's own total timeout and the outer bound land here; ``ServerTimeoutError`` is an
@@ -457,6 +472,13 @@ class IdracPlugin:
             )
         else:
             return body, received_at
+
+    def _oversized(self, host: str, size: int) -> ReadFailure:
+        return self._failure(
+            FailureClassification.RESPONSE_FORMAT,
+            f"{host} sent a {size}-byte response for {self._params.resolved_power_path}; "
+            f"the limit is {MAX_RESPONSE_BYTES} bytes",
+        )
 
     def _tls_failure(self, exc: BaseException) -> ReadFailure:
         """Classify a TLS-layer failure by what verification was asked to do.

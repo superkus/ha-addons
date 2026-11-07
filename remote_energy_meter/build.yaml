@@ -2,6 +2,11 @@
 # Per-architecture base image. The Home Assistant base-python images supply
 # Python 3.12, tzdata, bashio, and the s6-overlay init that Requirement 1.5
 # depends on for SIGTERM forwarding.
+#
+# Tags, not digests: the Supervisor/add-on-linter schema for `build_from` only
+# accepts `name[:tag]`, so this is the one pin the Supervisor build path cannot
+# carry. CI builds the same images by digest (see `base_digests` in ci.yaml) so a
+# moved tag is at least detected there; Dependabot proposes tag bumps.
 build_from:
   amd64: ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.22
   aarch64: ghcr.io/home-assistant/aarch64-base-python:3.12-alpine3.22

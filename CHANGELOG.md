@@ -6,6 +6,40 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.2]
+
+### Security
+
+Hardening from a code review. None of these was exploitable as shipped, but each shrinks what a compromised controller,
+library, or `ipmitool` could reach.
+
+- `ipmitool` no longer inherits the add-on's environment. The child receives only `PATH`, `LC_ALL`, and
+  `IPMI_PASSWORD`; before, it also saw `SUPERVISOR_TOKEN` and every other variable of the process.
+- iDRAC Redfish responses are capped at 1 MiB (declared or actual size); larger bodies are refused as
+  `response_format` instead of being buffered for the whole request timeout.
+- `host` (both plugins) must not start with `-` or contain whitespace, `@`, `?`, `#`, or an interior `/`, and
+  `sensor_name` must not start with `-` or whitespace or contain control characters. A permuting `getopt` (glibc) would
+  otherwise read such a value as an `ipmitool` option, and a URL authority would carry smuggled userinfo or a path.
+  Hostnames, IPv4/IPv6 literals, ports, and the documented `https://` prefix remain accepted.
+- The SDR cache staging file is now created by the add-on with `O_EXCL` (mode 0600) before `ipmitool` writes into it,
+  and is checked not to be a symlink before it replaces the cache.
+- `display_name` is capped at 128 characters (it is published verbatim in the retained MQTT inventory).
+- `DOCS.md` now states plainly what the add-on can reach (root in its container, the whole Home Assistant
+  configuration directory read-only for `!secret` resolution) and why, and how to run without that mount.
+- Supply chain: the image now installs its Python dependencies only from a hash-locked `requirements.txt`
+  (`pip install --require-hashes`, then the package with `--no-deps`), so what CI audits is byte-for-byte what the
+  user's host builds; a mismatched or unlisted wheel fails the build. `ipmitool` is pinned to the exact Alpine package
+  (`1.8.19-r1`), and every GitHub Action is pinned to a commit SHA. The Supervisor schema only allows a tag in
+  `build.yaml`, so CI pins the three base images by digest itself and fails when the tag no longer resolves to that
+  digest. CI's `audit` job scans the lock and fails if it drifts from `pyproject.toml`. A new `.github/dependabot.yml`
+  proposes weekly bumps for actions and pip, targeting `dev`.
+
+### Changed
+
+- `main` is protected on GitHub: pull requests only (admins included), all 11 CI jobs are required checks on an
+  up-to-date branch, and force pushes and deletion are blocked. `.kiro/steering/workflow.md` records the
+  configuration and the rule to update required checks whenever a CI job is renamed.
+
 ## [0.1.1]
 
 ### Added

@@ -1,0 +1,18 @@
+# Keeps the pins this repository relies on current, one reviewable PR at a time.
+# Every PR still goes through the full CI gate and branch protection on main.
+version: 2
+updates:
+  - package-ecosystem: github-actions # SHA-pinned actions in .github/workflows
+    directory: /
+    schedule: { interval: weekly }
+    target-branch: dev
+    labels: [dependencies, ci]
+  - package-ecosystem: pip # requirements.txt (hash-locked runtime) and pyproject dev pins
+    directory: /
+    schedule: { interval: weekly }
+    target-branch: dev
+    labels: [dependencies]
+    groups:
+      runtime: { patterns: ["*"] }
+# Base images live in remote_energy_meter/build.yaml (Supervisor's format), which
+# Dependabot cannot read; bump their tag and the digest pinned in ci.yaml by hand.

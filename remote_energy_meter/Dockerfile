@@ -26,7 +26,7 @@ ARG BUILD_DESCRIPTION="Meters power of network-attached devices and publishes it
 ARG BUILD_NAME="Remote Energy Meter"
 ARG BUILD_REF
 ARG BUILD_REPOSITORY
-ARG BUILD_VERSION="0.1.1"
+ARG BUILD_VERSION="0.1.2"
 
 # PYTHONUNBUFFERED is load-bearing: the Diagnostics_Logger writes one record per
 # line to stdout and Supervisor reads that stream live (Requirement 9.1).
@@ -38,16 +38,20 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /usr/src/app
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md requirements.txt ./
 COPY src/ ./src/
 
 # The generic IPMI plugin invokes this read-only client directly (never through a
 # shell). Install it before Python dependencies so packaging tests can pin the runtime
 # prerequisite independently of pip.
-RUN apk add --no-cache ipmitool
+RUN apk add --no-cache ipmitool=1.8.19-r1
 
+# Dependencies come only from the hash-locked requirements.txt (every artifact pinned by
+# sha256), then the package itself without resolving anything further. The image is built
+# on the user's host, so this is what makes "what CI audited" and "what runs" the same set.
 RUN \
-    pip3 install --no-cache-dir . \
+    pip3 install --no-cache-dir --require-hashes -r requirements.txt \
+    && pip3 install --no-cache-dir --no-deps . \
     && rm -rf /usr/src/app
 
 # s6-overlay service definition and the `user` bundle entry that enables it.

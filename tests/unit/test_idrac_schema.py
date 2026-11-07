@@ -196,3 +196,36 @@ def test_credential_values_do_not_render_in_repr() -> None:
     assert "s3cr3t-p4ssw0rd" not in rendered
     assert "root" not in rendered
     assert "192.0.2.9" in rendered
+
+
+# --------------------------------------------------------------------------------------------------
+# the host becomes a URL authority: nothing may smuggle a path, userinfo, or query into it
+# --------------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["192.0.2.9", "idrac.example", "idrac.example:8443", "[fd00::9]:8443", "::1", "https://192.0.2.9", "192.0.2.9/"],
+)
+def test_host_accepts_hostnames_and_ip_literals_and_the_documented_scheme_and_slash_forms(host: str) -> None:
+    assert IdracParams(**params(host=host)).host == host
+
+
+@pytest.mark.parametrize(
+    "host",
+    [
+        "-idrac.example",
+        "user:pw@idrac.example",
+        "idrac.example/redfish/v1",  # an interior path would change the resource read
+        "https://idrac.example/redfish/v1",
+        "ftp://idrac.example",
+        "idrac.example?x=1",
+        "idrac.example#x",
+        "idrac example",
+        "idrac\x00.example",
+    ],
+)
+def test_host_rejects_values_that_would_change_the_request_target(host: str) -> None:
+    with pytest.raises(ValidationError) as excinfo:
+        IdracParams(**params(host=host))
+    assert first_error_field(excinfo.value) == "host"

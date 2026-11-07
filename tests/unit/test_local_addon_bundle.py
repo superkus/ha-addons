@@ -91,6 +91,7 @@ def test_bundle_has_only_the_required_top_level_layout_and_parseable_yaml(bundle
         "icon.png",
         "logo.png",
         "pyproject.toml",
+        "requirements.txt",
         "rootfs",
         "src",
     }
@@ -110,6 +111,7 @@ def test_bundle_has_only_the_required_top_level_layout_and_parseable_yaml(bundle
         "icon.png": ROOT / "remote_energy_meter/icon.png",
         "logo.png": ROOT / "remote_energy_meter/logo.png",
         "pyproject.toml": ROOT / "pyproject.toml",
+        "requirements.txt": ROOT / "requirements.txt",
         "README.md": ROOT / "README.md",
         "CHANGELOG.md": ROOT / "CHANGELOG.md",
     }
@@ -353,4 +355,7 @@ def test_local_packaging_keeps_idrac_and_ipmi_defaults_and_installs_ipmitool(bun
     assert {"verify_tls", "power_path"}.isdisjoint(second_params)
 
     dockerfile = (bundle.output_dir / "Dockerfile").read_text(encoding="utf-8")
-    assert dockerfile.index("apk add --no-cache ipmitool") < dockerfile.index("pip3 install --no-cache-dir .")
+    pip = dockerfile.index("pip3 install --no-cache-dir --require-hashes -r requirements.txt")
+    assert dockerfile.index("apk add --no-cache ipmitool=") < pip
+    # The bundle keeps the flat layout the generated COPY lines expect: the lock sits beside pyproject.toml.
+    assert "COPY pyproject.toml README.md requirements.txt ./" in dockerfile
