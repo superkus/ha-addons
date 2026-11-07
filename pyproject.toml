@@ -35,9 +35,9 @@ dev = [
   "pytest-cov==7.1.0",
   "hypothesis==6.170.14",
   "ruff==0.17.3",
-  "mypy==1.20.2",
+  "mypy==2.4.1",
   # PyYAML ships no inline types, so `mypy --strict` needs its stub distribution.
-  "types-pyyaml==6.0.12.20261030",
+  "types-pyyaml==6.0.12.20261103",
   # Blocking audit of the runtime dependency set (CI job `audit`, pre-commit hook).
   "pip-audit==2.10.1",
 ]
