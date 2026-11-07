@@ -70,7 +70,7 @@ before a PR can merge. CI (`.github/workflows/ci.yaml`) runs on every push and P
 | `integration` | `pytest -m integration` against a real Mosquitto |
 | `audit` | `pip-audit --strict` of the hash-locked `requirements.txt` the image installs from; any advisory, or a lock that drifted from `pyproject.toml`, fails the run |
 | `addon-lint` | Home Assistant add-on linter |
-| `image` | the three-architecture image build, plus an amd64 smoke test |
+| `image` | amd64 and aarch64 image builds from the Dockerfile's pinned `FROM`, plus an amd64 smoke test |
 
 Local hooks run the same gates before anything leaves your machine. Enable them once per clone:
 
@@ -103,10 +103,10 @@ Dockerfile installs with `--require-hashes`. After changing a runtime dependency
 uv pip compile pyproject.toml --python-version 3.12 --python-platform linux --generate-hashes -o requirements.txt
 ```
 
-`ipmitool` is pinned to an exact Alpine package and GitHub Actions to commit SHAs. The Supervisor schema allows only
-a tag for base images in `remote_energy_meter/build.yaml`, so CI pins their digests (`BASE_DIGESTS` in `ci.yaml`) and
-fails if a tag moves; when bumping a base image, update both. Dependabot opens weekly bump PRs for actions and pip
-against `dev`; bump anything else deliberately in its own PR.
+`ipmitool` is pinned to an exact Alpine package, GitHub Actions to commit SHAs, and the base image to a digest in
+the Dockerfile's single multi-architecture `FROM` line (`tag@sha256:...`), which is what Supervisor builds from. CI
+fails if that tag no longer resolves to the pinned digest. Dependabot opens weekly bump PRs for actions, pip, and the
+base image against `dev`; bump anything else deliberately in its own PR.
 
 ### Commands
 
@@ -128,8 +128,7 @@ packaging. Building the add-on image uses the repository root as build context a
 runtime inputs:
 
 ```bash
-docker buildx build -f remote_energy_meter/Dockerfile \
-    --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.22 .
+docker buildx build -f remote_energy_meter/Dockerfile --build-arg BUILD_ARCH=amd64 --build-arg BUILD_VERSION=dev .
 ```
 
 ## License

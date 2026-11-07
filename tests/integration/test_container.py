@@ -1,7 +1,7 @@
 """Container-level integration coverage for the shipped Home Assistant addon image.
 
 These tests build the real Dockerfile from the repository-root context with the current
-machine architecture's Home Assistant base image from ``build.yaml``. They never replace
+base image pinned in the Dockerfile's ``FROM`` line. They never replace
 ``/init`` or the s6 service for the behavior under test: startup failure and SIGTERM both
 cross the production s6 boundary.
 
@@ -23,12 +23,11 @@ from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, cast
+from typing import Final
 from uuid import uuid4
 
 import aiomqtt
 import pytest
-import yaml
 
 from remote_energy_meter.app import EXIT_STARTUP_FAILED
 from remote_energy_meter.mqtt.topics import PAYLOAD_AVAILABLE, PAYLOAD_NOT_AVAILABLE, device_topics
@@ -39,7 +38,6 @@ pytestmark = pytest.mark.integration
 
 _PACKAGE_ROOT: Final = Path(__file__).resolve().parents[2]
 _DOCKERFILE: Final = _PACKAGE_ROOT / "remote_energy_meter" / "Dockerfile"
-_BUILD_CONFIG: Final = _PACKAGE_ROOT / "remote_energy_meter" / "build.yaml"
 _LOOPBACK_HOST: Final = "127.0.0.1"
 
 _DOCKER_DISCOVERY_TIMEOUT_S: Final = 10.0
@@ -59,8 +57,6 @@ _ARCHITECTURE_ALIASES: Final[dict[str, str]] = {
     "x86_64": "amd64",
     "aarch64": "aarch64",
     "arm64": "aarch64",
-    "armv7": "armv7",
-    "armv7l": "armv7",
 }
 
 _MOUNT_UNAVAILABLE_MARKERS: Final = (
@@ -140,27 +136,17 @@ def _native_addon_architecture() -> str:
     if architecture is None:
         pytest.skip(
             "Container integration tests skipped: native machine architecture "
-            f"{machine!r} has no entry in remote_energy_meter/build.yaml."
+            f"{machine!r} is not one the add-on declares (amd64, aarch64)."
         )
     return architecture
 
 
-def _base_image_for(architecture: str) -> str:
-    document: object = yaml.safe_load(_BUILD_CONFIG.read_text(encoding="utf-8"))
-    if not isinstance(document, dict):
-        raise TypeError(f"{_BUILD_CONFIG} must contain a YAML mapping")
-    root = cast("dict[object, object]", document)
-    raw_build_from = root.get("build_from")
-    if not isinstance(raw_build_from, dict):
-        raise TypeError(f"{_BUILD_CONFIG} must contain a build_from mapping")
-    build_from = cast("dict[object, object]", raw_build_from)
-    raw_base = build_from.get(architecture)
-    if not isinstance(raw_base, str) or not raw_base:
-        pytest.skip(
-            "Container integration tests skipped: build.yaml has no non-empty base image for "
-            f"the native {architecture!r} architecture."
-        )
-    return raw_base
+def _pinned_base_image() -> str:
+    """The digest-pinned base image from the Dockerfile's single ``FROM`` line, for the failure message."""
+    for line in _DOCKERFILE.read_text(encoding="utf-8").splitlines():
+        if line.startswith("FROM "):
+            return line.removeprefix("FROM ").strip()
+    raise AssertionError(f"{_DOCKERFILE} has no FROM line")
 
 
 def _docker_executable() -> str:
@@ -226,7 +212,7 @@ def built_addon_image() -> Iterator[_BuiltAddonImage]:
     docker = _docker_executable()
     _require_local_docker_daemon(docker)
     architecture = _native_addon_architecture()
-    base_image = _base_image_for(architecture)
+    base_image = _pinned_base_image()
     image_tag = f"{_IMAGE_PREFIX}:{uuid4().hex}"
 
     try:
@@ -237,9 +223,9 @@ def built_addon_image() -> Iterator[_BuiltAddonImage]:
                 "--file",
                 str(_DOCKERFILE.relative_to(_PACKAGE_ROOT)),
                 "--build-arg",
-                f"BUILD_FROM={base_image}",
-                "--build-arg",
                 f"BUILD_ARCH={architecture}",
+                "--build-arg",
+                "BUILD_VERSION=integration-test",
                 "--tag",
                 image_tag,
                 ".",
@@ -250,9 +236,7 @@ def built_addon_image() -> Iterator[_BuiltAddonImage]:
         raise AssertionError(f"addon image build did not finish: {error}") from error
     _require_success(
         built,
-        action=(
-            f"building the addon image from the repository root with build.yaml base {base_image!r} for {architecture}"
-        ),
+        action=(f"building the addon image from the repository root with base {base_image!r} for {architecture}"),
     )
 
     image = _BuiltAddonImage(docker=docker, tag=image_tag)

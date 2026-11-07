@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.3]
+
+### Changed
+
+- The image is now built from the Dockerfile alone. Supervisor deprecated `build.yaml` and, since 2026.04, no longer
+  passes `BUILD_FROM`; the old `ARG BUILD_FROM=...amd64...` default meant every architecture would have fallen back to
+  the amd64 base once `build.yaml` stopped being read. The Dockerfile now has one multi-architecture `FROM`
+  (`ghcr.io/home-assistant/base-python:3.12-alpine3.22-2026.10.3@sha256:...`), pinned by digest in the source where
+  Supervisor reads it, and carries the OCI labels `build.yaml` used to supply. CI reads the pin from the Dockerfile and
+  fails if the tag stops resolving to it; Dependabot proposes base-image bumps.
+
+### Removed
+
+- `armv7`. Home Assistant ended support for it in 2025.12, the official base image is no longer published for it
+  (last build 2025.11), and the multi-architecture base covers only amd64 and aarch64. The add-on linter had warned
+  about it since the first CI run.
+- `remote_energy_meter/build.yaml`.
+
 ## [0.1.2]
 
 ### Security

@@ -286,8 +286,8 @@ def _generate_dockerfile(source: Path) -> str:
     )
     document = _replace_once(
         document,
-        "#   docker buildx build -f remote_energy_meter/Dockerfile \\",
-        "#   docker buildx build -f Dockerfile \\",
+        "#   docker buildx build -f remote_energy_meter/Dockerfile .",
+        "#   docker buildx build -f Dockerfile .",
         description="build-context command",
     )
     return _replace_once(
@@ -308,7 +308,6 @@ def _stage_bundle(staging_dir: Path, repository_root: Path) -> None:
     addon_source = repository_root / "remote_energy_meter"
     source_files = (
         (addon_source / "config.yaml", staging_dir / "config.yaml"),
-        (addon_source / "build.yaml", staging_dir / "build.yaml"),
         (addon_source / "DOCS.md", staging_dir / "DOCS.md"),
         (addon_source / "icon.png", staging_dir / "icon.png"),
         (addon_source / "logo.png", staging_dir / "logo.png"),

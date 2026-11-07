@@ -4,12 +4,12 @@
 #
 # BUILD CONTEXT: the repository root, not this directory.
 #
-#   docker buildx build -f remote_energy_meter/Dockerfile \
-#       --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.22 .
+#   docker buildx build -f remote_energy_meter/Dockerfile .
 #
-# `pyproject.toml`, `README.md`, and `src/remote_energy_meter/` live at the
-# repository root so the package can be linted, type-checked, and tested on a
-# developer machine without a container (see the design's Repository Layout).
+# `pyproject.toml`, `README.md`, `requirements.txt`, and `src/remote_energy_meter/`
+# live at the repository root so the package can be linted, type-checked, and
+# tested on a developer machine without a container (see the design's Repository
+# Layout).
 #
 # The base image's `/init` entry point is inherited unchanged: s6-overlay starts
 # the `remote-energy-meter` longrun service defined under
@@ -17,16 +17,18 @@
 # script propagates the metering process exit status to the container exit
 # status (Requirement 1.2).
 
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.22
-FROM ${BUILD_FROM}
+# One multi-architecture base (amd64 + aarch64) pinned by digest: the tag says what
+# it is, the digest says exactly which bytes. Supervisor stopped passing BUILD_FROM
+# in 2026.04 and deprecated build.yaml, so this FROM line is the single source of
+# truth for every architecture. CI checks that the tag still resolves to this digest
+# (a moved tag fails the build instead of silently changing the base); Dependabot
+# proposes bumps. The base supplies Python 3.12, s6-overlay, bashio, and tzdata.
+FROM ghcr.io/home-assistant/base-python:3.12-alpine3.22-2026.10.3@sha256:3d6d90b18cfb700c138b185e736a01a3ea049873bc3df6d8dbc725c31e7dc8ab
 
-ARG BUILD_ARCH="amd64"
-ARG BUILD_DATE
-ARG BUILD_DESCRIPTION="Meters power of network-attached devices and publishes it to Home Assistant"
-ARG BUILD_NAME="Remote Energy Meter"
-ARG BUILD_REF
-ARG BUILD_REPOSITORY
-ARG BUILD_VERSION="0.1.2"
+# Supplied by Supervisor and by the CI build; no defaults, so a build that forgot
+# them fails visibly rather than labelling the image with the wrong architecture.
+ARG BUILD_ARCH
+ARG BUILD_VERSION
 
 # PYTHONUNBUFFERED is load-bearing: the Diagnostics_Logger writes one record per
 # line to stdout and Supervisor reads that stream live (Requirement 9.1).
@@ -65,16 +67,16 @@ RUN chmod a+x \
 
 WORKDIR /
 
+# Labels Supervisor reads (`io.hass.*`) plus OCI metadata; `build.yaml` used to
+# carry the latter and is now deprecated, so they live here.
 LABEL \
-    io.hass.name="${BUILD_NAME}" \
-    io.hass.description="${BUILD_DESCRIPTION}" \
+    io.hass.name="Remote Energy Meter" \
+    io.hass.description="Meters power of network-attached devices and publishes it to Home Assistant" \
     io.hass.arch="${BUILD_ARCH}" \
     io.hass.type="addon" \
     io.hass.version="${BUILD_VERSION}" \
-    org.opencontainers.image.title="${BUILD_NAME}" \
-    org.opencontainers.image.description="${BUILD_DESCRIPTION}" \
+    org.opencontainers.image.title="Remote Energy Meter" \
+    org.opencontainers.image.description="Home Assistant add-on that meters power of network-attached devices through per-family plugins and publishes power and energy over MQTT discovery." \
     org.opencontainers.image.licenses="MIT" \
-    org.opencontainers.image.source="${BUILD_REPOSITORY}" \
-    org.opencontainers.image.revision="${BUILD_REF}" \
-    org.opencontainers.image.created="${BUILD_DATE}" \
+    org.opencontainers.image.source="https://github.com/superkus/remote_energy_meter" \
     org.opencontainers.image.version="${BUILD_VERSION}"
