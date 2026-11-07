@@ -296,8 +296,21 @@ jobs:
       - name: Read the pinned base image from the Dockerfile
         id: base
         run: |
-          line=$(grep -E '^FROM ' remote_energy_meter/Dockerfile | head -n 1)
-          image=${line#FROM }
+          # Match every FROM the Dockerfile parser would accept (any case, leading
+          # whitespace) so an added stage or a re-cased line cannot slip past.
+          froms=$(grep -Ei '^[[:space:]]*FROM[[:space:]]' remote_energy_meter/Dockerfile || true)
+          count=$(printf '%s\n' "$froms" | grep -c . || true)
+          [ "$count" -eq 1 ] || { echo "::error::expected exactly one FROM in the Dockerfile, found $count"; exit 1; }
+          # Drop the instruction keyword and surrounding whitespace; keep the rest verbatim.
+          image=$(printf '%s\n' "$froms" | sed -E 's/^[[:space:]]*[Ff][Rr][Oo][Mm][[:space:]]+//; s/[[:space:]]+$//')
+          case "$image" in
+            --*|*[[:space:]]*) echo "::error::the Dockerfile FROM must be a bare image reference (no flags, no stage name): $image"; exit 1 ;;
+          esac
+          # The base tag is `<python minor>-<alpine>-<date>`; Dependabot proposes 3.13 tags
+          # too, and the runtime interpreter must stay the one the tools are configured for
+          # ($PYTHON_VERSION comes from the workflow-level env).
+          tagged="${image%@*}"; tag="${tagged##*:}"; python_minor="${tag%%-*}"
+          [ "$python_minor" = "$PYTHON_VERSION" ] || { echo "::error::base image tag '$tag' is Python '$python_minor', the workflow pins PYTHON_VERSION=$PYTHON_VERSION"; exit 1; }
           case "$image" in
             *@sha256:*) ;;
             *) echo "::error::the Dockerfile FROM is not pinned by digest: $image"; exit 1 ;;
@@ -312,7 +325,8 @@ jobs:
         run: |
           tagged="${IMAGE%@*}"; pinned="${IMAGE#*@}"
           repo="${tagged#ghcr.io/}"; repo="${repo%%:*}"; tag="${tagged##*:}"
-          token=$(curl -sSf "https://ghcr.io/token?scope=repository:${repo}:pull" | python -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+          # jq ships on ubuntu-latest; this job has no other Python need, so no setup-python.
+          token=$(curl -sSf "https://ghcr.io/token?scope=repository:${repo}:pull" | jq -r .token)
           actual=$(curl -sSfI -H "Authorization: Bearer ${token}" \
             -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json" \
             "https://ghcr.io/v2/${repo}/manifests/${tag}" | tr -d '\r' | awk 'tolower($1)=="docker-content-digest:"{print $2}')

@@ -4,7 +4,7 @@
 #
 # BUILD CONTEXT: the repository root, not this directory.
 #
-#   docker buildx build -f remote_energy_meter/Dockerfile .
+#   docker buildx build -f remote_energy_meter/Dockerfile --build-arg BUILD_ARCH=amd64 --build-arg BUILD_VERSION=dev .
 #
 # `pyproject.toml`, `README.md`, `requirements.txt`, and `src/remote_energy_meter/`
 # live at the repository root so the package can be linted, type-checked, and
@@ -18,17 +18,22 @@
 # status (Requirement 1.2).
 
 # One multi-architecture base (amd64 + aarch64) pinned by digest: the tag says what
-# it is, the digest says exactly which bytes. Supervisor stopped passing BUILD_FROM
-# in 2026.04 and deprecated build.yaml, so this FROM line is the single source of
-# truth for every architecture. CI checks that the tag still resolves to this digest
-# (a moved tag fails the build instead of silently changing the base); Dependabot
-# proposes bumps. The base supplies Python 3.12, s6-overlay, bashio, and tzdata.
+# it is, the digest says exactly which bytes. Supervisor has deprecated build.yaml
+# and passes BUILD_FROM only to add-ons that still ship one; without it, this FROM
+# line is what Supervisor builds from, so it is the single source of truth for every
+# architecture. CI checks that the tag still resolves to this digest (a moved tag
+# fails the build instead of silently changing the base); Dependabot proposes
+# rebuilds of the same Python minor and Alpine. The base supplies Python 3.12,
+# s6-overlay, bashio, and tzdata.
 FROM ghcr.io/home-assistant/base-python:3.12-alpine3.22-2026.10.3@sha256:3d6d90b18cfb700c138b185e736a01a3ea049873bc3df6d8dbc725c31e7dc8ab
 
-# Supplied by Supervisor and by the CI build; no defaults, so a build that forgot
-# them fails visibly rather than labelling the image with the wrong architecture.
+# Supervisor and the CI build always pass both. There are no defaults, and an ARG
+# that is not passed expands to "" rather than failing, which would label the image
+# with an empty architecture and version; the guard below fails the build instead.
 ARG BUILD_ARCH
 ARG BUILD_VERSION
+RUN test -n "$BUILD_ARCH" && test -n "$BUILD_VERSION" \
+    || { echo "BUILD_ARCH and BUILD_VERSION must be set (Supervisor and CI pass them)" >&2; exit 1; }
 
 # PYTHONUNBUFFERED is load-bearing: the Diagnostics_Logger writes one record per
 # line to stdout and Supervisor reads that stream live (Requirement 9.1).
@@ -67,8 +72,8 @@ RUN chmod a+x \
 
 WORKDIR /
 
-# Labels Supervisor reads (`io.hass.*`) plus OCI metadata; `build.yaml` used to
-# carry the latter and is now deprecated, so they live here.
+# Labels Supervisor reads (`io.hass.*`) plus OCI metadata; the latter used to come
+# from the now-deprecated `build.yaml`, so they live here.
 LABEL \
     io.hass.name="Remote Energy Meter" \
     io.hass.description="Meters power of network-attached devices and publishes it to Home Assistant" \

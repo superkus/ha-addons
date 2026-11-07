@@ -26,7 +26,7 @@ admins either:
 
 - pull request required (0 approvals: a solo maintainer cannot approve their own PR); review
   conversations must be resolved;
-- required status checks, branch up to date before merge — all 11 CI jobs: `Secret scan (gitleaks)`,
+- required status checks, branch up to date before merge — all 10 CI jobs: `Secret scan (gitleaks)`,
   `Local-setup reference scan`, `Dependency audit (runtime deps, blocking)`, `ruff`, `mypy`,
   `pytest (unit, property, conformance) + coverage gate`, `pytest -m integration`, `add-on linter`,
   `image (amd64)`, `image (aarch64)`;

@@ -48,7 +48,7 @@ with one substitution and one pin.
 | Persistence | stdlib `json` + atomic replace | The state is a few floats per device. A database would add a dependency and a failure mode for no benefit. |
 | Tests | `pytest`, `pytest-asyncio`, `Hypothesis` 6.x | Hypothesis is the mature Python property-based testing library, with shrinking and a stateful-testing mode suited to the energy accumulator. |
 | Lint / format | `ruff`, `mypy --strict` | Type checking is load-bearing here: the failure-classification taxonomy is an enum, and exhaustiveness checks catch an unmapped classification at build time rather than in a log record. |
-| Container base | `ghcr.io/home-assistant/{arch}-base-python` | Supplies Python, `tzdata`, and s6-overlay init, so the addon inherits correct signal forwarding for Requirement 1.5. |
+| Container base | `ghcr.io/home-assistant/base-python` (multi-arch, pinned by digest in the Dockerfile's single `FROM`) | Supplies Python, `tzdata`, and s6-overlay init, so the addon inherits correct signal forwarding for Requirement 1.5. One image for amd64 and aarch64, so there is no per-architecture mapping to keep in step. |
 
 ## Architecture
 
@@ -63,8 +63,7 @@ remote_energy_meter/                      # git repo root = addon repository roo
 ├── pyproject.toml                        # package metadata, deps, ruff/mypy/pytest config
 ├── remote_energy_meter/                  # the addon folder (slug: remote_energy_meter)
 │   ├── config.yaml                       # addon manifest: name, version, arch, startup, options, schema
-│   ├── build.yaml                        # per-arch base image mapping
-│   ├── Dockerfile                        # installs the src package, sets entry point
+│   ├── Dockerfile                        # digest-pinned multi-arch FROM, installs the src package, sets entry point
 │   ├── DOCS.md                           # user documentation shown in Supervisor
 │   ├── CHANGELOG.md
 │   ├── icon.png, logo.png

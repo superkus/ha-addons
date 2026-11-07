@@ -187,8 +187,9 @@ def test_generated_dockerfile_changes_only_the_local_build_context_paths(bundle:
         1,
     )
     expected = expected.replace(
-        "#   docker buildx build -f remote_energy_meter/Dockerfile .",
-        "#   docker buildx build -f Dockerfile .",
+        "#   docker buildx build -f remote_energy_meter/Dockerfile"
+        " --build-arg BUILD_ARCH=amd64 --build-arg BUILD_VERSION=dev .",
+        "#   docker buildx build -f Dockerfile --build-arg BUILD_ARCH=amd64 --build-arg BUILD_VERSION=dev .",
         1,
     )
     expected = expected.replace("COPY remote_energy_meter/rootfs /", "COPY rootfs /", 1)

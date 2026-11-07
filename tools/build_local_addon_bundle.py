@@ -286,8 +286,9 @@ def _generate_dockerfile(source: Path) -> str:
     )
     document = _replace_once(
         document,
-        "#   docker buildx build -f remote_energy_meter/Dockerfile .",
-        "#   docker buildx build -f Dockerfile .",
+        "#   docker buildx build -f remote_energy_meter/Dockerfile"
+        " --build-arg BUILD_ARCH=amd64 --build-arg BUILD_VERSION=dev .",
+        "#   docker buildx build -f Dockerfile --build-arg BUILD_ARCH=amd64 --build-arg BUILD_VERSION=dev .",
         description="build-context command",
     )
     return _replace_once(
