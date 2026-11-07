@@ -25,7 +25,7 @@
 # fails the build instead of silently changing the base); Dependabot proposes
 # rebuilds of the same Python minor and Alpine. The base supplies Python 3.12,
 # s6-overlay, bashio, and tzdata.
-FROM ghcr.io/home-assistant/base-python:3.12-alpine3.22-2026.10.3@sha256:3d6d90b18cfb700c138b185e736a01a3ea049873bc3df6d8dbc725c31e7dc8ab
+FROM ghcr.io/home-assistant/base-python:3.14-alpine3.22-2026.10.3@sha256:9641a0ae82ddee3f50d497bed7bcdb80c65c1d6aee40d1254d10ad37ba4a748f
 
 # Supervisor and the CI build always pass both. There are no defaults, and an ARG
 # that is not passed expands to "" rather than failing, which would label the image
