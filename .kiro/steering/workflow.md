@@ -11,8 +11,11 @@ Security comes first (see `security.md`). Every change, including an urgent fix,
    an existing test wrong, update the test's model of the behaviour, never weaken the assertion.
 4. **Update docs.** `remote_energy_meter/DOCS.md` for user-facing behaviour, `README.md` for
    development, `CHANGELOG.md` (Keep a Changelog: unreleased entries move into the version section
-   when it is released, nothing is dropped). Bump the version in `remote_energy_meter/config.yaml` and
-   `pyproject.toml` together for an add-on release (the Dockerfile takes `BUILD_VERSION` from Supervisor).
+   when it is released, nothing is dropped). The changelog is for users of the add-on: record what ships to them,
+   including runtime-dependency and base-image bumps and CI/security changes that affect the shipped image. Do not
+   record dev-tool bumps (`ruff`, `mypy`, `pytest`, stubs, `pip-audit`); they live in git history and the
+   Dependabot PR. Bump the version in `remote_energy_meter/config.yaml` and `pyproject.toml` together for an
+   add-on release (the Dockerfile takes `BUILD_VERSION` from Supervisor).
 5. **Run the gates locally.** The hooks must be enabled (`git config core.hooksPath .githooks`) and
    `gitleaks` installed; the hooks fail closed without it. Never bypass them with `--no-verify`.
 6. **Commit** focused, reviewable commits (conventional prefixes: `fix:`, `feat:`, `ci:`, `docs:`).
