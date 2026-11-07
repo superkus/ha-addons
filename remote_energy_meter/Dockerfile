@@ -73,7 +73,9 @@ RUN chmod a+x \
 WORKDIR /
 
 # Labels Supervisor reads (`io.hass.*`) plus OCI metadata; the latter used to come
-# from the now-deprecated `build.yaml`, so they live here.
+# from the now-deprecated `build.yaml`, so they live here. The two descriptions
+# differ on purpose: `io.hass.description` is the one-line summary the add-on store
+# shows, the OCI one is the longer image description for registries and scanners.
 LABEL \
     io.hass.name="Remote Energy Meter" \
     io.hass.description="Meters power of network-attached devices and publishes it to Home Assistant" \

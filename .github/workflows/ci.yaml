@@ -323,6 +323,9 @@ jobs:
         env:
           IMAGE: ${{ steps.base.outputs.image }}
         run: |
+          # Without pipefail a failed registry request leaves `actual` empty and the
+          # step would report a "moved tag" instead of the curl error.
+          set -o pipefail
           tagged="${IMAGE%@*}"; pinned="${IMAGE#*@}"
           repo="${tagged#ghcr.io/}"; repo="${repo%%:*}"; tag="${tagged##*:}"
           # jq ships on ubuntu-latest; this job has no other Python need, so no setup-python.
@@ -342,6 +345,9 @@ jobs:
       # requirements.txt, README.md, and src/ from there. `--load` puts the image
       # in the local daemon so the smoke test below can run it. The base image
       # comes from the Dockerfile's own FROM, exactly as Supervisor builds it.
+      #
+      # Values arrive through the environment rather than inline `${{ }}` so the
+      # shell never has expression output spliced into it.
       - name: Build the ${{ matrix.arch }} image
         env:
           PLATFORM: ${{ matrix.platform }}

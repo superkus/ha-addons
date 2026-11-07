@@ -1,7 +1,7 @@
 """Container-level integration coverage for the shipped Home Assistant addon image.
 
-These tests build the real Dockerfile from the repository-root context with the current
-base image pinned in the Dockerfile's ``FROM`` line. They never replace
+These tests build the real Dockerfile from the repository-root context with the base
+image pinned in the Dockerfile's ``FROM`` line. They never replace
 ``/init`` or the s6 service for the behavior under test: startup failure and SIGTERM both
 cross the production s6 boundary.
 
@@ -134,9 +134,10 @@ def _native_addon_architecture() -> str:
     machine = platform.machine().casefold()
     architecture = _ARCHITECTURE_ALIASES.get(machine)
     if architecture is None:
+        declared = ", ".join(sorted(set(_ARCHITECTURE_ALIASES.values())))
         pytest.skip(
             "Container integration tests skipped: native machine architecture "
-            f"{machine!r} is not one the add-on declares (amd64, aarch64)."
+            f"{machine!r} is not one the add-on declares ({declared})."
         )
     return architecture
 
@@ -236,7 +237,7 @@ def built_addon_image() -> Iterator[_BuiltAddonImage]:
         raise AssertionError(f"addon image build did not finish: {error}") from error
     _require_success(
         built,
-        action=(f"building the addon image from the repository root with base {base_image!r} for {architecture}"),
+        action=f"building the addon image from the repository root with base {base_image!r} for {architecture}",
     )
 
     image = _BuiltAddonImage(docker=docker, tag=image_tag)

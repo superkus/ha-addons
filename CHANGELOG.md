@@ -33,7 +33,9 @@ All notable changes to this project are documented here. The format follows
 
 - `armv7`. Home Assistant ended support for it in 2025.12, the official base image is no longer published for it
   (last build 2025.11), and the multi-architecture base covers only amd64 and aarch64. The add-on linter had warned
-  about it since the first CI run.
+  about it since the first CI run. An existing armv7 installation is not offered this update and keeps running 0.1.2;
+  to move it to a supported host, take a Supervisor backup of the add-on first so the persisted energy counters
+  (`/data/energy_state.json`) are carried over.
 - `remote_energy_meter/build.yaml`.
 - The OCI labels `org.opencontainers.image.revision` and `org.opencontainers.image.created`: Supervisor has never
   supplied `BUILD_REF` or `BUILD_DATE` (it passes only `BUILD_FROM`, `BUILD_VERSION`, and `BUILD_ARCH`; those two
