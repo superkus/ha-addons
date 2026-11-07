@@ -13,6 +13,11 @@ Security comes first (see `security.md`). Every change, including an urgent fix,
    development, `CHANGELOG.md` (Keep a Changelog: unreleased entries move into the version section
    when it is released, nothing is dropped). Bump the version in `remote_energy_meter/config.yaml` and
    `pyproject.toml` together for an add-on release (the Dockerfile takes `BUILD_VERSION` from Supervisor).
+   - **What the changelog records.** It is for users of the add-on, so it records what ships to them: code,
+     the runtime dependencies in `requirements.txt`, the base image, and CI or security changes that alter
+     the shipped image. It does not record bumps of packages pinned only in the `dev` extra of
+     `pyproject.toml` (the lint, type, test, and audit tools), even advisory-driven ones; those live in git
+     history and the Dependabot PR.
 5. **Run the gates locally.** The hooks must be enabled (`git config core.hooksPath .githooks`) and
    `gitleaks` installed; the hooks fail closed without it. Never bypass them with `--no-verify`.
 6. **Commit** focused, reviewable commits (conventional prefixes: `fix:`, `feat:`, `ci:`, `docs:`).

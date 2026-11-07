@@ -12,8 +12,11 @@ updates:
     schedule: { interval: weekly }
     target-branch: dev
     labels: [dependencies]
+    # Two groups so a PR's title says what it touches: `runtime` bumps change the shipped
+    # image and get a changelog entry; `dev-tools` bumps do not (steering workflow.md, step 4).
     groups:
-      runtime: { patterns: ["*"] }
+      runtime: { dependency-type: production }
+      dev-tools: { dependency-type: development }
   - package-ecosystem: docker # the digest-pinned FROM in remote_energy_meter/Dockerfile
     directory: /remote_energy_meter
     schedule: { interval: weekly }
