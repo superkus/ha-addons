@@ -48,6 +48,7 @@ Every property test is tagged with the convention from the design's Testing Stra
     - Create `repository.yaml` at the repo root and `remote_energy_meter/config.yaml` declaring name, version,
       architectures, `startup`, and the full options schema (poll interval, log level, MQTT section, device list)
     - Create `remote_energy_meter/build.yaml` mapping each architecture to `ghcr.io/home-assistant/{arch}-base-python`
+      (superseded in 0.1.3: the Dockerfile's single digest-pinned multi-arch `FROM` replaced `build.yaml`)
     - Create `remote_energy_meter/Dockerfile` that installs the `src/` package and sets the entry point
     - Create the s6-overlay service files `rootfs/etc/s6-overlay/s6-rc.d/remote-energy-meter/{type,run,finish}` so the
       container exit status equals the metering process exit status

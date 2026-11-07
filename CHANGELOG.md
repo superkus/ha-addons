@@ -6,6 +6,42 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.3]
+
+### Added
+
+- The Dockerfile fails the build when `BUILD_ARCH` or `BUILD_VERSION` is not passed. Supervisor and CI always pass
+  both; a hand-built image must pass them too (see the README). Before, a missing argument expanded to an empty string
+  and the image was labelled with an empty architecture and version.
+- CI accepts exactly one `FROM` in the Dockerfile, requires it to be a bare `image:tag@sha256:...` reference, and fails
+  if the tag's Python minor differs from the project's 3.12 (`PYTHON_VERSION` in `ci.yaml`). Unit tests check the same
+  pin from the pre-commit gate, and that the `arch` list in `config.yaml` matches the CI image matrix.
+
+### Changed
+
+- The image is now built from the Dockerfile alone. Supervisor has deprecated `build.yaml` (it still reads one when
+  present, with a warning, and passes `BUILD_FROM` only to add-ons that ship one); the old `ARG BUILD_FROM=...amd64...`
+  default meant every architecture would have fallen back to the amd64 base once `build.yaml` goes away. The Dockerfile
+  now has one multi-architecture `FROM` (`ghcr.io/home-assistant/base-python:3.12-alpine3.22-2026.10.3@sha256:...`),
+  pinned by digest in the source where Supervisor reads it, and carries the OCI labels `build.yaml` used to supply. CI
+  reads the pin from the Dockerfile and fails if the tag stops resolving to it. Dependabot proposes base-image rebuilds
+  (same Python minor and Alpine) and ignores Python-minor and Alpine bumps, which stay deliberate PRs.
+- A release bumps only `remote_energy_meter/config.yaml` and `pyproject.toml`; the image version (`BUILD_VERSION`)
+  comes from Supervisor or CI, no longer from a default in the Dockerfile.
+
+### Removed
+
+- `armv7`. Home Assistant ended support for it in 2025.12, the official base image is no longer published for it
+  (last build 2025.11), and the multi-architecture base covers only amd64 and aarch64. The add-on linter had warned
+  about it since the first CI run. An existing armv7 installation is not offered this update and keeps running 0.1.2;
+  to move it to a supported host, take a Supervisor backup of the add-on first so the persisted energy counters
+  (`/data/energy_state.json`) are carried over.
+- `remote_energy_meter/build.yaml`.
+- The OCI labels `org.opencontainers.image.revision` and `org.opencontainers.image.created`: Supervisor has never
+  supplied `BUILD_REF` or `BUILD_DATE` (it passes only `BUILD_FROM`, `BUILD_VERSION`, and `BUILD_ARCH`; those two
+  arguments are a Community Add-ons base-image convention filled in by that project's own CI), so the labels were
+  always empty. `org.opencontainers.image.source` is now a fixed value instead of `BUILD_REPOSITORY`.
+
 ## [0.1.2]
 
 ### Security

@@ -86,7 +86,6 @@ def test_bundle_has_only_the_required_top_level_layout_and_parseable_yaml(bundle
         "Dockerfile",
         "LOCAL_INSTALL.md",
         "README.md",
-        "build.yaml",
         "config.yaml",
         "icon.png",
         "logo.png",
@@ -96,7 +95,6 @@ def test_bundle_has_only_the_required_top_level_layout_and_parseable_yaml(bundle
         "src",
     }
     assert _mapping(yaml.safe_load((bundle.output_dir / "config.yaml").read_text(encoding="utf-8")))
-    assert _mapping(yaml.safe_load((bundle.output_dir / "build.yaml").read_text(encoding="utf-8")))
     assert (bundle.output_dir / "src/remote_energy_meter/__init__.py").is_file()
     assert (bundle.output_dir / "src/remote_energy_meter/plugins/idrac/plugin.py").is_file()
     assert (bundle.output_dir / "src/remote_energy_meter/plugins/ipmi/plugin.py").is_file()
@@ -106,7 +104,6 @@ def test_bundle_has_only_the_required_top_level_layout_and_parseable_yaml(bundle
 
     copied_files = {
         "config.yaml": ROOT / "remote_energy_meter/config.yaml",
-        "build.yaml": ROOT / "remote_energy_meter/build.yaml",
         "DOCS.md": ROOT / "remote_energy_meter/DOCS.md",
         "icon.png": ROOT / "remote_energy_meter/icon.png",
         "logo.png": ROOT / "remote_energy_meter/logo.png",
@@ -190,8 +187,9 @@ def test_generated_dockerfile_changes_only_the_local_build_context_paths(bundle:
         1,
     )
     expected = expected.replace(
-        "#   docker buildx build -f remote_energy_meter/Dockerfile \\",
-        "#   docker buildx build -f Dockerfile \\",
+        "#   docker buildx build -f remote_energy_meter/Dockerfile"
+        " --build-arg BUILD_ARCH=amd64 --build-arg BUILD_VERSION=dev .",
+        "#   docker buildx build -f Dockerfile --build-arg BUILD_ARCH=amd64 --build-arg BUILD_VERSION=dev .",
         1,
     )
     expected = expected.replace("COPY remote_energy_meter/rootfs /", "COPY rootfs /", 1)

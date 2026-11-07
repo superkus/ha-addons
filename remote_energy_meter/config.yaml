@@ -15,16 +15,18 @@
 # 5.7, 8.5, and 8.8: those require the offending Device_Entry to be excluded,
 # logged, and the remaining entries retained.
 name: Remote Energy Meter
-version: "0.1.2"
+version: "0.1.3"
 slug: remote_energy_meter
 description: >-
   Meters network-attached devices and publishes credential-free versioned MQTT
   inventory plus power, energy, attributes, and availability state.
 url: https://github.com/superkus/remote_energy_meter/tree/main/remote_energy_meter
+# armv7 was dropped: Home Assistant ended support for it in 2025.12 and the official
+# base image is no longer published for it, so an armv7 entry would advertise an image
+# that cannot be built.
 arch:
   - amd64
   - aarch64
-  - armv7
 
 # `startup` and `boot` are deliberately omitted: their defaults (`application`,
 # `auto`) are what this add-on needs -- the metering process consumes the MQTT

@@ -275,81 +275,76 @@ jobs:
     name: image (${{ matrix.arch }})
     runs-on: ubuntu-latest
     needs: [secrets, local-refs, lint, typecheck, test]
-    # Emulated builds are slow: the aarch64 and armv7 wheels for pydantic-core
-    # may not exist for musl, in which case pip compiles it under QEMU. Cap the
-    # job so a runaway build fails legibly instead of burning an hour.
+    # The aarch64 build runs under QEMU and may compile pydantic-core when no musl
+    # wheel exists. Cap the job so a runaway build fails legibly.
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        # One entry per architecture declared in `remote_energy_meter/config.yaml`
-        # and `remote_energy_meter/build.yaml`. `platform` is the Docker name for
-        # the same architecture; build.yaml does not carry it, so it lives here.
+        # One entry per architecture declared in `remote_energy_meter/config.yaml`.
+        # `platform` is the Docker name for the same architecture.
         include:
           - arch: amd64
             platform: linux/amd64
           - arch: aarch64
             platform: linux/arm64
-          - arch: armv7
-            platform: linux/arm/v7
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      # build.yaml names the base image by tag because the Supervisor schema for
-      # `build_from` accepts nothing else. CI pins the same image by digest: a tag
-      # that moves (or a repository that stops matching its digest) fails here
-      # instead of silently changing what gets built. Dependabot bumps the tags;
-      # update the digest in the same PR (`docker buildx imagetools inspect`).
-      - name: Resolve the base image from build.yaml and pin it by digest
+      # The Dockerfile's FROM is the single source of truth for the base image
+      # (`tag@sha256:digest`, multi-arch). Supervisor builds from exactly that line.
+      - name: Read the pinned base image from the Dockerfile
         id: base
-        env:
-          ARCH: ${{ matrix.arch }}
-          BASE_DIGESTS: |
-            amd64=sha256:3c68563fbe55fdda9d11d6358d030969fc52da9eb41977caa1ff2bf3713c6a00
-            aarch64=sha256:3c4c840c9a9c8eb158facdcbfdd2d9556acc45722fddc078060a8cce1ece749f
-            armv7=sha256:bbae66c74a3b891ae188cadc8fb6d70bdae476e6bff2860da0e58182a6009974
         run: |
-          pip install --quiet "pyyaml>=6.0.2,<7"
-          python - <<'PY' >> "$GITHUB_OUTPUT"
-          import os
-          import pathlib
-
-          import yaml
-
-          arch = os.environ["ARCH"]
-          manifest = yaml.safe_load(pathlib.Path("remote_energy_meter/build.yaml").read_text())
-          tagged = manifest["build_from"][arch]
-          digests = dict(line.split("=", 1) for line in os.environ["BASE_DIGESTS"].split() if line)
-          print(f"build_from={tagged}@{digests[arch]}")
-          PY
-
-      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
-
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+          # Match every FROM the Dockerfile parser would accept (any case, leading
+          # whitespace) so an added stage or a re-cased line cannot slip past.
+          froms=$(grep -Ei '^[[:space:]]*FROM[[:space:]]' remote_energy_meter/Dockerfile || true)
+          count=$(printf '%s\n' "$froms" | grep -c . || true)
+          [ "$count" -eq 1 ] || { echo "::error::expected exactly one FROM in the Dockerfile, found $count"; exit 1; }
+          # Drop the instruction keyword and surrounding whitespace; keep the rest verbatim.
+          image=$(printf '%s\n' "$froms" | sed -E 's/^[[:space:]]*[Ff][Rr][Oo][Mm][[:space:]]+//; s/[[:space:]]+$//')
+          case "$image" in
+            --*|*[[:space:]]*) echo "::error::the Dockerfile FROM must be a bare image reference (no flags, no stage name): $image"; exit 1 ;;
+          esac
+          # The base tag is `<python minor>-<alpine>-<date>`; Dependabot proposes 3.13 tags
+          # too, and the runtime interpreter must stay the one the tools are configured for
+          # ($PYTHON_VERSION comes from the workflow-level env).
+          tagged="${image%@*}"; tag="${tagged##*:}"; python_minor="${tag%%-*}"
+          [ "$python_minor" = "$PYTHON_VERSION" ] || { echo "::error::base image tag '$tag' is Python '$python_minor', the workflow pins PYTHON_VERSION=$PYTHON_VERSION"; exit 1; }
+          case "$image" in
+            *@sha256:*) ;;
+            *) echo "::error::the Dockerfile FROM is not pinned by digest: $image"; exit 1 ;;
+          esac
+          echo "image=$image" >> "$GITHUB_OUTPUT"
 
       # The pinned digest must still be what the tag resolves to; otherwise the
       # image CI tests is not the image Supervisor will build for users.
       - name: Tag and digest agree
         env:
-          BUILD_FROM: ${{ steps.base.outputs.build_from }}
+          IMAGE: ${{ steps.base.outputs.image }}
         run: |
-          tagged="${BUILD_FROM%@*}"; pinned="${BUILD_FROM#*@}"
+          # Without pipefail a failed registry request leaves `actual` empty and the
+          # step would report a "moved tag" instead of the curl error.
+          set -o pipefail
+          tagged="${IMAGE%@*}"; pinned="${IMAGE#*@}"
           repo="${tagged#ghcr.io/}"; repo="${repo%%:*}"; tag="${tagged##*:}"
-          token=$(curl -sSf "https://ghcr.io/token?scope=repository:${repo}:pull" | python -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+          # jq ships on ubuntu-latest; this job has no other Python need, so no setup-python.
+          token=$(curl -sSf "https://ghcr.io/token?scope=repository:${repo}:pull" | jq -r .token)
           actual=$(curl -sSfI -H "Authorization: Bearer ${token}" \
             -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json" \
             "https://ghcr.io/v2/${repo}/manifests/${tag}" | tr -d '\r' | awk 'tolower($1)=="docker-content-digest:"{print $2}')
           echo "tag ${tagged} -> ${actual}"
           [ "${actual}" = "${pinned}" ] || { echo "::error::base image tag moved: pinned ${pinned}, registry has ${actual}"; exit 1; }
 
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
       # Build only: no registry login, no push, no credentials. The build context
       # is the repository root because the Dockerfile copies pyproject.toml,
-      # README.md, and src/ from there (see its header comment). `--load` puts
-      # the image in the local daemon so the smoke test below can run it.
+      # requirements.txt, README.md, and src/ from there. `--load` puts the image
+      # in the local daemon so the smoke test below can run it. The base image
+      # comes from the Dockerfile's own FROM, exactly as Supervisor builds it.
       #
       # Values arrive through the environment rather than inline `${{ }}` so the
       # shell never has expression output spliced into it.
@@ -357,13 +352,12 @@ jobs:
         env:
           PLATFORM: ${{ matrix.platform }}
           BUILD_ARCH: ${{ matrix.arch }}
-          BUILD_FROM: ${{ steps.base.outputs.build_from }}
         run: |
           docker buildx build \
             --platform "$PLATFORM" \
             --file remote_energy_meter/Dockerfile \
-            --build-arg "BUILD_FROM=$BUILD_FROM" \
             --build-arg "BUILD_ARCH=$BUILD_ARCH" \
+            --build-arg "BUILD_VERSION=ci" \
             --tag "remote-energy-meter:ci-$BUILD_ARCH" \
             --cache-from "type=gha,scope=image-$BUILD_ARCH" \
             --cache-to "type=gha,mode=max,scope=image-$BUILD_ARCH" \
@@ -372,8 +366,9 @@ jobs:
 
       # Native architecture only: under QEMU this would only re-test emulation.
       # Proves the runtime prerequisites the IPMI plugin depends on are really in
-      # the image, and that the whole application imports there.
-      - name: Smoke-test the image (ipmitool present, application imports)
+      # the image, that the whole application imports there, and that the labels
+      # Supervisor reads were applied from the build arguments.
+      - name: Smoke-test the image (ipmitool present, application imports, labels)
         if: matrix.arch == 'amd64'
         env:
           BUILD_ARCH: ${{ matrix.arch }}
@@ -381,3 +376,5 @@ jobs:
           docker run --rm --entrypoint ipmitool "remote-energy-meter:ci-$BUILD_ARCH" -V
           docker run --rm --entrypoint python3 "remote-energy-meter:ci-$BUILD_ARCH" -c \
             "import remote_energy_meter.__main__, remote_energy_meter.plugins.ipmi.plugin as p; print('imports ok; sdr cache dir:', p.default_sdr_cache_dir())"
+          arch=$(docker image inspect "remote-energy-meter:ci-$BUILD_ARCH" --format '{{index .Config.Labels "io.hass.arch"}}')
+          [ "$arch" = "$BUILD_ARCH" ] || { echo "::error::io.hass.arch label is '$arch', expected '$BUILD_ARCH'"; exit 1; }

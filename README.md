@@ -70,7 +70,7 @@ before a PR can merge. CI (`.github/workflows/ci.yaml`) runs on every push and P
 | `integration` | `pytest -m integration` against a real Mosquitto |
 | `audit` | `pip-audit --strict` of the hash-locked `requirements.txt` the image installs from; any advisory, or a lock that drifted from `pyproject.toml`, fails the run |
 | `addon-lint` | Home Assistant add-on linter |
-| `image` | the three-architecture image build, plus an amd64 smoke test |
+| `image` | amd64 and aarch64 image builds from the Dockerfile's pinned `FROM`, plus an amd64 smoke test |
 
 Local hooks run the same gates before anything leaves your machine. Enable them once per clone:
 
@@ -103,10 +103,12 @@ Dockerfile installs with `--require-hashes`. After changing a runtime dependency
 uv pip compile pyproject.toml --python-version 3.12 --python-platform linux --generate-hashes -o requirements.txt
 ```
 
-`ipmitool` is pinned to an exact Alpine package and GitHub Actions to commit SHAs. The Supervisor schema allows only
-a tag for base images in `remote_energy_meter/build.yaml`, so CI pins their digests (`BASE_DIGESTS` in `ci.yaml`) and
-fails if a tag moves; when bumping a base image, update both. Dependabot opens weekly bump PRs for actions and pip
-against `dev`; bump anything else deliberately in its own PR.
+`ipmitool` is pinned to an exact Alpine package, GitHub Actions to commit SHAs, and the base image to a digest in
+the Dockerfile's single multi-architecture `FROM` line (`tag@sha256:...`), which is what Supervisor builds from. CI
+requires exactly one digest-pinned `FROM`, fails if that tag no longer resolves to the pinned digest, and fails if the
+tag's Python minor differs from `PYTHON_VERSION` in `ci.yaml` (3.12). Dependabot opens weekly bump PRs for actions and
+pip against `dev`; for the base image it proposes only rebuilds of the same Python minor and Alpine release.
+Python-minor and Alpine bumps of the base, like anything else, are deliberate PRs of their own.
 
 ### Commands
 
@@ -125,11 +127,11 @@ python tools/check_local_refs.py --history
 
 The Python backend package lives in `src/remote_energy_meter/`; the add-on folder contains Supervisor/container
 packaging. Building the add-on image uses the repository root as build context and copies only backend and add-on
-runtime inputs:
+runtime inputs. `BUILD_ARCH` and `BUILD_VERSION` are required (Supervisor and CI pass them; the build fails without
+both):
 
 ```bash
-docker buildx build -f remote_energy_meter/Dockerfile \
-    --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.22 .
+docker buildx build -f remote_energy_meter/Dockerfile --build-arg BUILD_ARCH=amd64 --build-arg BUILD_VERSION=dev .
 ```
 
 ## License
