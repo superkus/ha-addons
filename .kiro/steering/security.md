@@ -56,6 +56,23 @@ publish the very term it forbids. A line that must describe a rule opts out visi
   suppress, downgrade a framework, or disable the gate. Dev-only advisories are fixed too.
 - GitHub Actions use maintained, current major versions; jobs get least-privilege `permissions`.
 
+## Zero trust for every connection
+
+The LAN, VPN, Docker network, internal add-on network, loopback, broker, and mDNS are **untrusted transport**. Network
+location grants no identity or authority. Every new protocol in this repository must:
+
+- authenticate each device/service independently, with per-identity revocation and rotation;
+- authorize every operation and bind the authenticated identity to the device/resource it claims;
+- use authenticated encryption and verify certificates or keys on every hop, including internal control traffic;
+- treat discovery as a routing hint only; establish first-contact trust through a verified fingerprint/SAS or
+  pre-provisioned pin/token;
+- strictly cap and validate headers, bodies, fields, types, ranges, rates, concurrency, freshness, and replay state;
+- assume each reporter/controller may be compromised and contain its effect to its own identity and bounded resources;
+- use server receipt time for energy data; never trust a client clock to drive cumulative energy.
+
+A control endpoint being reachable only on Home Assistant's internal network is not authentication. MQTT ACLs and
+firewalls are defence in depth, not substitutes for application-level authorization. Plaintext modes are not allowed.
+
 ## Live systems
 
 Never fix a problem by patching a running Home Assistant installation. Investigating it (reading
