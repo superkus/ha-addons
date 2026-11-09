@@ -297,12 +297,33 @@ credential embeds its absolute expiry, every proof binds that expiry, and restor
 after that original instant; restoring an older backup shall never restart or extend its lifetime. A consumed digest
 shall be retained until at least five minutes after expiry, then may be compacted because the credential is
 cryptographically unusable regardless of the tombstone. Add-on-only or Core-only restore shall compare independent
-control generations/SPKI pins and disable control on mismatch. A coordinated full-system backup rollback cannot be
-cryptographically distinguished from its original state without an external monotonic witness; it is an authenticated
-administrator recovery action, shall be documented as a trust rollback, and shall require the administrator to revoke
-and re-pair control before reporter administration resumes. Missing or inconsistent generated PKI or control identity
-shall otherwise fail closed and require the authenticated re-enrollment/re-pairing paths below. Restoring an operator
-certificate never restores an external private key absent from `/ssl`.
+control generations/SPKI pins and disable control on mismatch.
+
+A coordinated full-system backup rollback cannot be cryptographically distinguished from its original state without
+an external monotonic witness. The declared restore workflow, rather than restored data, shall therefore place both the
+add-on and integration in a durable post-restore quarantine before either service starts normal operation. Restored
+control authority shall be revoked and shall not administer reporters; only bootstrap with a fresh pairing credential
+may establish new control authority. Every restored reporter identity shall remain quarantined: it shall receive no
+challenge or session, have no report accepted, and confer no administration or publication authority. Proof by a
+restored enrolled key shall never release quarantine, and no reporter-revalidation route shall exist. To return a
+reporter to service, an HA administrator shall first durably delete the restored identity through the authenticated
+reporter-action route and then complete from scratch either the interactive enrollment protocol in 4.3 or the managed
+enrollment protocol in 4.5, including all fresh nonces, credentials, transcript proofs, and required confirmations. The
+resulting identity is a new enrollment; the restored identity and its authority shall never be reactivated. Until a
+restored identity is durably deleted, it shall remain quarantined.
+
+Before leaving post-restore quarantine, both endpoints shall durably mark every restored MQTT key-generation record,
+key ID, and nonce prefix unusable; preserve non-secret invalidation tombstones; and delete every restored secret key,
+counter reservation, replay baseline, overlap key, and key-bearing retry copy. Through the newly paired pinned control
+channel, the core shall provision a fresh random 256-bit key, independent random 16-byte `key_id`, and independent random 128-bit nonce prefix as a new key-generation record. The integration shall durably
+store that exact record and acknowledge its key ID, generation, key digest, and nonce prefix; the core shall durably
+record the acknowledgement before either endpoint permits MQTT v2 subscription, retained-state application,
+connection, or publication. No restored key, key ID, nonce prefix, counter, or ciphertext shall be used to resume v2.
+Post-restore quarantine shall remain fail closed until fresh control pairing, MQTT reprovisioning and acknowledgement,
+and disposition of every restored reporter identity are durable. Missing or inconsistent generated PKI, control
+identity, restore-quarantine state, or acknowledgement shall likewise fail closed and require the authenticated
+re-enrollment/re-pairing paths below. Restoring an operator certificate never restores an external private key absent
+from `/ssl`.
 
 5.4 Routine generated-CA or operator private-CA transition shall require a bounded transition statement over the old
 and new CA SPKI hashes, instance ID, validity interval, and generation, signed by the old CA. Reporters shall verify it
@@ -928,6 +949,14 @@ within 24 hours and be refreshed at least every 12 hours. Suppression or absence
 entities unavailable and shall never authorize stale state. MQTT v1 shall continue unchanged for static devices.
 Adding a reporter shall not grow or republish a fleet-wide inventory document.
 
+Before releasing any restored MQTT v2 state, a coordinated full-system restore shall enforce requirement 5.3's
+durable post-restore quarantine at both endpoints. The core shall reject reporter challenge, session, and report traffic
+and shall not connect or publish v2; the integration shall not subscribe to, decrypt, use as a replay baseline, or expose
+retained v2 messages. Those gates shall remain closed until fresh control pairing, fresh MQTT key-generation
+provisioning with durable integration acknowledgement, and administrator disposition of every restored reporter are
+complete. Retained envelopes under every restored key ID shall remain untrusted even if they pass AEAD and restored
+high-water checks.
+
 For each MQTT connection attempt, the core shall durably reserve a strictly increasing process generation before
 CONNECT and construct an AEAD-protected retained `offline` Will for that generation and the exact process-availability
 topic. Process-online and process-offline shall be separate sequence domains; the precomputed Will shall use the sole
@@ -957,11 +986,18 @@ wrapping-key, AEAD, 60-second maximum, backup exclusion, fail-closed cleanup, an
 7.5f; mode 0600 alone is not sufficient protection for that response. Provisioning and rotation shall mutually confirm
 the canonical 16-byte/22-character `key_id`, its unique unsigned 64-bit generation, the SHA-256 digest of the exact key
 bytes, and independent 32-byte nonces from core
-and integration in one canonical control transcript. The integration shall reject a reused ID, a generation associated
-with any other ID, a non-canonical ID encoding, or any offered pair that does not match the transcript and durable
-record. Rotation shall use a bounded overlap, and the old key shall be deleted only after
-the integration acknowledges the new generation over that channel. On startup, before subscribing, the integration
-shall load the trusted durable one-to-one key-ID/generation map and per-process/per-reporter/per-message
+and integration in one canonical control transcript. Each provisioned record shall also contain an independent random
+128-bit nonce prefix generated for that provisioning operation; post-restore provisioning shall never restore or derive
+it from previous state. Both endpoints shall bind that exact prefix into the transcript and durable acknowledgement.
+Both endpoints shall reject a reused ID or nonce prefix, a generation associated with any other ID, a non-canonical
+ID encoding, or any offered record that does not match the transcript and durable record. Rotation shall use a bounded overlap, and the old key shall be deleted only after
+the integration acknowledges the new generation over that channel. After a coordinated full-system restore, overlap
+is forbidden: both endpoints shall durably mark every restored key ID, generation, and nonce prefix unusable, retain
+non-secret invalidation tombstones, and delete associated secret keys, counter/replay state, overlap keys, and retry
+copies before provisioning one fresh record through newly paired control. The core shall not publish and the
+integration shall not subscribe or accept retained v2 state until the integration's acknowledgement of the fresh key
+ID, generation, key digest, and nonce prefix is durable at both endpoints. On startup, before subscribing, the
+integration shall load the trusted durable one-to-one key-ID/generation map and per-process/per-reporter/per-message
 state-generation and sequence high-water marks; missing or corrupt replay state shall fail closed and require
 authenticated reconciliation, never acceptance of broker retained state as a new baseline.
 
@@ -1098,16 +1134,81 @@ generation, and tombstone checks.
 
 9.1 The selected `AppleSmartBattery.PowerTelemetryData` property has no documented public contract in the official
 Apple sources cited in the design. The Apple-silicon spike may read that candidate via public IOKit registry APIs, but
-the source shall remain experimental until qualified against a real external wall meter.
+code-only qualification can establish only consistent software-visible semantics and runtime behavior, not physical
+accuracy. User-facing values shall be identified as **Apple-reported system power**. Documentation and status surfaces
+shall state that the source is undocumented, is not externally calibrated or billing-grade, and must not be used for
+billing, settlement, or safety-critical decisions. No artifact shall claim a known physical-accuracy bound.
 
-9.2 Before any Apple-silicon reporter release, AC qualification shall complete three five-minute runs at idle, CPU
-load, and GPU load, and each five-minute mean shall be within ±10% of the synchronized external wall-meter mean.
-Battery support shall be claimed only after the same idle, CPU-load, and GPU-load matrix has been completed against a
-predeclared credible independent power or energy reference and every five-minute mean is within ±10% of that reference.
-If the battery matrix cannot be run, lacks a credible independent reference, or fails any acceptance bound, battery
-shall be declared unsupported; entry into battery mode shall produce a verified signed `WHOLE_SYSTEM_UNAVAILABLE`
-transition and shall remain explicitly unavailable on the normal report cadence. Subsystem readings may be compared to
-`powermetrics` only as a secondary reference.
+9.2 AC and battery shall be qualified independently before either mode is released. Each candidate mode shall complete
+one five-minute run for each of idle, CPU load, and GPU load. One mode's failure shall leave that mode unsupported
+without qualifying or disqualifying the other; an Apple-silicon release requires at least one supported mode. The selected Apple-reported system-power field shall be `SystemPowerIn` on AC so battery charging is included,
+and `SystemLoad` on battery because no external input is present. The reporter shall never substitute one field for the
+other. Every selected value shall be finite, greater than zero, and no more than the 100 kW protocol hard ceiling.
+Missing, malformed, stale, negative, zero, over-ceiling, or subsystem-only selected input shall fail the mode. At
+runtime the same failure shall produce signed `WHOLE_SYSTEM_UNAVAILABLE` for the complete system, without cross-mode
+fallback, stale-value reuse, or reuse of a sample or accumulator baseline from a prior mode. Reporter overhead shall
+satisfy 9.3.
+
+All candidate power fields shall be converted to milliwatts before consistency checks. For two milliwatt values `a` and
+`b`, "within 1%" shall mean `abs(a - b) <= max(1 mW, 0.01 * max(abs(a), abs(b)))`; this is an internal software-
+consistency tolerance, not a physical-accuracy bound. For every accepted snapshot, `SystemPowerIn` shall be within that
+tolerance of `SystemLoad + BatteryPower`. On AC, `SystemPowerIn` shall also be within that tolerance of the milliwatt
+value obtained from `SystemVoltageIn × SystemCurrentIn` after applying the candidate fields' explicitly recorded unit
+conversion. On battery, `SystemPowerIn`, `SystemVoltageIn`, and `SystemCurrentIn` may be zero, while `BatteryPower` shall
+be negative and its magnitude shall be within that tolerance of `SystemLoad`.
+
+The mandatory accumulator tuples are exact, atomic, and mode-specific:
+
+| Mode | Accumulated-value field | Count field | Direct field |
+| --- | --- | --- | --- |
+| AC | `AccumulatedSystemPowerIn`: running sum of `SystemPowerIn` samples, converted to a milliwatt sample-sum; positive interval delta | `SystemPowerInAccumulatorCount`: unsigned integer sample count | `SystemPowerIn`: direct milliwatts, positive |
+| Battery | `AccumulatedSystemLoad`: running sum of `SystemLoad` samples, converted to a milliwatt sample-sum; positive interval delta | `SystemLoadAccumulatorCount`: unsigned integer sample count | `SystemLoad`: direct milliwatts, positive |
+| Battery | `AccumulatedBatteryDischarge`: running sum of `BatteryPower` discharge samples, converted to a milliwatt sample-sum; negative interval delta | `BatteryDischargeAccumulatorCount`: unsigned integer sample count | `BatteryPower`: direct milliwatts, negative for discharge |
+
+AC requires its one listed tuple. Battery requires both listed battery tuples in the same candidate snapshot. No tuple
+or member from the other mode may be substituted. Every member of every mandatory tuple shall be available, present,
+and well-formed in every candidate snapshot. An unavailable or missing member, wrong type, non-finite value, count
+outside the unsigned integer range, or direct value or interval delta with the wrong sign shall fail the complete
+mode. No member or baseline may be retained from an earlier snapshot or another mode to complete or repair a tuple.
+
+For each mandatory tuple, the first valid count observation shall establish an atomic accumulator-value/count/direct-
+value endpoint and start its monotonic freshness age, even if that count never advances. A later count shall never
+decrease or wrap. A zero count delta is valid only while less than 90 monotonic seconds have elapsed since that first
+observation or the most recent positive delta; at exactly 90 seconds it is stale and shall fail the mode. A negative or
+wrapped count delta shall fail immediately. Only a positive count delta closes a source-owned hardware-update
+interval. The accumulator-value delta divided by that positive count delta shall be finite, shall have the tuple's
+milliwatt sign convention, and shall have an absolute magnitude no greater than the 100 kW hard ceiling. A wrong-sign
+or wrapped accumulator-value delta shall fail the complete mode. A zero count delta before the freshness deadline
+leaves the current interval open. Direct reads are not synchronized to Apple's private accumulator interval
+boundaries, so qualification shall not assign repeated polled values to hidden source intervals or claim a pointwise
+accuracy comparison between them. When both mandatory battery tuples close on the same endpoints, their positive
+`SystemLoad` and negative `BatteryPower` interval means shall be signed inverses within the same tolerance.
+
+Apple's public IOPowerSources API shall independently classify AC versus battery and charging state. Each candidate
+snapshot shall be bracketed by public-state reads taken no more than one monotonic second apart; both reads shall report
+the same classifiable mode. Qualification CSV shall allowlist only those public fields plus documented battery voltage
+and signed current when the API supplies them. Public voltage/current absence shall be recorded as missing rather than
+replaced or inferred; these fields are diagnostic and are not an admission gate because supported Apple-silicon systems
+may omit them. Every observed mode change shall emit signed `WHOLE_SYSTEM_UNAVAILABLE`, clear every prior-mode
+sample and accumulator baseline, and admit no available value until a complete bracketed snapshot in the new mode
+passes that mode's criteria. An unsupported new mode shall remain unavailable on the normal cadence. Source loss, an
+unclassifiable or changing bracket, failed internal consistency, stale counters, or a failed transition shall fail
+closed in the same way.
+
+For each mode, qualification shall use exactly the one five-minute idle, CPU-load, and GPU-load run required above;
+it shall not add or repeat runs for workload-direction checks. The selected direct-value aggregate for each run shall
+be the median of all valid selected direct readings captured in that run. For each mandatory accumulator tuple and
+run, qualification shall separately collect every valid interval mean closed by a positive count delta in that run and
+use their median as that tuple's run aggregate; a run with no such interval for a mandatory tuple shall fail
+qualification. For either aggregation, the median is the middle value after numeric sorting, or the arithmetic mean of
+the two middle values for an even-sized set. The CPU-load and GPU-load aggregates shall each be strictly greater than
+the idle aggregate for the positive AC `SystemPowerIn` and battery `SystemLoad` values and tuples. The negative
+battery `BatteryPower` tuple aggregates shall each be strictly less than the idle aggregate, meaning a greater
+discharge magnitude. These workload-direction comparisons are run-level qualification gates only. Production shall
+not infer a workload class or enforce workload direction; it shall continue to enforce interval finiteness, sign, hard-
+ceiling, freshness, and same-endpoint battery signed-inverse checks. This workload-response check establishes
+repeatable software-visible separation only. `powermetrics` may be recorded only as a secondary software diagnostic
+and never as system-power ground truth.
 
 9.3 Reporter overhead shall average below 0.5% of one CPU core and remain below 30 MiB physical memory.
 

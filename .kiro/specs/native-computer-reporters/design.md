@@ -7,10 +7,11 @@ trust is established by human SAS confirmation or MDM-delivered server-trust con
 reporter's P-256 key, not a permanent bearer token. Dynamic reporters use a separate roster, push-reading pipeline,
 and MQTT v2 per-device messages; current polled devices and v1 remain unchanged.
 
-The reporter is a separate Rust repository and product. Apple-silicon support is gated by a measurement spike against
-an external wall meter. The selected `AppleSmartBattery.PowerTelemetryData` property has no documented public
-contract in the cited official Apple sources, so that candidate remains experimental and unsupported or inaccurate
-sources fail closed.
+The reporter is a separate Rust repository and product. Apple-silicon support is gated by reproducible code-only
+qualification. The selected `AppleSmartBattery.PowerTelemetryData` property has no documented public contract in the
+cited official Apple sources, so the qualification tests its units, internal consistency, freshness, load response,
+mode transitions, and resource use. Unsupported or inconsistent sources fail closed. The product labels accepted
+values Apple-reported system power and makes no external-calibration, physical-accuracy, or billing-grade claim.
 
 ## System architecture
 
@@ -498,18 +499,35 @@ revocation tombstones, managed-token verifier/public operation/revocation state,
 credential digests retained through their absolute expiry plus grace, integrity-protected bootstrap-confirm results and
 tombstones, recovery nonce/transcript/result tombstones and generation high-water mark, reporter/control-key rotation
 challenge/result state through fixed expiry, the authorized Home Assistant integration control public key/generation,
-control-SPKI identity and revocation generations, signed-control replay/results through their required retention, and
-energy state. The raw MQTT key-provisioning retry response is
+control-SPKI identity and revocation generations, signed-control replay/results through their required retention,
+durable post-restore quarantine and restored-key invalidation tombstones, MQTT key-generation/nonce reservation state,
+and energy state. The raw MQTT key-provisioning retry response is
 stored only as an AEAD ciphertext under a separate 256-bit wrapping key held outside the retry-record store. Both the
 wrapping key and ciphertext use the same owner-only exclusive-temp/fsync/replace/directory-fsync protocol; the wrapping
 key is never included in a retry record, log, diagnostic, support export, or backup. No permanent control bearer token
 exists. Write protocol: same-filesystem
 temporary file created with `O_EXCL` and mode 0600, fsync data, atomic replace, fsync directory. Permission mismatch,
 partial state, or generation rollback fails closed. Pending control/reporter pairing, challenges, and sessions are
-memory-only. Add-on-only and Core-only restores cross-check independently stored control generations and pins. A full
-system restore rolls both authorities back together and has no external monotonic witness; it is therefore documented
-as an administrator-authorized trust rollback that requires explicit control revocation and fresh pairing before
-reporter administration resumes, rather than claiming automatic detection the system cannot provide.
+memory-only. Add-on-only and Core-only restores cross-check independently stored control generations and pins. A
+coordinated full-system restore rolls both authorities back together and has no external monotonic witness, so the
+declared restore workflow creates a new durable post-restore quarantine marker at each endpoint after restoring data
+and before starting normal service. Missing or inconsistent markers fail closed. While quarantined, restored control
+authority cannot administer reporters, restored reporters cannot obtain sessions or have reports accepted, core cannot
+connect or publish MQTT v2, and the integration cannot subscribe to or apply retained v2 state.
+
+Recovery first revokes restored control and performs fresh pairing. Every restored reporter remains quarantined; proof
+by its restored enrolled key cannot release it, and there is no revalidation route. Returning that reporter to service
+requires an administrator to durably delete the restored identity through `POST /control/v1/reporters/actions` and
+complete from scratch the normal interactive or managed enrollment flow through the enrollment endpoints above, with
+fresh enrollment state, fresh proof of possession of the reporter's newly enrolled identity key, and fresh
+confirmations. The new enrollment creates the only new authority; the restored identity is never reactivated. All other
+restored identities remain quarantined or are deleted. Both endpoints mark all restored MQTT key IDs, generations, and
+nonce prefixes unusable in durable non-secret tombstones and delete the restored secret keys, counter reservations,
+replay baselines, overlap keys, and key-bearing retry copies. Only then does newly paired control provision a fresh
+random key, key ID, and nonce prefix. MQTT v2 remains disabled until the integration durably stores and acknowledges that exact record and the core durably records the acknowledgement. The endpoints leave
+post-restore quarantine only after those actions and disposition of every restored reporter are durable. This treats a
+declared full-system restore as an administrator-authorized trust rollback without claiming automatic detection of an
+undeclared rollback.
 
 The integration's control private key is non-exportable when Home Assistant exposes suitable protected key storage;
 otherwise its serialized form is encrypted at rest in protected credential storage with least-privilege service access
@@ -761,12 +779,22 @@ tombstone high-water marks survive restart.
 
 Key provisioning occurs only after the pinned authenticated control channel is established; it does not treat broker
 or network location as bootstrap trust. The core offers a random 16-byte key ID in canonical 22-character unpadded
-base64url form, a unique uint64 generation, and encrypted key material over that channel with fresh 32-byte nonces from
-both endpoints; the integration acknowledges the same decoded ID bytes, key digest, generation, and both nonces in one
-canonical transcript. Either side rejects an ID/generation mismatch, duplicate ID, alternate encoding, or rollback.
-Rotation publishes under old and new generations for at most ten minutes. The old key is erased only after the
-integration's authenticated acknowledgement and durable new-generation high-water record; rollback to an older key
-generation then fails. Lost or corrupt key state requires authenticated reprovisioning, not broker recovery.
+base64url form, a unique uint64 generation, random 256-bit key material, and an independent random 128-bit nonce prefix
+over that channel with fresh 32-byte transcript nonces from both endpoints. The integration acknowledges the same
+decoded ID bytes, key digest, generation, nonce prefix, and both transcript nonces in one canonical transcript. Either
+side rejects an ID/generation mismatch, duplicate ID or nonce prefix, alternate encoding, or rollback. Rotation
+publishes under old and new generations for at most ten minutes. The old key is erased only after the integration's
+authenticated acknowledgement and durable new-generation high-water record; rollback to an older key generation then
+fails. Lost or corrupt key state requires authenticated reprovisioning, not broker recovery.
+
+A coordinated full-system restore does not use rotation overlap. Post-restore quarantine makes all restored reporter
+leases and identities inactive, blocks report acceptance and v2 at both endpoints, and treats every restored key ID,
+key, nonce prefix/counter reservation, replay baseline, and retained ciphertext as invalid. After fresh control pairing,
+the core creates a wholly new key-generation record with independent random key, ID, and prefix; the integration
+persists and acknowledges that exact record before core records completion and either side enables v2. A restored
+reporter becomes eligible for a fresh lease only after its restored identity is durably deleted and it completes a new
+interactive or managed enrollment from scratch; possession of the restored enrolled key alone cannot release
+quarantine.
 
 The integration accepts v1 and v2 concurrently through the existing single config entry for the add-on instance. The
 entry keeps unique ID `instance_id`, owns both the existing v1 coordinator and the authenticated control/v2 path, and
@@ -806,14 +834,59 @@ Apple-silicon implementation is admitted only after the hardware spike. The prod
 TLS/session/reporting, and backoff. The menu application owns onboarding/status UI only. There is no self-updater.
 
 The foreground spike reads candidate undocumented `AppleSmartBattery.PowerTelemetryData` values through public IOKit
-registry APIs and records synchronized CSV. It is not installed, persistent, or distributed. Every Apple-silicon
-release is gated by the complete idle, CPU-load, and GPU-load AC matrix against an external wall meter, with every
-five-minute mean inside the ±10% bound. Battery support is a separate claim and requires completion of the same matrix
-against a predeclared credible independent power or energy reference, with every run inside the same bound. If that
-matrix cannot be completed, has no credible reference, or fails, the support declaration records battery as
-unsupported and tests that AC-to-battery transition produces the signed `whole_system_unavailable` state immediately
-and on the normal cadence. A later independently qualified battery provider can extend support without changing the
-wire protocol.
+registry APIs and records privacy-safe CSV. It is not installed, persistent, or distributed. Apple-silicon release is
+gated independently for AC and battery by one five-minute run each at idle, CPU load, and GPU load; at least one mode
+must pass. The mode-selected value is `SystemPowerIn` on AC and `SystemLoad` on battery, with no fallback
+to the other field. A missing, malformed, negative, stale, or otherwise invalid selected value makes the whole system
+unavailable without stale-value or prior-mode reuse. Qualification applies requirement 9.2's explicit milliwatt
+conversion and 1%-with-1-mW-floor internal consistency relation to `SystemPowerIn = SystemLoad + BatteryPower`, AC
+input voltage × current, battery load versus signed battery power, and matching battery load/discharge accumulator
+deltas.
+
+The mandatory tuples are atomic and mode-specific. AC requires
+`(AccumulatedSystemPowerIn, SystemPowerInAccumulatorCount, SystemPowerIn)`: a positive-delta milliwatt sample-sum,
+unsigned sample count, and positive direct milliwatt value. Battery requires both
+`(AccumulatedSystemLoad, SystemLoadAccumulatorCount, SystemLoad)`, with the same positive units and signs, and
+`(AccumulatedBatteryDischarge, BatteryDischargeAccumulatorCount, BatteryPower)`, with a negative-delta milliwatt
+sample-sum, unsigned sample count, and negative direct milliwatt discharge value. Every required member comes from the
+same candidate snapshot. An unavailable, missing, malformed, non-finite, out-of-range, or wrong-sign member fails the
+complete mode and produces `WHOLE_SYSTEM_UNAVAILABLE` at runtime; no cross-mode, stale, or earlier-snapshot member or
+baseline may complete a tuple.
+
+The first valid count observation forms the initial atomic value/count/direct endpoint and starts monotonic freshness,
+even when the count never advances. Zero count deltas keep the current interval open only while age is below 90
+seconds; exactly 90 seconds is stale, while a decrease or wrap fails immediately. Every positive count delta closes a
+source-owned interval. Its accumulator delta divided by count delta must be finite, within the hard ceiling, and carry
+the required sign. The battery load/discharge interval means must be signed inverses under the direct-check tolerance
+only when both tuples close over the same prior and current observation endpoints. Production applies these interval
+validity checks but does not infer workload class or enforce workload direction. Direct process reads are not
+synchronized to Apple's private interval boundaries, so they are not assigned to hidden intervals or presented as
+pointwise accumulator validation.
+
+Apple's public IOPowerSources API independently classifies mode and charging state in two reads that bracket each
+candidate snapshot by no more than one monotonic second. Its allowlisted voltage/current fields are recorded when
+available but are not inferred or required because supported systems may omit them.
+
+Every observed mode transition emits signed `whole_system_unavailable`, clears prior-mode samples and accumulator
+baselines, and withholds available output until a complete bracketed snapshot passes the new mode's criteria. A failed
+or unsupported mode remains unavailable on the normal cadence, without blocking release of an independently qualified
+mode.
+
+Workload direction is a run-level qualification gate only and uses exactly the existing one five-minute idle,
+CPU-load, and GPU-load run per mode. The selected direct-value aggregate is the median of the valid selected readings
+in each run. Separately, each mandatory tuple's run aggregate is the median of every valid source-owned interval mean
+closed by a positive count delta in that run; a missing tuple aggregate fails the run. Numeric sorting selects the
+middle value for an odd-sized set and the arithmetic mean of the two middle values for an even-sized set. The CPU-load
+and GPU-load aggregates must each exceed idle for positive AC `SystemPowerIn` and battery `SystemLoad`; the negative
+battery `BatteryPower` tuple aggregates must each be below idle, representing greater discharge magnitude. Repeated
+process polls remain run-level direct evidence and are never assigned to Apple's hidden accumulator intervals. These
+checks establish source-owned freshness and repeatable software-visible behavior; they do not establish physical
+accuracy.
+
+Code-only qualification does not establish physical accuracy. Product and qualification surfaces label accepted data
+Apple-reported system power and state that the undocumented source is not externally calibrated or billing-grade and
+must not be used for billing, settlement, or safety-critical decisions. A later external study may refine those claims,
+but it is outside this project's release gates.
 
 ## Compatibility and rollout
 
@@ -822,8 +895,9 @@ wire protocol.
   conflicts. Control 8444 is internal only.
 - Old integration versions continue receiving v1 static devices and ignore reporter v2.
 - New integration supports both. Existing entity unique IDs remain stable.
-- Apple-silicon MVP precedes Intel qualification; Windows and Linux are separate providers after their own external
-  validation.
+- Apple-silicon MVP precedes Intel qualification; Windows and Linux are separate providers after their own code-only
+  source, unit, internal-consistency, freshness, load-response, transition, and resource validation. A provider lacking
+  external calibration makes no physical-accuracy or billing-grade claim.
 
 ## Security and release gates
 
@@ -867,4 +941,8 @@ wire protocol.
   [hardened runtime](https://developer.apple.com/documentation/xcode/configuring-the-hardened-runtime), and
   [notarization](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
   `AppleSmartBattery.PowerTelemetryData` itself has no documented public contract in those cited sources, so task 2
-  treats it as an undocumented candidate and permits no product path without external measurement qualification.
+  treats it as an undocumented candidate. Code-only qualification checks units, internal consistency, source-owned
+  freshness, workload response, mode transitions, and resource use. It cannot establish physical accuracy. Apple's
+  public IOPowerSources mode and charging fields provide independent software-visible mode classification; optional
+  voltage/current fields are diagnostic only and remain visibly absent when the platform omits them. Accepted output
+  is labeled Apple-reported system power with the non-calibration and non-billing limits in requirement 9.1.
