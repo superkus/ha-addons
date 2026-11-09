@@ -37,27 +37,55 @@ documentation pass.
     - _Requirements: 10.2_
   - Demo: both repositories have green baseline CI and protected main.
 
-- [ ] 2. Qualify Apple-silicon whole-system power
+- [ ] 2. Qualify Apple-silicon code-only system power
   - _Requirements: 1.3, 1.4, 2.5, 3.4, 9.1, 9.2, 9.3_
-  - [ ] 2.1 Write failing tests for `PowerSource`, units, missing/stale/non-finite/implausible telemetry, source loss,
-    and AC-to-battery and battery-to-AC transitions. Then implement the foreground Rust probe so every unavailable or
-    unqualified mode produces the explicit `WHOLE_SYSTEM_UNAVAILABLE` result rather than silence or subsystem watts.
+  - [ ] 2.1 Write failing tests for `PowerSource`; exact AC `SystemPowerIn` versus battery `SystemLoad` selection; unit
+    conversion; the exact 1%-with-1-mW-floor consistency relation and its boundary; and missing, malformed, negative,
+    zero, over-ceiling, non-finite, and subsystem-only selected telemetry. Assert that every malformed or negative
+    selected value fails the complete reading as `WHOLE_SYSTEM_UNAVAILABLE`, without cross-mode fallback, stale-value
+    reuse, or prior-mode sample or accumulator reuse. Cover mandatory
+    `(AccumulatedSystemPowerIn, SystemPowerInAccumulatorCount, SystemPowerIn)` on AC and mandatory
+    `(AccumulatedSystemLoad, SystemLoadAccumulatorCount, SystemLoad)` and
+    `(AccumulatedBatteryDischarge, BatteryDischargeAccumulatorCount, BatteryPower)` on battery, including each field's
+    sample-sum/count/direct-value unit and sign, same-snapshot tuple atomicity, and every unavailable, missing, or
+    malformed member. Assert that any such tuple failure fails the complete mode without fallback or reuse. Cover the
+    first-observation freshness start when a count never advances, zero deltas immediately before and exactly at the
+    90-second stale boundary, stale zero deltas after that boundary, and immediate negative/wrapped-delta rejection.
+    Assert that runtime accumulator interval checks occur only for positive count deltas, stay finite and within the
+    hard ceiling, preserve each tuple's sign, and keep the two battery tuple means signed inverses only when both
+    tuples close over the same prior and current observation endpoints. Separately, test qualification-only workload
+    direction using exactly each mode's one five-minute idle, CPU-load, and GPU-load run: for every mandatory tuple
+    and run, take the median of all valid source-owned interval means closed by positive count deltas, fail an empty
+    set, require the positive AC `SystemPowerIn` and battery `SystemLoad` CPU-load and GPU-load medians to exceed
+    idle, and require the negative battery `BatteryPower` medians to be below idle. Test odd and even set sizes,
+    using the arithmetic mean of the two middle values for an even set. Do not assign repeated process reads to
+    Apple's hidden accumulator intervals.
+    Also cover source loss, the requirement that two public
+    `IOPowerSources` reads no more than one monotonic second apart bracket each candidate `PowerTelemetryData`
+    snapshot, and both power-mode transitions. Then implement the foreground Rust probe so every unavailable or
+    unqualified mode produces explicit `WHOLE_SYSTEM_UNAVAILABLE` rather than silence, zero, cross-mode fallback,
+    stale reuse, prior-mode sample or accumulator reuse, or subsystem watts.
     - _Requirements: 1.4, 9.1, 9.2_
-  - [ ] 2.2 Add synchronized CSV/reference collection and run the full five-minute idle, CPU-load, and GPU-load AC
-    matrix against an external wall meter; every run is a mandatory release gate at ±10%. Run the same battery matrix
-    before claiming battery support, using a predeclared credible independent power or energy reference and the same
-    per-run bound. If the battery matrix cannot run, has no credible reference, or fails, record battery as unsupported
-    and verify that transition into battery produces a signed `WHOLE_SYSTEM_UNAVAILABLE` immediately and on the normal
-    cadence. Record CPU and physical memory. Use neutral hardware IDs in every public artifact.
+  - [ ] 2.2 Add privacy-safe CSV for the candidate fields, selected output, converted milliwatt values, internal
+    comparisons, accumulator counts/values and matching hardware-update intervals, local monotonic acquisition times,
+    and Apple's public allowlisted mode, charging, battery-voltage, and signed-current fields. For each mode (AC and
+    battery), run exactly one five-minute idle capture, one five-minute CPU-load capture, and one five-minute GPU-load
+    capture; do not add or repeat captures for workload-direction checks. Apply every requirement 9.2 boundary and
+    publish enough derived non-identifying data to reproduce each pass/fail result, including each selected direct-value
+    run median, every mandatory tuple's non-empty set of
+    positive-count-delta source-owned interval means and run median, and each signed workload-direction comparison.
+    Record CPU and physical memory, use neutral hardware IDs in public artifacts, and keep raw captures gitignored.
+    Missing optional public voltage/current remains visibly missing and is never inferred. Do not require a physical
+    meter or present software consistency as physical calibration.
     - _Requirements: 2.5, 3.4, 9.1, 9.2, 9.3_
-  - [ ] 2.3 Publish a go/no-go Apple-silicon report that blocks release unless the complete AC matrix passes and names
-    battery as supported only when its complete independent-reference matrix passes. Otherwise require an explicit
-    battery-unsupported declaration and passing signed-unavailable transition/cadence tests. Probe Intel separately
-    with independent outcomes for each power mode. Stop product implementation if AC misses ±10%, overhead exceeds
-    0.5% CPU or 30 MiB, or transition into any unsupported mode cannot emit unavailable reliably.
+  - [ ] 2.3 Publish a go/no-go Apple-silicon code-only report naming the independent result for each mode. Do not
+    implement or release a mode unless its internal consistency, freshness, accumulator, workload-response, transition,
+    `<0.5%` CPU, and `<30 MiB` memory criteria pass. Stop Apple-silicon product implementation if neither mode passes.
+    Every public claim shall say Apple-reported system power and include the source-undocumented, non-calibration,
+    non-billing, settlement, and safety limits in requirement 9.1. Probe Intel separately.
     - _Requirements: 1.3, 1.4, 3.4, 9.1, 9.2, 9.3_
-  - Demo: reproducible qualification report naming each qualified and fail-closed unsupported mode, or an explicit
-    unsupported result.
+  - Demo: reproducible code-only qualification report naming each supported and fail-closed unsupported mode, with no
+    physical-accuracy claim.
 
 - [ ] 3. Implement protocol primitives and normative vectors
   - _Requirements: 2.3, 2.7, 3.1, 4.3, 4.5, 6.1, 7.5a, 7.5b, 7.5e, 7.5f, 8.5, 10.1_
@@ -66,9 +94,9 @@ documentation pass.
     shared vectors for every signed transcript, bilateral nonce commitment/reveal, SAS phrase, control recovery,
     bootstrap commit/reveal/confirm, reporter/control key-rotation challenge and completion, managed-token
     issue/status/revoke recovery, managed-enrollment proof, and MQTT v2 AEAD envelope. Fix every canonical byte, field
-    length/order, digest, thumbprint, `key_id` encoding, generation, HKDF output, and rendered word; mutate each one
-    independently and require rejection.
-    - _Requirements: 2.3, 2.7, 4.3, 4.5, 6.1, 7.5a, 7.5b, 7.5e, 8.5_
+    length/order, digest, thumbprint, `key_id` encoding, generation, nonce prefix, HKDF output, and rendered word; mutate
+    each one independently and require rejection.
+    - _Requirements: 2.3, 2.7, 4.3, 4.5, 6.1, 7.5a, 7.5b, 7.5e, 8.5, 8.6a_
   - [ ] 3.2 Implement Python and Rust P-256 JWK, RFC 7638, RFC 9530, and narrow RFC 9421 primitives against the
     vectors. The post-pair control profile shall cover purpose, active key generation, exact uppercase method, canonical
     authority, exact path, whole query and every individually named query value, content type/digest, bounded
@@ -98,9 +126,10 @@ documentation pass.
     digests retained only through expiry plus grace; separately keyed integrity-protected bootstrap-confirm records
     committed atomically with authority and credential consumption; durable reporter/control rotation challenges;
     durable control/recovery replay and exact-result records; 24-hour action results followed by 30-day compact
-    markers; one-sided restore generation/SPKI mismatch; and explicit
-    full-system trust-rollback documentation/tests. Add encrypted backup/restore consistency coverage across multiple
-    secret generations and prove restore never extends an embedded expiry.
+    markers; one-sided restore generation/SPKI mismatch; and durable full-system post-restore quarantine markers and
+    reporter-authority quarantine transitions. Add encrypted backup/restore consistency coverage across multiple secret
+    generations, prove restore never extends an embedded expiry, and prove missing or partial post-restore quarantine
+    state blocks normal service.
     - _Requirements: 2.2, 5.1, 5.3, 5.4, 5.5, 7.5a, 7.5d, 7.5e, 7.5f_
   - [ ] 4.2 Test and implement reporter lifecycle, stable IDs, public-key rotation, revocation tombstones, and
     capacities.
@@ -325,9 +354,10 @@ documentation pass.
     atomic revocation; and core proof verification by the integration before success. Persist nonce/transcript/result
     tombstones and retain each consumed recovery credential digest through its embedded expiry plus grace; require a
     second fresh credential for subsequent bootstrap. Cover cross-instance, cross-purpose, field/scope substitution, replay before and after
-    restart, expiry boundaries, loss/compromise, stale/unsigned transitions, one-sided restore mismatch, documented
-    full-system trust rollback, crashes at every durable boundary, exact revoke
-    retry, interrupted replacement, failed key deletion, and proof that re-pairing never reactivates old authority.
+    restart, expiry boundaries, loss/compromise, stale/unsigned transitions, one-sided restore mismatch, and coordinated
+    full-system restore with durable quarantine before normal service; prove restored control authority cannot
+    administer and fresh pairing never reactivates it. Also cover crashes at every durable boundary, exact revoke
+    retry, interrupted replacement, and failed key deletion.
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 7.5a, 7.5d, 7.5e_
   - Demo: fake reporter produces a native Discovered card and approval activates it without creating another config
     entry.
@@ -359,7 +389,7 @@ documentation pass.
   - Demo: install/reboot; daemon runs before login and menu app shows status after login.
 
 - [ ] 9. Establish the secured MQTT v2 destination before report ingress
-  - _Requirements: 1.1, 2.1, 2.4, 7.5, 8.1, 8.5, 8.6a, 8.6b, 8.6c, 8.6d, 8.6e, 8.6f, 8.6g, 8.6h,
+  - _Requirements: 1.1, 2.1, 2.4, 5.3, 7.5, 8.1, 8.5, 8.6a, 8.6b, 8.6c, 8.6d, 8.6e, 8.6f, 8.6g, 8.6h,
     8.6i, 8.7, 8.8, 8.9_
   - [ ] 9.1 Test and implement one complete roster-lifecycle path from approved/revoked/deleted reporter state through
     bounded XChaCha20-Poly1305 core publications with canonical 16-byte/22-character key IDs bound one-to-one to
@@ -368,13 +398,19 @@ documentation pass.
     roster reconciliation, and the bounded deletion-cleanup queue; none of these security dependencies may ship as a
     later add-on to an enabled v2 path. MQTT key provisioning shall use 7.5f's separately wrapped AEAD retry record,
     mandatory 60-second maximum, fail-closed owner-only atomic storage, backup/diagnostic exclusion, and deletion of
-    every response copy on acknowledgement, abort, expiry, or contained-key retirement/revocation. Approval shall
+    every response copy on acknowledgement, abort, expiry, or contained-key retirement/revocation. Implement
+    requirement 5.3's durable post-restore quarantine before report ingress or MQTT v2 can run: invalidate restored
+    control authority and MQTT key/nonce/replay, overlap, and retry state; require fresh control pairing; keep each
+    restored reporter quarantined until an administrator durably deletes the restored identity and the reporter
+    completes the normal interactive or managed enrollment flow from scratch; do not implement a revalidation route or
+    let proof by a restored enrolled key release quarantine; and provision a fresh random key, key ID, and nonce prefix
+    with durable integration acknowledgement before v2 resumes. Approval shall
     create a dynamically registered HA reporter device with power and energy entities initially unavailable beneath the stable `(DOMAIN, "hub:" + instance_id)` hub. Preserve the
     existing one-config-entry lifecycle, flat static device identifiers and unique IDs, and v1 behavior. Document the
     hub/child entity model, initial/offline/revoked/deleted states, retained history, and mixed static/reporter behavior
     in `remote_energy_meter/DOCS.md`; document v2 fixtures and compatibility tests in `README.md`; and add the shipped
     authenticated MQTT v2 and registry behavior to the Unreleased changelog.
-    - _Requirements: 1.1, 2.1, 2.4, 7.5, 8.1, 8.5, 8.6a, 8.6b, 8.6c, 8.6d, 8.6e, 8.6f, 8.6g, 8.6h,
+    - _Requirements: 1.1, 2.1, 2.4, 5.3, 7.5, 8.1, 8.5, 8.6a, 8.6b, 8.6c, 8.6d, 8.6e, 8.6f, 8.6g, 8.6h,
       8.6i, 8.7, 8.8, 8.9_
   - [ ] 9.2 Cover startup, clean shutdown, reconnect, broker disconnect, and unclean core exit with adversarial delivery
     order. Assert process offline durably closes its generation and gates all reporter entities before retained or
@@ -389,7 +425,20 @@ documentation pass.
     bounded configs; ciphertext/tag and
     bound-field substitution, malformed/padded/unknown/duplicate key IDs, ID/generation mismatch, replay/reordering,
     retained-state and key-generation rollback, control-lease expiry, interrupted key rotation, revocation, forged empty-retained deletion, and replay after durable tombstones.
-    - _Requirements: 8.1, 8.5, 8.6a, 8.6b, 8.6c, 8.6d, 8.6e, 8.6f, 8.6g, 8.6h, 8.6i, 8.9_
+
+    Add a coordinated-restore acceptance scenario whose encrypted backup predates both an MQTT key rotation and a
+    reporter revocation. Before recovery, assert every restored reporter control lease is inactive, the restored control
+    identity cannot administer, and neither endpoint connects, subscribes, decrypts, applies, or publishes MQTT v2.
+    After fresh control pairing, assert all restored key generations, nonce prefixes/counter reservations,
+    overlap/retry copies, and replay baselines remain unusable; no publication uses a restored key or nonce; the
+    replacement key, key ID, and nonce prefix are independently random; and v2 remains blocked until the integration
+    acknowledgement is durable at both endpoints and every restored reporter is either deleted and newly enrolled from
+    scratch or deleted without replacement. Finally, prove the reporter identity revoked after the backup cannot report
+    or authorize publication merely by proving possession of its restored enrolled key; returning that reporter to
+    service requires durable deletion of the restored identity followed by a complete new interactive or managed
+    enrollment, including fresh enrollment state, fresh proof of possession of the reporter's newly enrolled identity
+    key, and fresh confirmations. Restored control authority remains unable to administer it.
+    - _Requirements: 5.3, 8.1, 8.5, 8.6a, 8.6b, 8.6c, 8.6d, 8.6e, 8.6f, 8.6g, 8.6h, 8.6i, 8.9_
   - [ ] 9.3 Add Home Assistant compatibility tests proving one config entry owns v1 and v2 concurrently, the hub
     identifier is stable across reload/restart, static devices remain flat with byte-for-byte existing identifiers and
     entity unique IDs, reporter entities use `rem_reporter:<reporter_id>:<role>`, and reporter devices have the
@@ -403,17 +452,18 @@ documentation pass.
     before process/control gates.
 
 - [ ] 10. Complete energy/staleness handling and then enable signed report ingress
-  - _Requirements: 1.1, 1.4, 2.3, 2.6, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 7.6, 8.2, 8.3, 8.4_
+  - _Requirements: 1.1, 1.4, 2.3, 2.6, 5.3, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 7.6, 8.2, 8.3, 8.4_
   - [ ] 10.1 Land this as one atomic increment. First test and wire `PushReadingDestination`, monotonic energy,
     per-reporter transition serialization, and the min-heap watchdog through the already-live dynamic MQTT v2
     destination while the report endpoint remains disabled. Then implement the stateless five-minute
     challenge-allocation context, long-term-key-signed challenge requests, sessions, canonical report verification,
     sequence/idempotency, and restart invalidation. Enable report ingestion only after every accepted report has that
-    complete production destination; do not land either an orphan input or an orphan output stage. In the same
+    complete production destination and requirement 5.3's post-restore quarantine gate is durably clear; do not land
+    either an orphan input or an orphan output stage. In the same
     increment, document report availability/staleness, energy-gap behavior, restart/recovery behavior, operational
     ceilings, and troubleshooting in `remote_energy_meter/DOCS.md`; document report-conformance and watchdog testing in
     `README.md`; and add signed report ingestion and energy handling to the Unreleased changelog.
-    - _Requirements: 1.1, 2.3, 2.6, 6.2, 6.3, 6.4, 8.2, 8.3, 8.4_
+    - _Requirements: 1.1, 2.3, 2.6, 5.3, 6.2, 6.3, 6.4, 8.2, 8.3, 8.4_
   - [ ] 10.2 Test strict bodies, targets, header counts/bytes, signature headers, available watts and the signed
     `whole_system_unavailable` union arm, every normative timeout/rate/concurrency/queue/error ceiling,
     one-challenge and one-status-poll limits, and RFC 9457 errors whose complete response, including headers and body,
@@ -423,8 +473,17 @@ documentation pass.
     without repeating energy, state, or publication effects. Also cover victim-ID churn, reduced-cap exhaustion by
     valid identities, proof that invalid identities allocate nothing, slowloris, and single/distributed-source floods.
     Exercise the 1.0 W and 100000.0 W operational-ceiling configuration boundaries, one-over rejection, and a
-    configured lower ceiling without weakening the protocol hard cap.
-    - _Requirements: 1.4, 2.3, 6.2, 6.3, 6.5, 6.6, 6.7, 6.8, 6.9, 7.6_
+    configured lower ceiling without weakening the protocol hard cap. Reuse task 9.2's encrypted backup that predates
+    both MQTT key rotation and reporter revocation after report ingress exists: while post-restore quarantine is set,
+    prove the restored reporter cannot obtain a challenge or session and every report attempt is rejected without
+    energy, state, or publication effects. Prove the reporter remains blocked after fresh control/MQTT provisioning
+    until an administrator durably deletes the restored identity and the reporter completes the normal interactive or
+    managed enrollment flow from scratch. Prove possession of the restored enrolled key alone cannot release
+    quarantine, no revalidation route exists, and restored control authority cannot perform the deletion, enrollment
+    approval, or any other administration. Inject crashes immediately before and after durable deletion and at every
+    fresh-enrollment durable boundary; after restart the old identity shall be quarantined or deleted, never active,
+    and incomplete or replayed enrollment shall create no authority.
+    - _Requirements: 1.4, 2.3, 5.3, 6.2, 6.3, 6.5, 6.6, 6.7, 6.8, 6.9, 7.6_
   - [ ] 10.3 Add source-loss, AC-to-battery, battery-to-AC, explicit unavailable/recovery, revoke, restart, irregular,
     and concurrent transition tests. Assert that 89.999 seconds is fresh, exactly 90 seconds is stale, 90.001 seconds is
     stale, and a report tied with its watchdog deadline commits unavailable before recovery and rebaselines without
@@ -436,17 +495,29 @@ documentation pass.
     power/energy/availability changes; replay and tampering are rejected deterministically.
 
 - [ ] 11. Wire qualified Apple-silicon measurement into the reporter loop
-  - _Requirements: 1.3, 1.4, 2.2, 2.3, 2.5, 2.6, 6.2, 6.3, 6.4, 6.6_
-  - [ ] 11.1 Test and implement the qualified source, enrollment/session/report client, strict signed
-    available/unavailable bodies, 30-second cadence, immediate source/mode-transition unavailable report, and jittered
-    backoff.
-    - _Requirements: 1.3, 1.4, 2.2, 2.3, 2.5, 2.6, 6.2, 6.3, 6.4, 6.6_
+  - _Requirements: 1.3, 1.4, 2.2, 2.3, 2.5, 2.6, 6.2, 6.3, 6.4, 6.6, 9.1, 9.2, 9.3_
+  - [ ] 11.1 Test and implement only modes admitted by task 2's qualification report, including exact AC
+    `SystemPowerIn` versus battery `SystemLoad` selection, enrollment/session/report client, strict signed
+    available/unavailable bodies, 30-second cadence, and immediate unavailable on every source or mode transition.
+    Require malformed or negative selected telemetry and any unavailable, missing, malformed, non-atomic, stale,
+    wrong-sign, or wrong-interval mandatory accumulator tuple to fail the complete reading as
+    `WHOLE_SYSTEM_UNAVAILABLE`, without cross-mode fallback, stale-value reuse, or prior-mode sample or accumulator
+    reuse. Exercise freshness from the initial atomic value/count/direct observation even when its count never
+    advances; zero deltas immediately before, exactly at, and after 90 seconds; immediate negative/wrapped deltas; and
+    positive-delta accumulator interval finiteness, sign, and hard-ceiling checks, plus battery signed-inverse checks
+    only when both tuples close over the same prior and current observation endpoints. Do not enforce workload
+    direction in production and do not assign repeated process reads to Apple's hidden accumulator intervals. Clear
+    prior-mode freshness and accumulator baselines, recover only after a complete qualified new-mode snapshot, and
+    use jittered backoff.
+    - _Requirements: 1.3, 1.4, 2.2, 2.3, 2.5, 2.6, 6.2, 6.3, 6.4, 6.6, 9.2_
   - [ ] 11.2 Test sleep/wake, AC/battery transitions for every qualified and unsupported mode, source loss,
     network/DNS/certificate/server restart/revoke, and resource limits. Update the reporter user guide with the measured
-    support matrix, explicit fail-closed unavailable modes, pairing and revocation/re-enrollment procedures, status and
-    log interpretation, and troubleshooting for each tested failure. Update its developer guide with qualification and
-    runtime test reproduction, and add the qualified source/runtime behavior to the reporter Unreleased changelog.
-    - _Requirements: 1.4, 3.1, 6.3, 6.4, 9.2, 9.3_
+    support matrix, the **Apple-reported system power** label, the undocumented-source, non-calibration, non-billing,
+    settlement, and safety limitations, explicit fail-closed unavailable modes, pairing and revocation/re-enrollment
+    procedures, status and log interpretation, and troubleshooting for each tested failure. Update its developer guide
+    with qualification and runtime test reproduction, and add the qualified source/runtime behavior to the reporter
+    Unreleased changelog.
+    - _Requirements: 1.4, 3.1, 6.3, 6.4, 9.1, 9.2, 9.3_
   - Demo: a real Mac reports for one hour through power-source transitions, sleep/wake, and add-on restart; every
     unsupported interval becomes explicitly unavailable rather than silent.
 
@@ -518,33 +589,40 @@ documentation pass.
   - Demo: repeatable load report/dashboard with 500 reporters plus existing pollers.
 
 - [ ] 15. Release Apple-silicon MVP
-  - _Requirements: 3.3, 3.4, 3.5, 5.3, 10.1, 10.2, 10.3_
+  - _Requirements: 3.3, 3.4, 3.5, 5.3, 9.1, 9.2, 9.3, 10.1, 10.2, 10.3_
   - [ ] 15.1 Audit `remote_energy_meter/DOCS.md`, `README.md`, and the reporter repository's user/developer guides
-    against the released behavior. Confirm they completely cover settings, reporter-only installation, install/removal,
-    permissions, interactive and managed pairing/re-pairing, supported and fail-closed modes, certificate trust,
-    privacy, backup/recovery, updates/rollback, logs/troubleshooting, and build/test/sign/notarize/release verification.
-    Verify all applicable shipped feature, runtime-dependency, base-image, and image-affecting CI/security entries are
-    already under each repository's Unreleased changelog, and that dev-only tool pins are absent. Fix only completeness
-    or accuracy gaps found by this review. Complete external protocol review and run all repository gates and review
-    reports.
-    - _Requirements: 3.5, 5.3, 10.1, 10.2_
-  - [ ] 15.2 Bump add-on/integration version 0.2.0 in `remote_energy_meter/config.yaml` and `pyproject.toml` together in
-    the same release change, verify `CHANGELOG.md` has moved all applicable Unreleased entries into 0.2.0 without
-    dropping any, and release the signed/notarized reporter 0.1.0 through the protected main branches.
-    - _Requirements: 3.3, 3.4, 10.2, 10.3_
+    against the released behavior and task 2's final code-only qualification report. Confirm they completely cover
+    settings, reporter-only installation, install/removal, permissions, interactive and managed pairing/re-pairing,
+    independently supported and fail-closed modes, the **Apple-reported system power** label and every limitation in
+    requirement 9.1, certificate trust, privacy, backup/recovery, updates/rollback, logs/troubleshooting, and
+    build/test/sign/notarize/release verification. Verify all applicable shipped feature, runtime-dependency,
+    base-image, and image-affecting CI/security entries are already under each repository's Unreleased changelog, and
+    that dev-only tool pins are absent. Fix only completeness or accuracy gaps found by this review. Complete external
+    protocol review and run all repository gates and review reports.
+    - _Requirements: 3.5, 5.3, 9.1, 9.2, 9.3, 10.1, 10.2_
+  - [ ] 15.2 Refuse release unless task 2's report admits at least one Apple-silicon power mode and task 11 implements
+    only admitted modes with fail-closed transitions for every other mode. Then bump add-on/integration version 0.2.0
+    in `remote_energy_meter/config.yaml` and `pyproject.toml` together in the same release change, verify `CHANGELOG.md`
+    has moved all applicable Unreleased entries into 0.2.0 without dropping any, and release the signed/notarized
+    reporter 0.1.0 through the protected main branches.
+    - _Requirements: 3.3, 3.4, 9.1, 9.2, 9.3, 10.2, 10.3_
   - [ ] 15.3 Deploy only reviewed, merged main artifacts; live-test enrollment/report/offline/revoke/backup/rollback.
     - _Requirements: 5.3, 10.3_
   - Demo: fresh Mac → Discovered → pairing → signed power/energy → revoke/history retained.
 
 - [ ] 16. Qualify macOS Intel separately
   - _Requirements: 1.3, 1.4, 9.1, 9.2, 9.3_
-  - [ ] 16.1 Run the external-meter matrix; add a provider only if the same criteria pass, otherwise document unsupported.
+  - [ ] 16.1 Define and run an Intel-specific code-only matrix; add a provider only if its source, unit, internal
+    consistency, freshness, load-response, transition, and resource criteria pass. Otherwise document unsupported.
+    Apple-silicon evidence does not qualify Intel, and no physical-accuracy claim is permitted without separate data.
     - _Requirements: 1.3, 1.4, 9.1, 9.2, 9.3_
-  - Demo: qualified provider release or explicit fail-closed result.
+  - Demo: code-qualified provider release or explicit fail-closed result.
 
 - [ ] 17. Research/qualify PC providers
   - _Requirements: 1.3, 1.4, 9.1, 9.2, 9.3_
-  - [ ] 17.1 Treat Windows/Linux separately; use documented sources and wall validation; never relabel package telemetry.
+  - [ ] 17.1 Treat Windows/Linux separately; define source-specific code-only criteria for units, internal consistency,
+    freshness, load response, transitions, and resource use. Never relabel package or subsystem telemetry as system
+    power, and make no physical-accuracy claim without separate evidence.
     - _Requirements: 1.3, 1.4, 9.1, 9.2, 9.3_
   - [ ] 17.2 Plug qualified providers into existing reporter protocol without server changes.
     - _Requirements: 1.1, 1.3, 1.4_
