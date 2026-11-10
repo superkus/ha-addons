@@ -1,0 +1,1325 @@
+{
+  "schema": "rem-vector-set-v1",
+  "profile_version": 1,
+  "description": "Reporter-key, control-key and control-SPKI rotation transcripts and signatures.",
+  "cases": [
+    {
+      "id": "rotation.reporter",
+      "description": "Reporter-key rotation transcript encode('rem-reporter-key-rotation-v1', 12 fields); rotation_digest = SHA-256(transcript); current and proposed keys each sign the transcript with 64-byte low-S IEEE P1363 ECDSA; the HA administrator confirms digest, generation, nonce and expiry over the control channel.",
+      "requirements": [
+        "3.1"
+      ],
+      "routes": [
+        "reporter.key-rotation-challenge.create",
+        "reporter.key-rotation.complete",
+        "control.reporter-key-rotation.confirm"
+      ],
+      "inputs": [
+        {
+          "name": "current_jwk",
+          "encoding": "utf8",
+          "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"qXlTk75KQKYN-PBJPDM4qHw8tYKgDLaqixcHrthpc_U\",\"y\":\"tdXohmn4d0O78ACF989uLrxgHWAryPJteiOQIvBjRDo\"}"
+        },
+        {
+          "name": "proposed_jwk",
+          "encoding": "utf8",
+          "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"akfwvxvdNvZHRhitVKEMSNI2wLe6eJWRLOeZwkWlnB0\",\"y\":\"vS9W3KsfEUax22--eWSKYKPGmIq1DfsINfB85K6H1aw\"}"
+        },
+        {
+          "name": "operation_id",
+          "encoding": "base64url",
+          "value": "BAQEBAQEBAQEBAQEBAQEBA"
+        },
+        {
+          "name": "rotation_id",
+          "encoding": "base64url",
+          "value": "BQUFBQUFBQUFBQUFBQUFBQ"
+        },
+        {
+          "name": "core_nonce",
+          "encoding": "base64url",
+          "value": "mZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZk"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "transcript.encoded.header",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401"
+        },
+        {
+          "name": "transcript.encoded.domain-purpose",
+          "encoding": "hex",
+          "value": "001c72656d2d7265706f727465722d6b65792d726f746174696f6e2d7631"
+        },
+        {
+          "name": "transcript.encoded.schema_version",
+          "encoding": "hex",
+          "value": "000e736368656d615f76657273696f6e0000000101"
+        },
+        {
+          "name": "transcript.encoded.purpose",
+          "encoding": "hex",
+          "value": "0007707572706f73650000001c72656d2d7265706f727465722d6b65792d726f746174696f6e2d7631"
+        },
+        {
+          "name": "transcript.encoded.reporter_id",
+          "encoding": "hex",
+          "value": "000b7265706f727465725f6964000000205ef5d38f326668a5c96967e9b15f66507e0ad8fa4017a4a35a385b70237d7485"
+        },
+        {
+          "name": "transcript.encoded.current_thumbprint",
+          "encoding": "hex",
+          "value": "001263757272656e745f7468756d627072696e74000000205ef5d38f326668a5c96967e9b15f66507e0ad8fa4017a4a35a385b70237d7485"
+        },
+        {
+          "name": "transcript.encoded.current_generation",
+          "encoding": "hex",
+          "value": "001263757272656e745f67656e65726174696f6e000000080000000000000001"
+        },
+        {
+          "name": "transcript.encoded.proposed_jwk",
+          "encoding": "hex",
+          "value": "000c70726f706f7365645f6a776b0000007e7b22637276223a22502d323536222c226b7479223a224543222c2278223a22616b6677767876644e765a4852686974564b454d534e4932774c6536654a57524c4f655a776b576c6e4230222c2279223a2276533957334b73664555617832322d2d6557534b594b50476d497131446673494e664238354b3648316177227d"
+        },
+        {
+          "name": "transcript.encoded.proposed_thumbprint",
+          "encoding": "hex",
+          "value": "001370726f706f7365645f7468756d627072696e74000000201b94390d28794760b10f9c26d09623ca5e58d949e9ca3fc0373a3edc8ea78383"
+        },
+        {
+          "name": "transcript.encoded.next_generation",
+          "encoding": "hex",
+          "value": "000f6e6578745f67656e65726174696f6e000000080000000000000002"
+        },
+        {
+          "name": "transcript.encoded.operation_id",
+          "encoding": "hex",
+          "value": "000c6f7065726174696f6e5f69640000001004040404040404040404040404040404"
+        },
+        {
+          "name": "transcript.encoded.rotation_id",
+          "encoding": "hex",
+          "value": "000b726f746174696f6e5f69640000001005050505050505050505050505050505"
+        },
+        {
+          "name": "transcript.encoded.core_nonce",
+          "encoding": "hex",
+          "value": "000a636f72655f6e6f6e6365000000209999999999999999999999999999999999999999999999999999999999999999"
+        },
+        {
+          "name": "transcript.encoded.expires_at",
+          "encoding": "hex",
+          "value": "000a657870697265735f617400000008000000006955d778"
+        },
+        {
+          "name": "transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001c72656d2d7265706f727465722d6b65792d726f746174696f6e2d7631000e736368656d615f76657273696f6e00000001010007707572706f73650000001c72656d2d7265706f727465722d6b65792d726f746174696f6e2d7631000b7265706f727465725f6964000000205ef5d38f326668a5c96967e9b15f66507e0ad8fa4017a4a35a385b70237d7485001263757272656e745f7468756d627072696e74000000205ef5d38f326668a5c96967e9b15f66507e0ad8fa4017a4a35a385b70237d7485001263757272656e745f67656e65726174696f6e000000080000000000000001000c70726f706f7365645f6a776b0000007e7b22637276223a22502d323536222c226b7479223a224543222c2278223a22616b6677767876644e765a4852686974564b454d534e4932774c6536654a57524c4f655a776b576c6e4230222c2279223a2276533957334b73664555617832322d2d6557534b594b50476d497131446673494e664238354b3648316177227d001370726f706f7365645f7468756d627072696e74000000201b94390d28794760b10f9c26d09623ca5e58d949e9ca3fc0373a3edc8ea78383000f6e6578745f67656e65726174696f6e000000080000000000000002000c6f7065726174696f6e5f69640000001004040404040404040404040404040404000b726f746174696f6e5f69640000001005050505050505050505050505050505000a636f72655f6e6f6e6365000000209999999999999999999999999999999999999999999999999999999999999999000a657870697265735f617400000008000000006955d778"
+        },
+        {
+          "name": "challenge.request",
+          "encoding": "utf8",
+          "value": "{\"current_generation\":1,\"operation_id\":\"BAQEBAQEBAQEBAQEBAQEBA\",\"proposed_jwk\":{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"akfwvxvdNvZHRhitVKEMSNI2wLe6eJWRLOeZwkWlnB0\",\"y\":\"vS9W3KsfEUax22--eWSKYKPGmIq1DfsINfB85K6H1aw\"},\"proposed_thumbprint\":\"G5Q5DSh5R2CxD5wm0JYjyl5Y2Unpyj_ANzo-3I6ng4M\",\"purpose\":\"rem-reporter-key-rotation-v1\",\"schema_version\":1}"
+        },
+        {
+          "name": "challenge.response",
+          "encoding": "utf8",
+          "value": "{\"core_nonce\":\"mZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZk\",\"current_generation\":1,\"expires_at\":1767233400,\"next_generation\":2,\"proposed_thumbprint\":\"G5Q5DSh5R2CxD5wm0JYjyl5Y2Unpyj_ANzo-3I6ng4M\",\"purpose\":\"rem-reporter-key-rotation-v1\",\"reporter_id\":\"XvXTjzJmaKXJaWfpsV9mUH4K2PpAF6SjWjhbcCN9dIU\",\"rotation_digest\":\"GfblkHwFFXs9Gv-f-pRaBVDGlrAjactqUnjU-L_B7No\",\"rotation_id\":\"BQUFBQUFBQUFBQUFBQUFBQ\",\"schema_version\":1}"
+        },
+        {
+          "name": "complete.request",
+          "encoding": "utf8",
+          "value": "{\"current_signature\":\"duaHttitFcqVKkvXfEUy3s4c_I-6hlvZk4tGEQEL6-EQJ6h_0e_GKIsyDo3CjYqxplZc9Tu22lv8_LcyYYayGg\",\"proposed_signature\":\"K_e5nBntwqHZFnuiwAUPxpop3Niezs2MHErzTRdNyK8Cx-CkZpfuYjz3olYW8lj1_WbT8e_N7R2q1tQRIRZitg\",\"purpose\":\"rem-reporter-key-rotation-v1\",\"rotation_digest\":\"GfblkHwFFXs9Gv-f-pRaBVDGlrAjactqUnjU-L_B7No\",\"rotation_id\":\"BQUFBQUFBQUFBQUFBQUFBQ\",\"schema_version\":1}"
+        },
+        {
+          "name": "complete.response",
+          "encoding": "utf8",
+          "value": "{\"expires_at\":1767233400,\"rotation_digest\":\"GfblkHwFFXs9Gv-f-pRaBVDGlrAjactqUnjU-L_B7No\",\"rotation_id\":\"BQUFBQUFBQUFBQUFBQUFBQ\",\"schema_version\":1,\"state\":\"pending_admin_confirmation\"}"
+        },
+        {
+          "name": "confirm.request",
+          "encoding": "utf8",
+          "value": "{\"core_nonce\":\"mZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZk\",\"current_generation\":1,\"expires_at\":1767233400,\"operation_id\":\"GxsbGxsbGxsbGxsbGxsbGw\",\"reporter_id\":\"XvXTjzJmaKXJaWfpsV9mUH4K2PpAF6SjWjhbcCN9dIU\",\"rotation_digest\":\"GfblkHwFFXs9Gv-f-pRaBVDGlrAjactqUnjU-L_B7No\",\"rotation_id\":\"BQUFBQUFBQUFBQUFBQUFBQ\",\"schema_version\":1}"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": 200,
+        "outputs": [
+          {
+            "name": "rotation_digest",
+            "encoding": "base64url",
+            "value": "GfblkHwFFXs9Gv-f-pRaBVDGlrAjactqUnjU-L_B7No"
+          },
+          {
+            "name": "current_signature",
+            "encoding": "base64url",
+            "value": "duaHttitFcqVKkvXfEUy3s4c_I-6hlvZk4tGEQEL6-EQJ6h_0e_GKIsyDo3CjYqxplZc9Tu22lv8_LcyYYayGg"
+          },
+          {
+            "name": "proposed_signature",
+            "encoding": "base64url",
+            "value": "K_e5nBntwqHZFnuiwAUPxpop3Niezs2MHErzTRdNyK8Cx-CkZpfuYjz3olYW8lj1_WbT8e_N7R2q1tQRIRZitg"
+          },
+          {
+            "name": "confirm.response",
+            "encoding": "utf8",
+            "value": "{\"active_generation\":2,\"operation_id\":\"GxsbGxsbGxsbGxsbGxsbGw\",\"reporter_id\":\"XvXTjzJmaKXJaWfpsV9mUH4K2PpAF6SjWjhbcCN9dIU\",\"rotation_digest\":\"GfblkHwFFXs9Gv-f-pRaBVDGlrAjactqUnjU-L_B7No\",\"rotation_id\":\"BQUFBQUFBQUFBQUFBQUFBQ\",\"schema_version\":1,\"state\":\"active\"}"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "current_signature.high-s",
+          "replacement": {
+            "name": "current_signature.high-s",
+            "encoding": "base64url",
+            "value": "duaHttitFcqVKkvXfEUy3s4c_I-6hlvZk4tGEQEL6-Hv2Fd_LhA52HTN8XI9cnVOFpCduGtgxCj2vROQmtxzNw"
+          }
+        },
+        {
+          "field": "proposed_signature.high-s",
+          "replacement": {
+            "name": "proposed_signature.high-s",
+            "encoding": "base64url",
+            "value": "K_e5nBntwqHZFnuiwAUPxpop3Niezs2MHErzTRdNyK_9OB9amWgRnsMIXanpDacJv4Amu7dJsWdI4vax20zCmw"
+          }
+        },
+        {
+          "field": "challenge.request.current_generation",
+          "replacement": {
+            "name": "challenge.request.current_generation",
+            "encoding": "decimal",
+            "value": "18446744073709551615"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "rotation.reporter.m00",
+          "field": "transcript.schema_version",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m01",
+          "field": "transcript.purpose",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m02",
+          "field": "transcript.reporter_id",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m03",
+          "field": "transcript.current_thumbprint",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m04",
+          "field": "transcript.current_generation",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m05",
+          "field": "transcript.proposed_jwk",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m06",
+          "field": "transcript.proposed_thumbprint",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m07",
+          "field": "transcript.next_generation",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m08",
+          "field": "transcript.operation_id",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m09",
+          "field": "transcript.rotation_id",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m10",
+          "field": "transcript.core_nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m11",
+          "field": "transcript.expires_at",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m12",
+          "field": "transcript.field-order",
+          "operation": "reorder",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m13",
+          "field": "current_signature",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m14",
+          "field": "proposed_signature",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m15",
+          "field": "proposed_signature.high-s",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m16",
+          "field": "signatures.order",
+          "operation": "reorder",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.reporter.m17",
+          "field": "complete.request.rotation_digest",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.reporter.m18",
+          "field": "confirm.request.core_nonce",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.reporter.m19",
+          "field": "confirm.request.expires_at",
+          "operation": "alter-value",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.reporter.m20",
+          "field": "challenge.request.current_generation",
+          "operation": "substitute",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.reporter.m21",
+          "field": "current_signature.high-s",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        }
+      ]
+    },
+    {
+      "id": "rotation.control-key",
+      "description": "Control-key rotation transcript encode('rem-control-key-rotation-v1', 13 fields) and rotation_digest. Completion carries rem (current key) and rem-proposed (proposed key) RFC 9421 signatures with identical components and parameters except keyid. Transcript mutations are rejected by the core's durable challenge comparison (409); malformed transport fields retain route/profile precedence, and signature binding mutations fail before business logic (401). An exact duplicate before expiry returns the recorded result; replay after expiry and cross-route or cross-purpose rebinding fail authentication.",
+      "requirements": [
+        "7.5b",
+        "7.5f"
+      ],
+      "routes": [
+        "control.control-key-rotation-challenge.create",
+        "control.control-key-rotation.complete"
+      ],
+      "inputs": [
+        {
+          "name": "current_jwk",
+          "encoding": "utf8",
+          "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"W8tCaCB6BFTCLuP-orrQwedBMTJ7KRMvCPxErXO2cuc\",\"y\":\"ydFT-fbBu__emzqMA2CgOo7gLZ2320-DS6N6MeX9GAU\"}"
+        },
+        {
+          "name": "proposed_jwk",
+          "encoding": "utf8",
+          "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"eAH65KP-Ocb-YWVjMnDwfro1wqaDfTMXcN-Jvm4zSck\",\"y\":\"3gyEUwcSTsbAl214RwVxvcI2M46vPrZsv0lpJGMpUWs\"}"
+        },
+        {
+          "name": "operation_id",
+          "encoding": "base64url",
+          "value": "BgYGBgYGBgYGBgYGBgYGBg"
+        },
+        {
+          "name": "rotation_id",
+          "encoding": "base64url",
+          "value": "BwcHBwcHBwcHBwcHBwcHBw"
+        },
+        {
+          "name": "core_nonce",
+          "encoding": "base64url",
+          "value": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqo"
+        },
+        {
+          "name": "administrator_confirmation_id",
+          "encoding": "base64url",
+          "value": "CAgICAgICAgICAgICAgICA"
+        },
+        {
+          "name": "request.method",
+          "encoding": "ascii",
+          "value": "POST"
+        },
+        {
+          "name": "request.authority",
+          "encoding": "ascii",
+          "value": "control.example.com:8444"
+        },
+        {
+          "name": "request.target",
+          "encoding": "ascii",
+          "value": "/control/v1/control-keys/rotations"
+        },
+        {
+          "name": "headers.rem-purpose",
+          "encoding": "ascii",
+          "value": "rem-control-key-rotation-v1"
+        },
+        {
+          "name": "headers.rem-control-key-generation",
+          "encoding": "ascii",
+          "value": "1"
+        },
+        {
+          "name": "headers.rem-request-nonce",
+          "encoding": "ascii",
+          "value": "LS0tLS0tLS0tLS0tLS0tLQ"
+        },
+        {
+          "name": "headers.rem-request-expires",
+          "encoding": "ascii",
+          "value": "1767236760"
+        },
+        {
+          "name": "headers.content-type",
+          "encoding": "ascii",
+          "value": "application/json"
+        },
+        {
+          "name": "headers.content-digest",
+          "encoding": "ascii",
+          "value": "sha-256=:aiqssdmjr6enfQDvxA7V+K2aSbTXQiGgz9XfIWj0UlU=:"
+        },
+        {
+          "name": "body",
+          "encoding": "utf8",
+          "value": "{\"administrator_confirmation_id\":\"CAgICAgICAgICAgICAgICA\",\"core_nonce\":\"qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqo\",\"current_generation\":1,\"current_jwk\":{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"W8tCaCB6BFTCLuP-orrQwedBMTJ7KRMvCPxErXO2cuc\",\"y\":\"ydFT-fbBu__emzqMA2CgOo7gLZ2320-DS6N6MeX9GAU\"},\"current_thumbprint\":\"Mh_hM--WV1bG_xsdy6WddrbT87T0Uy5Y3QaiYW9khN4\",\"expires_at\":1767237000,\"next_generation\":2,\"operation_id\":\"BgYGBgYGBgYGBgYGBgYGBg\",\"proposed_jwk\":{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"eAH65KP-Ocb-YWVjMnDwfro1wqaDfTMXcN-Jvm4zSck\",\"y\":\"3gyEUwcSTsbAl214RwVxvcI2M46vPrZsv0lpJGMpUWs\"},\"proposed_thumbprint\":\"PEwJ3G5OBf_p4nsK18oq0xEct0pOS0UmDejKB-y6kHc\",\"purpose\":\"rem-control-key-rotation-v1\",\"rotation_digest\":\"7c5pJEJ7l-9Y9OnBIObMj4gbzaZ1EfAc4DkmWTlOBWo\",\"rotation_id\":\"BwcHBwcHBwcHBwcHBwcHBw\",\"schema_version\":1}"
+        },
+        {
+          "name": "keyid.rem",
+          "encoding": "ascii",
+          "value": "Mh_hM--WV1bG_xsdy6WddrbT87T0Uy5Y3QaiYW9khN4"
+        },
+        {
+          "name": "keyid.rem-proposed",
+          "encoding": "ascii",
+          "value": "PEwJ3G5OBf_p4nsK18oq0xEct0pOS0UmDejKB-y6kHc"
+        },
+        {
+          "name": "jwk.rem",
+          "encoding": "utf8",
+          "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"W8tCaCB6BFTCLuP-orrQwedBMTJ7KRMvCPxErXO2cuc\",\"y\":\"ydFT-fbBu__emzqMA2CgOo7gLZ2320-DS6N6MeX9GAU\"}"
+        },
+        {
+          "name": "jwk.rem-proposed",
+          "encoding": "utf8",
+          "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"eAH65KP-Ocb-YWVjMnDwfro1wqaDfTMXcN-Jvm4zSck\",\"y\":\"3gyEUwcSTsbAl214RwVxvcI2M46vPrZsv0lpJGMpUWs\"}"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "transcript.encoded.header",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401"
+        },
+        {
+          "name": "transcript.encoded.domain-purpose",
+          "encoding": "hex",
+          "value": "001b72656d2d636f6e74726f6c2d6b65792d726f746174696f6e2d7631"
+        },
+        {
+          "name": "transcript.encoded.schema_version",
+          "encoding": "hex",
+          "value": "000e736368656d615f76657273696f6e0000000101"
+        },
+        {
+          "name": "transcript.encoded.purpose",
+          "encoding": "hex",
+          "value": "0007707572706f73650000001b72656d2d636f6e74726f6c2d6b65792d726f746174696f6e2d7631"
+        },
+        {
+          "name": "transcript.encoded.instance_id",
+          "encoding": "hex",
+          "value": "000b696e7374616e63655f69640000000a696e7374616e63652d61"
+        },
+        {
+          "name": "transcript.encoded.current_jwk",
+          "encoding": "hex",
+          "value": "000b63757272656e745f6a776b0000007e7b22637276223a22502d323536222c226b7479223a224543222c2278223a225738744361434236424654434c75502d6f727251776564424d544a374b524d764350784572584f32637563222c2279223a22796446542d666242755f5f656d7a714d413243674f6f37674c5a323332302d4453364e364d655839474155227d"
+        },
+        {
+          "name": "transcript.encoded.current_thumbprint",
+          "encoding": "hex",
+          "value": "001263757272656e745f7468756d627072696e7400000020321fe133ef965756c6ff1b1dcba59d76b6d3f3b4f4532e58dd06a2616f6484de"
+        },
+        {
+          "name": "transcript.encoded.current_generation",
+          "encoding": "hex",
+          "value": "001263757272656e745f67656e65726174696f6e000000080000000000000001"
+        },
+        {
+          "name": "transcript.encoded.proposed_jwk",
+          "encoding": "hex",
+          "value": "000c70726f706f7365645f6a776b0000007e7b22637276223a22502d323536222c226b7479223a224543222c2278223a2265414836354b502d4f63622d5957566a4d6e447766726f317771614466544d58634e2d4a766d347a53636b222c2279223a223367794555776353547362416c32313452775678766349324d34367650725a7376306c704a474d70555773227d"
+        },
+        {
+          "name": "transcript.encoded.proposed_thumbprint",
+          "encoding": "hex",
+          "value": "001370726f706f7365645f7468756d627072696e74000000203c4c09dc6e4e05ffe9e27b0ad7ca2ad3111cb74a4e4b45260de8ca07ecba9077"
+        },
+        {
+          "name": "transcript.encoded.next_generation",
+          "encoding": "hex",
+          "value": "000f6e6578745f67656e65726174696f6e000000080000000000000002"
+        },
+        {
+          "name": "transcript.encoded.operation_id",
+          "encoding": "hex",
+          "value": "000c6f7065726174696f6e5f69640000001006060606060606060606060606060606"
+        },
+        {
+          "name": "transcript.encoded.rotation_id",
+          "encoding": "hex",
+          "value": "000b726f746174696f6e5f69640000001007070707070707070707070707070707"
+        },
+        {
+          "name": "transcript.encoded.core_nonce",
+          "encoding": "hex",
+          "value": "000a636f72655f6e6f6e636500000020aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "name": "transcript.encoded.expires_at",
+          "encoding": "hex",
+          "value": "000a657870697265735f617400000008000000006955e588"
+        },
+        {
+          "name": "transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001b72656d2d636f6e74726f6c2d6b65792d726f746174696f6e2d7631000e736368656d615f76657273696f6e00000001010007707572706f73650000001b72656d2d636f6e74726f6c2d6b65792d726f746174696f6e2d7631000b696e7374616e63655f69640000000a696e7374616e63652d61000b63757272656e745f6a776b0000007e7b22637276223a22502d323536222c226b7479223a224543222c2278223a225738744361434236424654434c75502d6f727251776564424d544a374b524d764350784572584f32637563222c2279223a22796446542d666242755f5f656d7a714d413243674f6f37674c5a323332302d4453364e364d655839474155227d001263757272656e745f7468756d627072696e7400000020321fe133ef965756c6ff1b1dcba59d76b6d3f3b4f4532e58dd06a2616f6484de001263757272656e745f67656e65726174696f6e000000080000000000000001000c70726f706f7365645f6a776b0000007e7b22637276223a22502d323536222c226b7479223a224543222c2278223a2265414836354b502d4f63622d5957566a4d6e447766726f317771614466544d58634e2d4a766d347a53636b222c2279223a223367794555776353547362416c32313452775678766349324d34367650725a7376306c704a474d70555773227d001370726f706f7365645f7468756d627072696e74000000203c4c09dc6e4e05ffe9e27b0ad7ca2ad3111cb74a4e4b45260de8ca07ecba9077000f6e6578745f67656e65726174696f6e000000080000000000000002000c6f7065726174696f6e5f69640000001006060606060606060606060606060606000b726f746174696f6e5f69640000001007070707070707070707070707070707000a636f72655f6e6f6e636500000020aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000a657870697265735f617400000008000000006955e588"
+        },
+        {
+          "name": "rotation_digest",
+          "encoding": "base64url",
+          "value": "7c5pJEJ7l-9Y9OnBIObMj4gbzaZ1EfAc4DkmWTlOBWo"
+        },
+        {
+          "name": "challenge.request",
+          "encoding": "utf8",
+          "value": "{\"current_generation\":1,\"current_jwk\":{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"W8tCaCB6BFTCLuP-orrQwedBMTJ7KRMvCPxErXO2cuc\",\"y\":\"ydFT-fbBu__emzqMA2CgOo7gLZ2320-DS6N6MeX9GAU\"},\"current_thumbprint\":\"Mh_hM--WV1bG_xsdy6WddrbT87T0Uy5Y3QaiYW9khN4\",\"next_generation\":2,\"operation_id\":\"BgYGBgYGBgYGBgYGBgYGBg\",\"proposed_jwk\":{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"eAH65KP-Ocb-YWVjMnDwfro1wqaDfTMXcN-Jvm4zSck\",\"y\":\"3gyEUwcSTsbAl214RwVxvcI2M46vPrZsv0lpJGMpUWs\"},\"proposed_thumbprint\":\"PEwJ3G5OBf_p4nsK18oq0xEct0pOS0UmDejKB-y6kHc\",\"purpose\":\"rem-control-key-rotation-v1\",\"schema_version\":1}"
+        },
+        {
+          "name": "challenge.response",
+          "encoding": "utf8",
+          "value": "{\"core_nonce\":\"qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqo\",\"current_generation\":1,\"current_thumbprint\":\"Mh_hM--WV1bG_xsdy6WddrbT87T0Uy5Y3QaiYW9khN4\",\"expires_at\":1767237000,\"next_generation\":2,\"operation_id\":\"BgYGBgYGBgYGBgYGBgYGBg\",\"proposed_thumbprint\":\"PEwJ3G5OBf_p4nsK18oq0xEct0pOS0UmDejKB-y6kHc\",\"purpose\":\"rem-control-key-rotation-v1\",\"rotation_digest\":\"7c5pJEJ7l-9Y9OnBIObMj4gbzaZ1EfAc4DkmWTlOBWo\",\"rotation_id\":\"BwcHBwcHBwcHBwcHBwcHBw\",\"schema_version\":1}"
+        },
+        {
+          "name": "signature-params.rem",
+          "encoding": "ascii",
+          "value": "(\"@method\" \"@authority\" \"@path\" \"@query\" \"rem-purpose\" \"rem-control-key-generation\" \"rem-request-nonce\" \"rem-request-expires\" \"content-type\" \"content-digest\");created=1767236700;expires=1767236760;nonce=\"LS0tLS0tLS0tLS0tLS0tLQ\";keyid=\"Mh_hM--WV1bG_xsdy6WddrbT87T0Uy5Y3QaiYW9khN4\";alg=\"ecdsa-p256-sha256\";tag=\"rem-control-key-rotation-v1\""
+        },
+        {
+          "name": "signature-base.rem",
+          "encoding": "ascii",
+          "value": "\"@method\": POST\n\"@authority\": control.example.com:8444\n\"@path\": /control/v1/control-keys/rotations\n\"@query\": ?\n\"rem-purpose\": rem-control-key-rotation-v1\n\"rem-control-key-generation\": 1\n\"rem-request-nonce\": LS0tLS0tLS0tLS0tLS0tLQ\n\"rem-request-expires\": 1767236760\n\"content-type\": application/json\n\"content-digest\": sha-256=:aiqssdmjr6enfQDvxA7V+K2aSbTXQiGgz9XfIWj0UlU=:\n\"@signature-params\": (\"@method\" \"@authority\" \"@path\" \"@query\" \"rem-purpose\" \"rem-control-key-generation\" \"rem-request-nonce\" \"rem-request-expires\" \"content-type\" \"content-digest\");created=1767236700;expires=1767236760;nonce=\"LS0tLS0tLS0tLS0tLS0tLQ\";keyid=\"Mh_hM--WV1bG_xsdy6WddrbT87T0Uy5Y3QaiYW9khN4\";alg=\"ecdsa-p256-sha256\";tag=\"rem-control-key-rotation-v1\""
+        },
+        {
+          "name": "signature-base.rem.sha256",
+          "encoding": "hex",
+          "value": "e81a7eb6b8c448911565feecea201d2729ecadf2abbbf5bba88c9c43f2f1f771"
+        },
+        {
+          "name": "signature.rem.p1363",
+          "encoding": "hex",
+          "value": "cb1cb72597c25a852572b124487d8f99241d59f13fe29f94022a00e4a559e0db7d31bb7784058547b0ebff87a63b532159cc572a381891b69ee46f9b7d86184e"
+        },
+        {
+          "name": "signature.rem.high-s",
+          "encoding": "hex",
+          "value": "cb1cb72597c25a852572b124487d8f99241d59f13fe29f94022a00e4a559e0db82ce44877bfa7ab94f14007859c4acde631aa3836eff0cce54d55b277edd0d03"
+        },
+        {
+          "name": "signature-params.rem-proposed",
+          "encoding": "ascii",
+          "value": "(\"@method\" \"@authority\" \"@path\" \"@query\" \"rem-purpose\" \"rem-control-key-generation\" \"rem-request-nonce\" \"rem-request-expires\" \"content-type\" \"content-digest\");created=1767236700;expires=1767236760;nonce=\"LS0tLS0tLS0tLS0tLS0tLQ\";keyid=\"PEwJ3G5OBf_p4nsK18oq0xEct0pOS0UmDejKB-y6kHc\";alg=\"ecdsa-p256-sha256\";tag=\"rem-control-key-rotation-v1\""
+        },
+        {
+          "name": "signature-base.rem-proposed",
+          "encoding": "ascii",
+          "value": "\"@method\": POST\n\"@authority\": control.example.com:8444\n\"@path\": /control/v1/control-keys/rotations\n\"@query\": ?\n\"rem-purpose\": rem-control-key-rotation-v1\n\"rem-control-key-generation\": 1\n\"rem-request-nonce\": LS0tLS0tLS0tLS0tLS0tLQ\n\"rem-request-expires\": 1767236760\n\"content-type\": application/json\n\"content-digest\": sha-256=:aiqssdmjr6enfQDvxA7V+K2aSbTXQiGgz9XfIWj0UlU=:\n\"@signature-params\": (\"@method\" \"@authority\" \"@path\" \"@query\" \"rem-purpose\" \"rem-control-key-generation\" \"rem-request-nonce\" \"rem-request-expires\" \"content-type\" \"content-digest\");created=1767236700;expires=1767236760;nonce=\"LS0tLS0tLS0tLS0tLS0tLQ\";keyid=\"PEwJ3G5OBf_p4nsK18oq0xEct0pOS0UmDejKB-y6kHc\";alg=\"ecdsa-p256-sha256\";tag=\"rem-control-key-rotation-v1\""
+        },
+        {
+          "name": "signature-base.rem-proposed.sha256",
+          "encoding": "hex",
+          "value": "061deac0dd7761f1da33503363e782e1a3bdf321d89e703c787df8ccebcda567"
+        },
+        {
+          "name": "signature.rem-proposed.p1363",
+          "encoding": "hex",
+          "value": "fc13a537c78a9df556f42fe9a074029a146af75271a218a9ab62787d37410bd94208002040281e9d3122720875f666db57989bfb23f45cb864d7459bac564452"
+        },
+        {
+          "name": "signature.rem-proposed.high-s",
+          "encoding": "hex",
+          "value": "fc13a537c78a9df556f42fe9a074029a146af75271a218a9ab62787d37410bd9bdf7ffdebfd7e163cedd8df78a099924654e5eb2832341cc8ee28527500ce0ff"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": 200,
+        "outputs": [
+          {
+            "name": "headers.signature-input",
+            "encoding": "ascii",
+            "value": "rem=(\"@method\" \"@authority\" \"@path\" \"@query\" \"rem-purpose\" \"rem-control-key-generation\" \"rem-request-nonce\" \"rem-request-expires\" \"content-type\" \"content-digest\");created=1767236700;expires=1767236760;nonce=\"LS0tLS0tLS0tLS0tLS0tLQ\";keyid=\"Mh_hM--WV1bG_xsdy6WddrbT87T0Uy5Y3QaiYW9khN4\";alg=\"ecdsa-p256-sha256\";tag=\"rem-control-key-rotation-v1\", rem-proposed=(\"@method\" \"@authority\" \"@path\" \"@query\" \"rem-purpose\" \"rem-control-key-generation\" \"rem-request-nonce\" \"rem-request-expires\" \"content-type\" \"content-digest\");created=1767236700;expires=1767236760;nonce=\"LS0tLS0tLS0tLS0tLS0tLQ\";keyid=\"PEwJ3G5OBf_p4nsK18oq0xEct0pOS0UmDejKB-y6kHc\";alg=\"ecdsa-p256-sha256\";tag=\"rem-control-key-rotation-v1\""
+          },
+          {
+            "name": "headers.signature",
+            "encoding": "ascii",
+            "value": "rem=:yxy3JZfCWoUlcrEkSH2PmSQdWfE/4p+UAioA5KVZ4Nt9Mbt3hAWFR7Dr/4emO1MhWcxXKjgYkbae5G+bfYYYTg==:, rem-proposed=:/BOlN8eKnfVW9C/poHQCmhRq91Jxohipq2J4fTdBC9lCCAAgQCgenTEicgh19mbbV5ib+yP0XLhk10WbrFZEUg==:"
+          },
+          {
+            "name": "response.body",
+            "encoding": "utf8",
+            "value": "{\"active_generation\":2,\"operation_id\":\"BgYGBgYGBgYGBgYGBgYGBg\",\"rotation_digest\":\"7c5pJEJ7l-9Y9OnBIObMj4gbzaZ1EfAc4DkmWTlOBWo\",\"rotation_id\":\"BwcHBwcHBwcHBwcHBwcHBw\",\"schema_version\":1,\"state\":\"active\"}"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "request.target.empty-query",
+          "replacement": {
+            "name": "request.target.empty-query",
+            "encoding": "ascii",
+            "value": "/control/v1/control-keys/rotations?"
+          }
+        },
+        {
+          "field": "request.target.cross-route",
+          "replacement": {
+            "name": "request.target.cross-route",
+            "encoding": "ascii",
+            "value": "/control/v1/mqtt-keys/provision"
+          }
+        },
+        {
+          "field": "headers.rem-purpose.cross-purpose",
+          "replacement": {
+            "name": "headers.rem-purpose.cross-purpose",
+            "encoding": "ascii",
+            "value": "rem-control-mqtt-key-provision-v1"
+          }
+        },
+        {
+          "field": "signature.rem.high-s",
+          "replacement": {
+            "name": "signature.rem.high-s",
+            "encoding": "hex",
+            "value": "cb1cb72597c25a852572b124487d8f99241d59f13fe29f94022a00e4a559e0db82ce44877bfa7ab94f14007859c4acde631aa3836eff0cce54d55b277edd0d03"
+          }
+        },
+        {
+          "field": "signature.rem-proposed.high-s",
+          "replacement": {
+            "name": "signature.rem-proposed.high-s",
+            "encoding": "hex",
+            "value": "fc13a537c78a9df556f42fe9a074029a146af75271a218a9ab62787d37410bd9bdf7ffdebfd7e163cedd8df78a099924654e5eb2832341cc8ee28527500ce0ff"
+          }
+        },
+        {
+          "field": "signature-params.rem-proposed.keyid",
+          "replacement": {
+            "name": "signature-params.rem-proposed.keyid",
+            "encoding": "ascii",
+            "value": "Mh_hM--WV1bG_xsdy6WddrbT87T0Uy5Y3QaiYW9khN4"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "rotation.control-key.m00",
+          "field": "transcript.schema_version",
+          "operation": "alter-value",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-key.m01",
+          "field": "transcript.purpose",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-key.m02",
+          "field": "transcript.instance_id",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-key.m03",
+          "field": "transcript.current_jwk",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-key.m04",
+          "field": "transcript.current_thumbprint",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-key.m05",
+          "field": "transcript.current_generation",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-key.m06",
+          "field": "transcript.proposed_jwk",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-key.m07",
+          "field": "transcript.proposed_thumbprint",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-key.m08",
+          "field": "transcript.next_generation",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-key.m09",
+          "field": "transcript.operation_id",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-key.m10",
+          "field": "transcript.rotation_id",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-key.m11",
+          "field": "transcript.core_nonce",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-key.m12",
+          "field": "transcript.expires_at",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-key.m13",
+          "field": "transcript.field-order",
+          "operation": "reorder",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-key.m14",
+          "field": "headers.signature.rem",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m15",
+          "field": "headers.signature.rem-proposed",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m16",
+          "field": "signature-params.rem-proposed.keyid",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m17",
+          "field": "signature-input.rem-proposed",
+          "operation": "omit",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m18",
+          "field": "signature-input.labels",
+          "operation": "reorder",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m19",
+          "field": "body.administrator_confirmation_id",
+          "operation": "alter-byte",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "rotation.control-key.m20",
+          "field": "headers.rem-control-key-generation",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m21",
+          "field": "signature-input.rem-proposed.label",
+          "operation": "duplicate",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m22",
+          "field": "signature.rem.high-s",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m23",
+          "field": "signature.rem-proposed.high-s",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m24",
+          "field": "request.method",
+          "operation": "alter-value",
+          "expected_code": "method_not_allowed"
+        },
+        {
+          "id": "rotation.control-key.m25",
+          "field": "request.authority",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m26",
+          "field": "request.target.path",
+          "operation": "alter-byte",
+          "expected_code": "not_found"
+        },
+        {
+          "id": "rotation.control-key.m27",
+          "field": "request.target.empty-query",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "rotation.control-key.m28",
+          "field": "headers.rem-purpose",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m29",
+          "field": "headers.rem-request-nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m30",
+          "field": "headers.rem-request-expires",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m31",
+          "field": "headers.content-type",
+          "operation": "alter-value",
+          "expected_code": "unsupported_media_type"
+        },
+        {
+          "id": "rotation.control-key.m32",
+          "field": "headers.content-digest",
+          "operation": "alter-byte",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "rotation.control-key.m33",
+          "field": "body",
+          "operation": "alter-byte",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "rotation.control-key.m34",
+          "field": "request.replay.after-expiry",
+          "operation": "duplicate",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m35",
+          "field": "request.target.cross-route",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "rotation.control-key.m36",
+          "field": "headers.rem-purpose.cross-purpose",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m37",
+          "field": "signature-params.rem.created",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m38",
+          "field": "signature-params.rem.expires",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m39",
+          "field": "signature-params.rem.nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m40",
+          "field": "signature-params.rem.keyid",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m41",
+          "field": "signature-params.rem.alg",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m42",
+          "field": "signature-params.rem.tag",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m43",
+          "field": "signature-params.rem.components",
+          "operation": "reorder",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m44",
+          "field": "signature-params.rem.component-list",
+          "operation": "omit",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m45",
+          "field": "signature.rem.p1363",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m46",
+          "field": "signature-params.rem-proposed.created",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m47",
+          "field": "signature-params.rem-proposed.expires",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m48",
+          "field": "signature-params.rem-proposed.nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m49",
+          "field": "signature-params.rem-proposed.alg",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m50",
+          "field": "signature-params.rem-proposed.tag",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m51",
+          "field": "signature-params.rem-proposed.components",
+          "operation": "reorder",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m52",
+          "field": "signature-params.rem-proposed.component-list",
+          "operation": "omit",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-key.m53",
+          "field": "signature.rem-proposed.p1363",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        }
+      ]
+    },
+    {
+      "id": "rotation.control-spki",
+      "description": "Planned control TLS SPKI transition encode('rem-control-spki-rotation-v1', 12 fields). The old and new control TLS keys each sign the transcript (64-byte low-S P1363); the integration checks SHA-256(old_spki_der) equals its pin and SHA-256(new_spki_der) equals new_spki_sha256, verifies both signatures, obtains HA administrator confirmation and sends confirm only on a connection whose leaf SPKI equals new_spki_sha256 within the ten-minute overlap.",
+      "requirements": [
+        "7.5d",
+        "7.5f"
+      ],
+      "routes": [
+        "control.control-spki-rotation"
+      ],
+      "inputs": [
+        {
+          "name": "old_spki_der",
+          "encoding": "base64url",
+          "value": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEEG8pznUvOozCkohRwpj2T1tSSDsUydMf7ehf8VF6oKEUdygyHePDRpgXz3NG9dEwvLTbcTmseqs9dPa7hUFe3g"
+        },
+        {
+          "name": "new_spki_der",
+          "encoding": "base64url",
+          "value": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE-cROFomWHtbAxIqd0tQxOoEm4KZxUqUj4pN3CxwWfZj6FemG0IrmrgifXW01MYO_WRcUXbvOz8bt9RbYx9xaqA"
+        },
+        {
+          "name": "operation_id",
+          "encoding": "base64url",
+          "value": "CQkJCQkJCQkJCQkJCQkJCQ"
+        },
+        {
+          "name": "transition_id",
+          "encoding": "base64url",
+          "value": "CgoKCgoKCgoKCgoKCgoKCg"
+        },
+        {
+          "name": "integration_nonce",
+          "encoding": "base64url",
+          "value": "u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7s"
+        },
+        {
+          "name": "core_nonce",
+          "encoding": "base64url",
+          "value": "zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMw"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "old_spki_sha256",
+          "encoding": "hex",
+          "value": "00defed1c2c862a4134efb4d710d62cbf0fc8956e0f3724283ce057e44db891a"
+        },
+        {
+          "name": "new_spki_sha256",
+          "encoding": "hex",
+          "value": "9c9a052dd833ca18e3506ea7c490d62ebe78aab4f6712156a237a89efdf882e3"
+        },
+        {
+          "name": "transcript.encoded.header",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401"
+        },
+        {
+          "name": "transcript.encoded.domain-purpose",
+          "encoding": "hex",
+          "value": "001c72656d2d636f6e74726f6c2d73706b692d726f746174696f6e2d7631"
+        },
+        {
+          "name": "transcript.encoded.schema_version",
+          "encoding": "hex",
+          "value": "000e736368656d615f76657273696f6e0000000101"
+        },
+        {
+          "name": "transcript.encoded.purpose",
+          "encoding": "hex",
+          "value": "0007707572706f73650000001c72656d2d636f6e74726f6c2d73706b692d726f746174696f6e2d7631"
+        },
+        {
+          "name": "transcript.encoded.instance_id",
+          "encoding": "hex",
+          "value": "000b696e7374616e63655f69640000000a696e7374616e63652d61"
+        },
+        {
+          "name": "transcript.encoded.operation_id",
+          "encoding": "hex",
+          "value": "000c6f7065726174696f6e5f69640000001009090909090909090909090909090909"
+        },
+        {
+          "name": "transcript.encoded.transition_id",
+          "encoding": "hex",
+          "value": "000d7472616e736974696f6e5f6964000000100a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+        },
+        {
+          "name": "transcript.encoded.old_spki_sha256",
+          "encoding": "hex",
+          "value": "000f6f6c645f73706b695f7368613235360000002000defed1c2c862a4134efb4d710d62cbf0fc8956e0f3724283ce057e44db891a"
+        },
+        {
+          "name": "transcript.encoded.new_spki_sha256",
+          "encoding": "hex",
+          "value": "000f6e65775f73706b695f736861323536000000209c9a052dd833ca18e3506ea7c490d62ebe78aab4f6712156a237a89efdf882e3"
+        },
+        {
+          "name": "transcript.encoded.current_spki_generation",
+          "encoding": "hex",
+          "value": "001763757272656e745f73706b695f67656e65726174696f6e000000080000000000000001"
+        },
+        {
+          "name": "transcript.encoded.next_spki_generation",
+          "encoding": "hex",
+          "value": "00146e6578745f73706b695f67656e65726174696f6e000000080000000000000002"
+        },
+        {
+          "name": "transcript.encoded.integration_nonce",
+          "encoding": "hex",
+          "value": "0011696e746567726174696f6e5f6e6f6e636500000020bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        {
+          "name": "transcript.encoded.core_nonce",
+          "encoding": "hex",
+          "value": "000a636f72655f6e6f6e636500000020cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        {
+          "name": "transcript.encoded.expires_at",
+          "encoding": "hex",
+          "value": "000a657870697265735f617400000008000000006955f398"
+        },
+        {
+          "name": "transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001c72656d2d636f6e74726f6c2d73706b692d726f746174696f6e2d7631000e736368656d615f76657273696f6e00000001010007707572706f73650000001c72656d2d636f6e74726f6c2d73706b692d726f746174696f6e2d7631000b696e7374616e63655f69640000000a696e7374616e63652d61000c6f7065726174696f6e5f69640000001009090909090909090909090909090909000d7472616e736974696f6e5f6964000000100a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a000f6f6c645f73706b695f7368613235360000002000defed1c2c862a4134efb4d710d62cbf0fc8956e0f3724283ce057e44db891a000f6e65775f73706b695f736861323536000000209c9a052dd833ca18e3506ea7c490d62ebe78aab4f6712156a237a89efdf882e3001763757272656e745f73706b695f67656e65726174696f6e00000008000000000000000100146e6578745f73706b695f67656e65726174696f6e0000000800000000000000020011696e746567726174696f6e5f6e6f6e636500000020bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000a636f72655f6e6f6e636500000020cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc000a657870697265735f617400000008000000006955f398"
+        },
+        {
+          "name": "propose.request",
+          "encoding": "utf8",
+          "value": "{\"current_spki_generation\":1,\"current_spki_sha256\":\"AN7-0cLIYqQTTvtNcQ1iy_D8iVbg83JCg84FfkTbiRo\",\"integration_nonce\":\"u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7s\",\"operation_id\":\"CQkJCQkJCQkJCQkJCQkJCQ\",\"phase\":\"propose\",\"purpose\":\"rem-control-spki-rotation-v1\",\"schema_version\":1}"
+        },
+        {
+          "name": "propose.response",
+          "encoding": "utf8",
+          "value": "{\"core_nonce\":\"zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMw\",\"current_spki_generation\":1,\"expires_at\":1767240600,\"instance_id\":\"instance-a\",\"integration_nonce\":\"u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7s\",\"new_spki_der\":\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE-cROFomWHtbAxIqd0tQxOoEm4KZxUqUj4pN3CxwWfZj6FemG0IrmrgifXW01MYO_WRcUXbvOz8bt9RbYx9xaqA\",\"new_spki_sha256\":\"nJoFLdgzyhjjUG6nxJDWLr54qrT2cSFWojeonv34guM\",\"new_spki_signature\":\"u9Gf3sVFlkf1ozqgUnJ6iaZXO838Gocj01i4tSPQhn8nqjaxh3IsGY-NlyZIGZMeRq_FkdjWgb4lQr8BXNoI4A\",\"next_spki_generation\":2,\"old_spki_der\":\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEEG8pznUvOozCkohRwpj2T1tSSDsUydMf7ehf8VF6oKEUdygyHePDRpgXz3NG9dEwvLTbcTmseqs9dPa7hUFe3g\",\"old_spki_sha256\":\"AN7-0cLIYqQTTvtNcQ1iy_D8iVbg83JCg84FfkTbiRo\",\"old_spki_signature\":\"Em6eUYiZiiE_hyPedSfClsgAgra5BMZ_76riv3gq5sEcv2nZ7DYnHzrexM6KdqcmACumYrqsLcsh9PScHzXIPg\",\"operation_id\":\"CQkJCQkJCQkJCQkJCQkJCQ\",\"phase\":\"propose\",\"purpose\":\"rem-control-spki-rotation-v1\",\"schema_version\":1,\"transition_digest\":\"KYevTNYyKr2FYjYFGCR-__V8HNHW-RBZGkhv4ivXkMs\",\"transition_id\":\"CgoKCgoKCgoKCgoKCgoKCg\"}"
+        },
+        {
+          "name": "confirm.request",
+          "encoding": "utf8",
+          "value": "{\"administrator_confirmation_id\":\"DAwMDAwMDAwMDAwMDAwMDA\",\"operation_id\":\"CwsLCwsLCwsLCwsLCwsLCw\",\"phase\":\"confirm\",\"purpose\":\"rem-control-spki-rotation-v1\",\"schema_version\":1,\"transition_digest\":\"KYevTNYyKr2FYjYFGCR-__V8HNHW-RBZGkhv4ivXkMs\",\"transition_id\":\"CgoKCgoKCgoKCgoKCgoKCg\"}"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": 200,
+        "outputs": [
+          {
+            "name": "transition_digest",
+            "encoding": "base64url",
+            "value": "KYevTNYyKr2FYjYFGCR-__V8HNHW-RBZGkhv4ivXkMs"
+          },
+          {
+            "name": "old_spki_signature",
+            "encoding": "base64url",
+            "value": "Em6eUYiZiiE_hyPedSfClsgAgra5BMZ_76riv3gq5sEcv2nZ7DYnHzrexM6KdqcmACumYrqsLcsh9PScHzXIPg"
+          },
+          {
+            "name": "new_spki_signature",
+            "encoding": "base64url",
+            "value": "u9Gf3sVFlkf1ozqgUnJ6iaZXO838Gocj01i4tSPQhn8nqjaxh3IsGY-NlyZIGZMeRq_FkdjWgb4lQr8BXNoI4A"
+          },
+          {
+            "name": "confirm.response",
+            "encoding": "utf8",
+            "value": "{\"active_spki_generation\":2,\"active_spki_sha256\":\"nJoFLdgzyhjjUG6nxJDWLr54qrT2cSFWojeonv34guM\",\"operation_id\":\"CwsLCwsLCwsLCwsLCwsLCw\",\"phase\":\"confirm\",\"purpose\":\"rem-control-spki-rotation-v1\",\"schema_version\":1,\"state\":\"active\",\"transition_digest\":\"KYevTNYyKr2FYjYFGCR-__V8HNHW-RBZGkhv4ivXkMs\",\"transition_id\":\"CgoKCgoKCgoKCgoKCgoKCg\"}"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "old_spki_signature.high-s",
+          "replacement": {
+            "name": "old_spki_signature.high-s",
+            "encoding": "base64url",
+            "value": "Em6eUYiZiiE_hyPedSfClsgAgra5BMZ_76riv3gq5sHjQJYlE8nY4cUhOzF1iVjZvLtUSuxrcLnRxNYm3S1dEw"
+          }
+        },
+        {
+          "field": "new_spki_signature.high-s",
+          "replacement": {
+            "name": "new_spki_signature.high-s",
+            "encoding": "base64url",
+            "value": "u9Gf3sVFlkf1ozqgUnJ6iaZXO838Gocj01i4tSPQhn_YVclNeI3T53ByaNm35mzhdjc1G85BHMbOdwvBn4kccQ"
+          }
+        },
+        {
+          "field": "new_spki_der",
+          "replacement": {
+            "name": "new_spki_der",
+            "encoding": "base64url",
+            "value": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEW8tCaCB6BFTCLuP-orrQwedBMTJ7KRMvCPxErXO2cufJ0VP59sG7_96bOowDYKA6juAtnbfbT4NLo3ox5f0YBQ"
+          }
+        },
+        {
+          "field": "confirm.connection_spki",
+          "replacement": {
+            "name": "confirm.connection_spki",
+            "encoding": "hex",
+            "value": "00defed1c2c862a4134efb4d710d62cbf0fc8956e0f3724283ce057e44db891a"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "rotation.control-spki.m00",
+          "field": "transcript.schema_version",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m01",
+          "field": "transcript.purpose",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m02",
+          "field": "transcript.instance_id",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m03",
+          "field": "transcript.operation_id",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m04",
+          "field": "transcript.transition_id",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m05",
+          "field": "transcript.old_spki_sha256",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m06",
+          "field": "transcript.new_spki_sha256",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m07",
+          "field": "transcript.current_spki_generation",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m08",
+          "field": "transcript.next_spki_generation",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m09",
+          "field": "transcript.integration_nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m10",
+          "field": "transcript.core_nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m11",
+          "field": "transcript.expires_at",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m12",
+          "field": "transcript.field-order",
+          "operation": "reorder",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m13",
+          "field": "old_spki_signature",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m14",
+          "field": "new_spki_signature",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m15",
+          "field": "old_spki_signature.high-s",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m16",
+          "field": "old_spki_der",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m17",
+          "field": "new_spki_der",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "rotation.control-spki.m18",
+          "field": "confirm.request.transition_digest",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "rotation.control-spki.m19",
+          "field": "confirm.connection_spki",
+          "operation": "substitute",
+          "expected_code": "authorization_denied"
+        },
+        {
+          "id": "rotation.control-spki.m20",
+          "field": "new_spki_signature.high-s",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        }
+      ]
+    }
+  ]
+}

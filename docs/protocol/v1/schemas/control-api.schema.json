@@ -1,0 +1,1837 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json",
+  "title": "REM protocol v1 control API bodies",
+  "$defs": {
+    "bootstrapCommitRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_spki_sha256",
+        "instance_id",
+        "integration_commitment",
+        "integration_jwk",
+        "integration_thumbprint",
+        "purpose",
+        "schema_version"
+      ],
+      "properties": {
+        "control_spki_sha256": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "instance_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/identifier"
+        },
+        "integration_commitment": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "integration_jwk": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/p256PublicJwk"
+        },
+        "integration_thumbprint": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "purpose": {
+          "const": "rem-control-pairing-v1"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "bootstrapCommitResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bootstrap_id",
+        "control_spki_sha256",
+        "core_commitment",
+        "expires_at",
+        "instance_id",
+        "integration_commitment",
+        "integration_jwk",
+        "integration_thumbprint",
+        "purpose",
+        "schema_version"
+      ],
+      "properties": {
+        "bootstrap_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "control_spki_sha256": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "core_commitment": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "expires_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/unixSeconds"
+        },
+        "instance_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/identifier"
+        },
+        "integration_commitment": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "integration_jwk": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/p256PublicJwk"
+        },
+        "integration_thumbprint": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "purpose": {
+          "const": "rem-control-pairing-v1"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "bootstrapRevealRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bootstrap_id",
+        "integration_nonce",
+        "schema_version"
+      ],
+      "properties": {
+        "bootstrap_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "integration_nonce": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "bootstrapRevealResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bootstrap_id",
+        "core_nonce",
+        "schema_version"
+      ],
+      "properties": {
+        "bootstrap_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "core_nonce": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "bootstrapConfirmRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bootstrap_id",
+        "integration_proof",
+        "schema_version"
+      ],
+      "properties": {
+        "bootstrap_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "integration_proof": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "bootstrapConfirmResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bootstrap_id",
+        "control_key_generation",
+        "control_spki_sha256",
+        "core_proof",
+        "integration_thumbprint",
+        "pairing_digest",
+        "schema_version"
+      ],
+      "properties": {
+        "bootstrap_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "control_key_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "control_spki_sha256": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "core_proof": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "integration_thumbprint": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "pairing_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "recoveryCommitRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_control_key_generation",
+        "current_control_key_thumbprint",
+        "current_control_spki_generation",
+        "current_control_spki_sha256",
+        "instance_id",
+        "integration_commitment",
+        "observed_control_spki_sha256",
+        "purpose",
+        "recovery_generation",
+        "revocation_scope",
+        "schema_version"
+      ],
+      "properties": {
+        "current_control_key_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "current_control_key_thumbprint": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "current_control_spki_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "current_control_spki_sha256": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "instance_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/identifier"
+        },
+        "integration_commitment": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "observed_control_spki_sha256": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "purpose": {
+          "const": "rem-control-recovery-v1"
+        },
+        "recovery_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "revocation_scope": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/revocationScope"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "revocationScope": {
+      "enum": [
+        "control-key",
+        "control-spki",
+        "control-key-and-spki"
+      ]
+    },
+    "recoveryCommitResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_commitment",
+        "current_control_key_generation",
+        "current_control_key_thumbprint",
+        "current_control_spki_generation",
+        "current_control_spki_sha256",
+        "expires_at",
+        "instance_id",
+        "integration_commitment",
+        "observed_control_spki_sha256",
+        "purpose",
+        "recovery_generation",
+        "recovery_id",
+        "revocation_scope",
+        "schema_version"
+      ],
+      "properties": {
+        "core_commitment": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "current_control_key_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "current_control_key_thumbprint": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "current_control_spki_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "current_control_spki_sha256": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "expires_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/unixSeconds"
+        },
+        "instance_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/identifier"
+        },
+        "integration_commitment": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "observed_control_spki_sha256": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "purpose": {
+          "const": "rem-control-recovery-v1"
+        },
+        "recovery_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "recovery_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "revocation_scope": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/revocationScope"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "recoveryRevealRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "integration_nonce",
+        "recovery_id",
+        "schema_version"
+      ],
+      "properties": {
+        "integration_nonce": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "recovery_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "recoveryRevealResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_nonce",
+        "recovery_id",
+        "schema_version"
+      ],
+      "properties": {
+        "core_nonce": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "recovery_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "recoveryRevokeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "integration_proof",
+        "recovery_id",
+        "schema_version"
+      ],
+      "properties": {
+        "integration_proof": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "recovery_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "recoveryRevokeResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_proof",
+        "recovery_digest",
+        "recovery_generation",
+        "recovery_id",
+        "schema_version"
+      ],
+      "properties": {
+        "core_proof": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "recovery_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "recovery_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "recovery_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "managedTokenIssueRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expires_in_seconds",
+        "managed_subject_id",
+        "operation_id",
+        "schema_version"
+      ],
+      "properties": {
+        "expires_in_seconds": {
+          "const": 86400
+        },
+        "managed_subject_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/identifier"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "managedEnrollmentArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expires_at",
+        "schema",
+        "server",
+        "token",
+        "token_id"
+      ],
+      "properties": {
+        "expires_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/rfc3339Utc"
+        },
+        "schema": {
+          "const": "rem-managed-enrollment-v1"
+        },
+        "server": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/reporter-api.schema.json#/$defs/managedServer"
+        },
+        "token": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "token_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        }
+      },
+      "x-rem-response-headers": {
+        "Cache-Control": "no-store"
+      }
+    },
+    "managedTokenStatusRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "schema_version"
+      ],
+      "properties": {
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "managedTokenStatusResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expires_at",
+        "managed_subject_id",
+        "operation_id",
+        "schema_version",
+        "state",
+        "token_id"
+      ],
+      "properties": {
+        "expires_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/rfc3339Utc"
+        },
+        "managed_subject_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/identifier"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "state": {
+          "enum": [
+            "issued",
+            "revoked",
+            "consumed",
+            "expired"
+          ]
+        },
+        "token_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        }
+      }
+    },
+    "managedTokenRevokeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issuance_operation_id",
+        "revocation_operation_id",
+        "schema_version"
+      ],
+      "properties": {
+        "issuance_operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "revocation_operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "managedTokenRevokeResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issuance_operation_id",
+        "managed_subject_id",
+        "revocation_operation_id",
+        "revoked_at",
+        "schema_version",
+        "state",
+        "token_id"
+      ],
+      "properties": {
+        "issuance_operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "managed_subject_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/identifier"
+        },
+        "revocation_operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "revoked_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/rfc3339Utc"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "state": {
+          "const": "revoked"
+        },
+        "token_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        }
+      }
+    },
+    "pendingEnrollment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enrollment_id",
+        "expires_at",
+        "ha_decision",
+        "mode",
+        "sas_bytes",
+        "transcript_digest"
+      ],
+      "properties": {
+        "enrollment_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "expires_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/unixSeconds"
+        },
+        "ha_decision": {
+          "enum": [
+            "none",
+            "approved"
+          ]
+        },
+        "mode": {
+          "const": "interactive"
+        },
+        "sas_bytes": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u6"
+        },
+        "transcript_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        }
+      }
+    },
+    "pendingKeyRotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_nonce",
+        "current_generation",
+        "expires_at",
+        "proposed_thumbprint",
+        "rotation_digest",
+        "rotation_id",
+        "state"
+      ],
+      "properties": {
+        "core_nonce": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "current_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "expires_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/unixSeconds"
+        },
+        "proposed_thumbprint": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "rotation_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "rotation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "state": {
+          "enum": [
+            "awaiting_reporter_signatures",
+            "pending_admin_confirmation"
+          ]
+        }
+      }
+    },
+    "rosterRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_key_generation",
+        "active_key_thumbprint",
+        "enrollment_mode",
+        "metadata",
+        "pending_enrollment",
+        "pending_key_rotation",
+        "record_state",
+        "reporter_id",
+        "reporter_state_generation"
+      ],
+      "properties": {
+        "active_key_generation": {
+          "oneOf": [
+            {
+              "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "active_key_thumbprint": {
+          "oneOf": [
+            {
+              "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enrollment_mode": {
+          "enum": [
+            "interactive",
+            "managed"
+          ]
+        },
+        "metadata": {
+          "oneOf": [
+            {
+              "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/metadata"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pending_enrollment": {
+          "oneOf": [
+            {
+              "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/pendingEnrollment"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pending_key_rotation": {
+          "oneOf": [
+            {
+              "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/pendingKeyRotation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "record_state": {
+          "enum": [
+            "pending",
+            "active",
+            "rejected",
+            "revoked",
+            "quarantined"
+          ]
+        },
+        "reporter_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "reporter_state_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        }
+      },
+      "x-rem-canonical-max-bytes": 640
+    },
+    "rosterTombstone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_state",
+        "reporter_id",
+        "reporter_state_generation"
+      ],
+      "properties": {
+        "record_state": {
+          "const": "deleted"
+        },
+        "reporter_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "reporter_state_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        }
+      }
+    },
+    "rosterEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_type",
+        "generation",
+        "record",
+        "reporter_id",
+        "reporter_state_generation"
+      ],
+      "properties": {
+        "event_type": {
+          "enum": [
+            "pending_created",
+            "ha_approved",
+            "ha_rejected",
+            "pending_expired",
+            "reporter_activated",
+            "metadata_changed",
+            "key_rotation_pending",
+            "key_rotation_approved",
+            "key_rotation_expired",
+            "key_rotated",
+            "revoked",
+            "deleted"
+          ]
+        },
+        "generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "record": {
+          "oneOf": [
+            {
+              "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/rosterRecord"
+            },
+            {
+              "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/rosterTombstone"
+            }
+          ]
+        },
+        "reporter_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "reporter_state_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        }
+      }
+    },
+    "rosterEventsResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "after_generation",
+        "current_generation",
+        "events",
+        "schema_version",
+        "through_generation",
+        "timed_out"
+      ],
+      "properties": {
+        "after_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "current_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "events": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/rosterEvent"
+          }
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "through_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "timed_out": {
+          "type": "boolean"
+        }
+      }
+    },
+    "rosterSnapshotPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expires_at",
+        "page_index",
+        "records",
+        "schema_version",
+        "snapshot_generation",
+        "snapshot_id",
+        "total_count",
+        "complete",
+        "continuation_token"
+      ],
+      "properties": {
+        "expires_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/unixSeconds"
+        },
+        "page_index": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "records": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/rosterRecord"
+          }
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "snapshot_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "snapshot_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "total_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "complete": {
+          "const": false
+        },
+        "continuation_token": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/opaque128"
+        }
+      }
+    },
+    "rosterSnapshotFinalPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expires_at",
+        "page_index",
+        "records",
+        "schema_version",
+        "snapshot_generation",
+        "snapshot_id",
+        "total_count",
+        "complete",
+        "completeness_digest"
+      ],
+      "properties": {
+        "expires_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/unixSeconds"
+        },
+        "page_index": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "records": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/rosterRecord"
+          }
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "snapshot_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "snapshot_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "total_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "complete": {
+          "const": true
+        },
+        "completeness_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        }
+      }
+    },
+    "rosterSnapshotResponse": {
+      "oneOf": [
+        {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/rosterSnapshotPage"
+        },
+        {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/rosterSnapshotFinalPage"
+        }
+      ]
+    },
+    "approveAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_roster_generation",
+        "operation_id",
+        "reporter_id",
+        "schema_version",
+        "action",
+        "enrollment_id",
+        "transcript_digest"
+      ],
+      "properties": {
+        "expected_roster_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "reporter_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "action": {
+          "const": "approve"
+        },
+        "enrollment_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "transcript_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        }
+      }
+    },
+    "rejectAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_roster_generation",
+        "operation_id",
+        "reporter_id",
+        "schema_version",
+        "action",
+        "enrollment_id",
+        "transcript_digest"
+      ],
+      "properties": {
+        "expected_roster_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "reporter_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "action": {
+          "const": "reject"
+        },
+        "enrollment_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "transcript_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        }
+      }
+    },
+    "revokeAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_roster_generation",
+        "operation_id",
+        "reporter_id",
+        "schema_version",
+        "action",
+        "reporter_state_generation"
+      ],
+      "properties": {
+        "expected_roster_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "reporter_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "action": {
+          "const": "revoke"
+        },
+        "reporter_state_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        }
+      }
+    },
+    "deleteAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_roster_generation",
+        "operation_id",
+        "reporter_id",
+        "schema_version",
+        "action",
+        "reporter_state_generation"
+      ],
+      "properties": {
+        "expected_roster_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "reporter_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "action": {
+          "const": "delete"
+        },
+        "reporter_state_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        }
+      }
+    },
+    "reporterActionRequest": {
+      "oneOf": [
+        {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/approveAction"
+        },
+        {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/rejectAction"
+        },
+        {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/revokeAction"
+        },
+        {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/deleteAction"
+        }
+      ]
+    },
+    "reporterActionResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "operation_digest",
+        "operation_id",
+        "record_state",
+        "reporter_id",
+        "roster_generation",
+        "schema_version"
+      ],
+      "properties": {
+        "action": {
+          "enum": [
+            "approve",
+            "reject",
+            "revoke",
+            "delete"
+          ]
+        },
+        "operation_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "record_state": {
+          "enum": [
+            "pending",
+            "active",
+            "rejected",
+            "revoked",
+            "deleted"
+          ]
+        },
+        "reporter_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "roster_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "reporterKeyRotationConfirmRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_nonce",
+        "current_generation",
+        "expires_at",
+        "operation_id",
+        "reporter_id",
+        "rotation_digest",
+        "rotation_id",
+        "schema_version"
+      ],
+      "properties": {
+        "core_nonce": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "current_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "expires_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/unixSeconds"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "reporter_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "rotation_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "rotation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "reporterKeyRotationConfirmResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_generation",
+        "operation_id",
+        "reporter_id",
+        "rotation_digest",
+        "rotation_id",
+        "schema_version",
+        "state"
+      ],
+      "properties": {
+        "active_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "reporter_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "rotation_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "rotation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "state": {
+          "const": "active"
+        }
+      }
+    },
+    "controlKeyRotationChallengeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_generation",
+        "current_jwk",
+        "current_thumbprint",
+        "next_generation",
+        "proposed_jwk",
+        "proposed_thumbprint",
+        "operation_id",
+        "purpose",
+        "schema_version"
+      ],
+      "properties": {
+        "current_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "current_jwk": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/p256PublicJwk"
+        },
+        "current_thumbprint": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "next_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "proposed_jwk": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/p256PublicJwk"
+        },
+        "proposed_thumbprint": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "purpose": {
+          "const": "rem-control-key-rotation-v1"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "controlKeyRotationChallengeResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_nonce",
+        "current_generation",
+        "current_thumbprint",
+        "expires_at",
+        "next_generation",
+        "operation_id",
+        "proposed_thumbprint",
+        "purpose",
+        "rotation_digest",
+        "rotation_id",
+        "schema_version"
+      ],
+      "properties": {
+        "core_nonce": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "current_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "current_thumbprint": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "expires_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/unixSeconds"
+        },
+        "next_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "proposed_thumbprint": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "purpose": {
+          "const": "rem-control-key-rotation-v1"
+        },
+        "rotation_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "rotation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "controlKeyRotationCompleteRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_generation",
+        "current_jwk",
+        "current_thumbprint",
+        "next_generation",
+        "proposed_jwk",
+        "proposed_thumbprint",
+        "administrator_confirmation_id",
+        "core_nonce",
+        "expires_at",
+        "operation_id",
+        "purpose",
+        "rotation_digest",
+        "rotation_id",
+        "schema_version"
+      ],
+      "properties": {
+        "current_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "current_jwk": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/p256PublicJwk"
+        },
+        "current_thumbprint": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "next_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "proposed_jwk": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/p256PublicJwk"
+        },
+        "proposed_thumbprint": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "administrator_confirmation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "core_nonce": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "expires_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/unixSeconds"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "purpose": {
+          "const": "rem-control-key-rotation-v1"
+        },
+        "rotation_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "rotation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "controlKeyRotationCompleteResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_generation",
+        "operation_id",
+        "rotation_digest",
+        "rotation_id",
+        "schema_version",
+        "state"
+      ],
+      "properties": {
+        "active_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "rotation_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "rotation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "state": {
+          "const": "active"
+        }
+      }
+    },
+    "controlSpkiRotationProposeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_spki_generation",
+        "current_spki_sha256",
+        "integration_nonce",
+        "operation_id",
+        "phase",
+        "purpose",
+        "schema_version"
+      ],
+      "properties": {
+        "current_spki_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "current_spki_sha256": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "integration_nonce": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "phase": {
+          "const": "propose"
+        },
+        "purpose": {
+          "const": "rem-control-spki-rotation-v1"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "controlSpkiRotationConfirmRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "administrator_confirmation_id",
+        "operation_id",
+        "phase",
+        "purpose",
+        "schema_version",
+        "transition_digest",
+        "transition_id"
+      ],
+      "properties": {
+        "administrator_confirmation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "phase": {
+          "const": "confirm"
+        },
+        "purpose": {
+          "const": "rem-control-spki-rotation-v1"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "transition_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "transition_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        }
+      }
+    },
+    "controlSpkiRotationRequest": {
+      "oneOf": [
+        {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/controlSpkiRotationProposeRequest"
+        },
+        {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/controlSpkiRotationConfirmRequest"
+        }
+      ]
+    },
+    "controlSpkiRotationProposeResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_nonce",
+        "current_spki_generation",
+        "expires_at",
+        "instance_id",
+        "integration_nonce",
+        "new_spki_der",
+        "new_spki_sha256",
+        "new_spki_signature",
+        "next_spki_generation",
+        "old_spki_der",
+        "old_spki_sha256",
+        "old_spki_signature",
+        "operation_id",
+        "phase",
+        "purpose",
+        "schema_version",
+        "transition_digest",
+        "transition_id"
+      ],
+      "properties": {
+        "core_nonce": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "current_spki_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "expires_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/unixSeconds"
+        },
+        "instance_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/identifier"
+        },
+        "integration_nonce": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "new_spki_der": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/p256SpkiDer"
+        },
+        "new_spki_sha256": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "new_spki_signature": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/p1363Signature"
+        },
+        "next_spki_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "old_spki_der": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/p256SpkiDer"
+        },
+        "old_spki_sha256": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "old_spki_signature": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/p1363Signature"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "phase": {
+          "const": "propose"
+        },
+        "purpose": {
+          "const": "rem-control-spki-rotation-v1"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "transition_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "transition_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        }
+      }
+    },
+    "controlSpkiRotationConfirmResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_spki_generation",
+        "active_spki_sha256",
+        "operation_id",
+        "phase",
+        "purpose",
+        "schema_version",
+        "state",
+        "transition_digest",
+        "transition_id"
+      ],
+      "properties": {
+        "active_spki_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "active_spki_sha256": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "phase": {
+          "const": "confirm"
+        },
+        "purpose": {
+          "const": "rem-control-spki-rotation-v1"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "state": {
+          "const": "active"
+        },
+        "transition_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "transition_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        }
+      }
+    },
+    "controlSpkiRotationResponse": {
+      "oneOf": [
+        {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/controlSpkiRotationProposeResponse"
+        },
+        {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/control-api.schema.json#/$defs/controlSpkiRotationConfirmResponse"
+        }
+      ]
+    },
+    "mqttKeyProvisionRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "integration_nonce",
+        "operation_id",
+        "previous_key_generation",
+        "purpose",
+        "schema_version"
+      ],
+      "properties": {
+        "integration_nonce": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "previous_key_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "purpose": {
+          "const": "rem-mqtt-key-provision-v1"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "mqttKeyProvisionResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_nonce",
+        "expires_at",
+        "integration_nonce",
+        "key",
+        "key_generation",
+        "key_id",
+        "key_sha256",
+        "nonce_prefix",
+        "operation_id",
+        "previous_key_generation",
+        "provision_digest",
+        "purpose",
+        "schema_version"
+      ],
+      "properties": {
+        "core_nonce": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "expires_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/unixSeconds"
+        },
+        "integration_nonce": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "key": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "key_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "key_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "key_sha256": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "nonce_prefix": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "previous_key_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "provision_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "purpose": {
+          "const": "rem-mqtt-key-provision-v1"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      },
+      "x-rem-response-headers": {
+        "Cache-Control": "no-store"
+      },
+      "x-rem-contains-secret": "key"
+    },
+    "mqttKeyAcknowledgeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "integration_key_confirmation",
+        "key_generation",
+        "key_id",
+        "operation_id",
+        "provision_digest",
+        "provision_operation_id",
+        "schema_version"
+      ],
+      "properties": {
+        "integration_key_confirmation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "key_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "key_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "provision_digest": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "provision_operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "mqttKeyAcknowledgeResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_key_confirmation",
+        "key_generation",
+        "key_id",
+        "operation_id",
+        "retiring_key_generation",
+        "schema_version",
+        "state"
+      ],
+      "properties": {
+        "core_key_confirmation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "key_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "key_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "retiring_key_generation": {
+          "oneOf": [
+            {
+              "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        },
+        "state": {
+          "const": "active"
+        }
+      }
+    },
+    "leaseRefreshRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "roster_generation",
+        "schema_version"
+      ],
+      "properties": {
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "roster_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    },
+    "leaseRefreshResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lease_expires_at",
+        "operation_id",
+        "roster_generation",
+        "schema_version"
+      ],
+      "properties": {
+        "lease_expires_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/unixSeconds"
+        },
+        "operation_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "roster_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "schema_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/schemaVersion"
+        }
+      }
+    }
+  }
+}

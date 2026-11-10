@@ -1,0 +1,370 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json",
+  "title": "REM protocol v1 common definitions",
+  "$defs": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "uint64": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "positiveUint64": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 18446744073709551615
+    },
+    "unixSeconds": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "rfc3339Utc": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?!0000-)(?:(?:[0-9]{2}(?:0[48]|[2468][048]|[13579][26])|(?:[02468][048]|[13579][26])00)-02-29|[0-9]{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12][0-9]|3[01])|(?:0[469]|11)-(?:0[1-9]|[12][0-9]|30)|02-(?:0[1-9]|1[0-9]|2[0-8])))T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z$",
+      "x-rem-semantic-validation": "rem-rfc3339-utc-gregorian-v1"
+    },
+    "b64u6": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{8}$",
+      "x-rem-decoded-bytes": 6
+    },
+    "b64u16": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{21}[AQgw]$",
+      "x-rem-decoded-bytes": 16
+    },
+    "b64u24": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{32}$",
+      "x-rem-decoded-bytes": 24
+    },
+    "b64u32": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$",
+      "x-rem-decoded-bytes": 32
+    },
+    "p1363Signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{85}[AQgw]$",
+      "x-rem-decoded-bytes": 64
+    },
+    "opaque128": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 171,
+      "pattern": "^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048]|[A-Za-z0-9_-][AQgw])?$",
+      "x-rem-decoded-max-bytes": 128
+    },
+    "opaque256": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 342,
+      "pattern": "^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048]|[A-Za-z0-9_-][AQgw])?$",
+      "x-rem-decoded-max-bytes": 256
+    },
+    "p256SpkiDer": {
+      "type": "string",
+      "pattern": "^MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE[A-Za-z0-9_-]{85}[AQgw]$",
+      "x-rem-decoded-bytes": 91
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "dnsHost": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 253,
+      "pattern": "^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$",
+      "not": {
+        "pattern": "^(?:0x[0-9a-f]+|[0-9]+)(?:\\.(?:0x[0-9a-f]+|[0-9]+))*$"
+      },
+      "x-rem-semantic-validation": "rem-idna2008-alabel-host-v1"
+    },
+    "serverIdentity": {
+      "type": "string",
+      "maxLength": 267,
+      "pattern": "^https://(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*:(?:6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3})$",
+      "not": {
+        "pattern": "^https://(?:0x[0-9a-f]+|[0-9]+)(?:\\.(?:0x[0-9a-f]+|[0-9]+))*:"
+      },
+      "x-rem-semantic-validation": "rem-server-identity-v1"
+    },
+    "trustMode": {
+      "enum": [
+        "ca-spki-sha256",
+        "platform-pki"
+      ]
+    },
+    "p256PublicJwk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "crv",
+        "kty",
+        "x",
+        "y"
+      ],
+      "properties": {
+        "crv": {
+          "const": "P-256"
+        },
+        "kty": {
+          "const": "EC"
+        },
+        "x": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        },
+        "y": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u32"
+        }
+      },
+      "x-rem-canonical-max-bytes": 256
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029](?:[^\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]*[^\\s\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029])?$",
+      "x-rem-max-utf8-bytes": 128,
+      "x-rem-text-profile": "rem-display-name-v1"
+    },
+    "platform": {
+      "enum": [
+        "macos"
+      ]
+    },
+    "architecture": {
+      "enum": [
+        "arm64",
+        "x86_64"
+      ]
+    },
+    "reporterVersion": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 64,
+      "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "architecture",
+        "display_name",
+        "platform",
+        "reporter_version"
+      ],
+      "properties": {
+        "architecture": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/architecture"
+        },
+        "display_name": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/displayName"
+        },
+        "platform": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/platform"
+        },
+        "reporter_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/reporterVersion"
+        }
+      }
+    },
+    "watts": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100000,
+      "x-rem-number-grammar": "rem-decimal-3"
+    },
+    "kilowattHours": {
+      "type": "number",
+      "minimum": 0,
+      "x-rem-number-grammar": "rem-decimal-6"
+    },
+    "routeManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "profile_version",
+        "limits",
+        "routes"
+      ],
+      "properties": {
+        "schema": {
+          "const": "rem-route-manifest-v1"
+        },
+        "profile_version": {
+          "const": 1
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "request_target_max_bytes",
+            "header_count_max",
+            "header_bytes_max",
+            "signature_header_max_bytes",
+            "signature_input_header_max_bytes",
+            "content_digest_header_max_bytes",
+            "problem_response_max_bytes"
+          ],
+          "properties": {
+            "request_target_max_bytes": {
+              "const": 256
+            },
+            "header_count_max": {
+              "const": 24
+            },
+            "header_bytes_max": {
+              "const": 8192
+            },
+            "signature_header_max_bytes": {
+              "const": 1024
+            },
+            "signature_input_header_max_bytes": {
+              "const": 1024
+            },
+            "content_digest_header_max_bytes": {
+              "const": 256
+            },
+            "problem_response_max_bytes": {
+              "const": 2048
+            }
+          }
+        },
+        "routes": {
+          "type": "array",
+          "minItems": 30,
+          "maxItems": 30,
+          "items": {
+            "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/route"
+          }
+        }
+      }
+    },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "surface",
+        "trust_state",
+        "method",
+        "path_template",
+        "query_forms",
+        "request_body_max_bytes",
+        "success_body_max_bytes",
+        "success_item_maximum",
+        "success_status",
+        "purpose",
+        "request_schema",
+        "response_schema",
+        "signature_profile",
+        "replay_rule"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^(?:reporter|control)\\.[a-z0-9.-]+$"
+        },
+        "surface": {
+          "enum": [
+            "reporter",
+            "control"
+          ]
+        },
+        "trust_state": {
+          "enum": [
+            "pre-enrollment",
+            "server-authenticated",
+            "enrolled-reporter",
+            "provisional-control",
+            "post-pair"
+          ]
+        },
+        "method": {
+          "enum": [
+            "GET",
+            "POST"
+          ]
+        },
+        "path_template": {
+          "type": "string",
+          "pattern": "^/(?:api|control)/v1/[a-z0-9/{}_-]+$"
+        },
+        "query_forms": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "type": "string"
+          }
+        },
+        "request_body_max_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "success_body_max_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        },
+        "success_item_maximum": {
+          "oneOf": [
+            {
+              "const": 100
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "success_status": {
+          "enum": [
+            200,
+            201,
+            202
+          ]
+        },
+        "purpose": {
+          "type": "string",
+          "pattern": "^rem-[a-z0-9-]+-v1(?: rem-[a-z0-9-]+-v1)?$"
+        },
+        "request_schema": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "response_schema": {
+          "type": "string"
+        },
+        "signature_profile": {
+          "enum": [
+            "reporter-rfc9421-v1",
+            "control-rfc9421-v1",
+            null
+          ]
+        },
+        "replay_rule": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

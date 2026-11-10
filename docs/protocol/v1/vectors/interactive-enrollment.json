@@ -1,0 +1,480 @@
+{
+  "schema": "rem-vector-set-v1",
+  "profile_version": 1,
+  "description": "Interactive commit-before-reveal enrollment, transcript, digest and six-byte SAS derivation.",
+  "cases": [
+    {
+      "id": "interactive.commitments",
+      "description": "commitment = SHA-256(encode('rem-interactive-commit-v1', [('role', role), ('nonce', nonce)])) for role 'reporter' and 'core'. Reporter reveals first; the core rejects a mismatch before revealing; the reporter then verifies the core commitment.",
+      "requirements": [
+        "4.3"
+      ],
+      "routes": [
+        "reporter.enrollment.create",
+        "reporter.enrollment.reveal"
+      ],
+      "inputs": [
+        {
+          "name": "reporter_nonce",
+          "encoding": "base64url",
+          "value": "ERERERERERERERERERERERERERERERERERERERERERE"
+        },
+        {
+          "name": "core_nonce",
+          "encoding": "base64url",
+          "value": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "reporter_commit.transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001972656d2d696e7465726163746976652d636f6d6d69742d76310004726f6c65000000087265706f7274657200056e6f6e6365000000201111111111111111111111111111111111111111111111111111111111111111"
+        },
+        {
+          "name": "core_commit.transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001972656d2d696e7465726163746976652d636f6d6d69742d76310004726f6c6500000004636f726500056e6f6e6365000000202222222222222222222222222222222222222222222222222222222222222222"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": null,
+        "outputs": [
+          {
+            "name": "reporter_commitment",
+            "encoding": "base64url",
+            "value": "z9eKUQtsUV9F4SlCmY28nfxQfSwlMhHVQ2Ybz9pEec4"
+          },
+          {
+            "name": "core_commitment",
+            "encoding": "base64url",
+            "value": "SgIz0ppi17xHGr1G2WTY68QrGdgXC1cN_TX0woYrB9c"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "reporter_commit.role",
+          "replacement": {
+            "name": "reporter_commit.role",
+            "encoding": "ascii",
+            "value": "core"
+          }
+        },
+        {
+          "field": "reporter_commit.purpose",
+          "replacement": {
+            "name": "reporter_commit.purpose",
+            "encoding": "ascii",
+            "value": "rem-control-pairing-commit-v1"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "interactive.commitments.m00",
+          "field": "reporter_nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "interactive.commitments.m01",
+          "field": "core_nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "interactive.commitments.m02",
+          "field": "reporter_commit.role",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "interactive.commitments.m03",
+          "field": "reporter_commit.purpose",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "interactive.commitments.m04",
+          "field": "reporter_commit.transcript",
+          "operation": "reorder",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "interactive.commitments.m05",
+          "field": "reporter_commitment",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "interactive.commitments.m06",
+          "field": "core_commitment",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "interactive.commitments.m07",
+          "field": "reveal.order",
+          "operation": "reorder",
+          "expected_code": "conflict"
+        }
+      ]
+    },
+    {
+      "id": "interactive.sas",
+      "description": "SAS transcript encode('rem-interactive-enroll-v1', ...) over the 13 named fields of requirement 4.3; digest = SHA-256(transcript); six bytes = HKDF-SHA-256(IKM=reporter_nonce || core_nonce, salt=digest, info='rem-interactive-enroll-sas-v1', L=6); words = Even[b0] Odd[b1] Even[b2] Odd[b3] Even[b4] Odd[b5]. The rendered words are a PLACEHOLDER until task 3.3 vendors the PGP Word List; transcript, digest, HKDF output, list selection and indexes are normative now.",
+      "requirements": [
+        "4.3"
+      ],
+      "routes": [
+        "reporter.enrollment.reveal",
+        "reporter.enrollment.confirm",
+        "control.reporter.action"
+      ],
+      "inputs": [
+        {
+          "name": "transcript.schema_version",
+          "encoding": "hex",
+          "value": "01"
+        },
+        {
+          "name": "transcript.purpose",
+          "encoding": "hex",
+          "value": "72656d2d696e7465726163746976652d656e726f6c6c2d7631"
+        },
+        {
+          "name": "transcript.instance_id",
+          "encoding": "hex",
+          "value": "696e7374616e63652d61"
+        },
+        {
+          "name": "transcript.server_identity",
+          "encoding": "hex",
+          "value": "68747470733a2f2f68612e6578616d706c652e636f6d3a3538343433"
+        },
+        {
+          "name": "transcript.trust_mode",
+          "encoding": "hex",
+          "value": "63612d73706b692d736861323536"
+        },
+        {
+          "name": "transcript.trust_anchor_spki_sha256",
+          "encoding": "hex",
+          "value": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+        },
+        {
+          "name": "transcript.proposed_reporter_jwk",
+          "encoding": "hex",
+          "value": "7b22637276223a22502d323536222c226b7479223a224543222c2278223a2271586c546b37354b514b594e2d50424a50444d347148773874594b67444c61716978634872746870635f55222c2279223a227464586f686d6e3464304f3738414346393839754c7278674857417279504a7465694f514976426a52446f227d"
+        },
+        {
+          "name": "transcript.proposed_reporter_thumbprint",
+          "encoding": "hex",
+          "value": "5ef5d38f326668a5c96967e9b15f66507e0ad8fa4017a4a35a385b70237d7485"
+        },
+        {
+          "name": "transcript.reporter_commitment",
+          "encoding": "hex",
+          "value": "cfd78a510b6c515f45e12942998dbc9dfc507d2c253211d543661bcfda4479ce"
+        },
+        {
+          "name": "transcript.core_commitment",
+          "encoding": "hex",
+          "value": "4a0233d29a62d7bc471abd46d964d8ebc42b19d8170b570dfd35f4c2862b07d7"
+        },
+        {
+          "name": "transcript.reporter_nonce",
+          "encoding": "hex",
+          "value": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        {
+          "name": "transcript.core_nonce",
+          "encoding": "hex",
+          "value": "2222222222222222222222222222222222222222222222222222222222222222"
+        },
+        {
+          "name": "transcript.expires_at",
+          "encoding": "hex",
+          "value": "000000006955bb58"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "transcript.encoded.header",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401"
+        },
+        {
+          "name": "transcript.encoded.domain-purpose",
+          "encoding": "hex",
+          "value": "001972656d2d696e7465726163746976652d656e726f6c6c2d7631"
+        },
+        {
+          "name": "transcript.encoded.schema_version",
+          "encoding": "hex",
+          "value": "000e736368656d615f76657273696f6e0000000101"
+        },
+        {
+          "name": "transcript.encoded.purpose",
+          "encoding": "hex",
+          "value": "0007707572706f73650000001972656d2d696e7465726163746976652d656e726f6c6c2d7631"
+        },
+        {
+          "name": "transcript.encoded.instance_id",
+          "encoding": "hex",
+          "value": "000b696e7374616e63655f69640000000a696e7374616e63652d61"
+        },
+        {
+          "name": "transcript.encoded.server_identity",
+          "encoding": "hex",
+          "value": "000f7365727665725f6964656e746974790000001c68747470733a2f2f68612e6578616d706c652e636f6d3a3538343433"
+        },
+        {
+          "name": "transcript.encoded.trust_mode",
+          "encoding": "hex",
+          "value": "000a74727573745f6d6f64650000000e63612d73706b692d736861323536"
+        },
+        {
+          "name": "transcript.encoded.trust_anchor_spki_sha256",
+          "encoding": "hex",
+          "value": "001874727573745f616e63686f725f73706b695f73686132353600000020a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+        },
+        {
+          "name": "transcript.encoded.proposed_reporter_jwk",
+          "encoding": "hex",
+          "value": "001570726f706f7365645f7265706f727465725f6a776b0000007e7b22637276223a22502d323536222c226b7479223a224543222c2278223a2271586c546b37354b514b594e2d50424a50444d347148773874594b67444c61716978634872746870635f55222c2279223a227464586f686d6e3464304f3738414346393839754c7278674857417279504a7465694f514976426a52446f227d"
+        },
+        {
+          "name": "transcript.encoded.proposed_reporter_thumbprint",
+          "encoding": "hex",
+          "value": "001c70726f706f7365645f7265706f727465725f7468756d627072696e74000000205ef5d38f326668a5c96967e9b15f66507e0ad8fa4017a4a35a385b70237d7485"
+        },
+        {
+          "name": "transcript.encoded.reporter_commitment",
+          "encoding": "hex",
+          "value": "00137265706f727465725f636f6d6d69746d656e7400000020cfd78a510b6c515f45e12942998dbc9dfc507d2c253211d543661bcfda4479ce"
+        },
+        {
+          "name": "transcript.encoded.core_commitment",
+          "encoding": "hex",
+          "value": "000f636f72655f636f6d6d69746d656e74000000204a0233d29a62d7bc471abd46d964d8ebc42b19d8170b570dfd35f4c2862b07d7"
+        },
+        {
+          "name": "transcript.encoded.reporter_nonce",
+          "encoding": "hex",
+          "value": "000e7265706f727465725f6e6f6e6365000000201111111111111111111111111111111111111111111111111111111111111111"
+        },
+        {
+          "name": "transcript.encoded.core_nonce",
+          "encoding": "hex",
+          "value": "000a636f72655f6e6f6e6365000000202222222222222222222222222222222222222222222222222222222222222222"
+        },
+        {
+          "name": "transcript.encoded.expires_at",
+          "encoding": "hex",
+          "value": "000a657870697265735f617400000008000000006955bb58"
+        },
+        {
+          "name": "transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001972656d2d696e7465726163746976652d656e726f6c6c2d7631000e736368656d615f76657273696f6e00000001010007707572706f73650000001972656d2d696e7465726163746976652d656e726f6c6c2d7631000b696e7374616e63655f69640000000a696e7374616e63652d61000f7365727665725f6964656e746974790000001c68747470733a2f2f68612e6578616d706c652e636f6d3a3538343433000a74727573745f6d6f64650000000e63612d73706b692d736861323536001874727573745f616e63686f725f73706b695f73686132353600000020a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5001570726f706f7365645f7265706f727465725f6a776b0000007e7b22637276223a22502d323536222c226b7479223a224543222c2278223a2271586c546b37354b514b594e2d50424a50444d347148773874594b67444c61716978634872746870635f55222c2279223a227464586f686d6e3464304f3738414346393839754c7278674857417279504a7465694f514976426a52446f227d001c70726f706f7365645f7265706f727465725f7468756d627072696e74000000205ef5d38f326668a5c96967e9b15f66507e0ad8fa4017a4a35a385b70237d748500137265706f727465725f636f6d6d69746d656e7400000020cfd78a510b6c515f45e12942998dbc9dfc507d2c253211d543661bcfda4479ce000f636f72655f636f6d6d69746d656e74000000204a0233d29a62d7bc471abd46d964d8ebc42b19d8170b570dfd35f4c2862b07d7000e7265706f727465725f6e6f6e6365000000201111111111111111111111111111111111111111111111111111111111111111000a636f72655f6e6f6e6365000000202222222222222222222222222222222222222222222222222222222222222222000a657870697265735f617400000008000000006955bb58"
+        },
+        {
+          "name": "transcript.length",
+          "encoding": "decimal",
+          "value": "722"
+        },
+        {
+          "name": "transcript_digest",
+          "encoding": "base64url",
+          "value": "PxKGRpY9qCb34YIHBTDpkuX862WmN5BuFkxA52WUMmk"
+        },
+        {
+          "name": "hkdf.ikm",
+          "encoding": "hex",
+          "value": "11111111111111111111111111111111111111111111111111111111111111112222222222222222222222222222222222222222222222222222222222222222"
+        },
+        {
+          "name": "hkdf.info",
+          "encoding": "ascii",
+          "value": "rem-interactive-enroll-sas-v1"
+        },
+        {
+          "name": "sas.bytes",
+          "encoding": "hex",
+          "value": "4df104cfb9f9"
+        },
+        {
+          "name": "sas.position[0]",
+          "encoding": "ascii",
+          "value": "even list, index 77 (0x4d)"
+        },
+        {
+          "name": "sas.position[1]",
+          "encoding": "ascii",
+          "value": "odd list, index 241 (0xf1)"
+        },
+        {
+          "name": "sas.position[2]",
+          "encoding": "ascii",
+          "value": "even list, index 4 (0x04)"
+        },
+        {
+          "name": "sas.position[3]",
+          "encoding": "ascii",
+          "value": "odd list, index 207 (0xcf)"
+        },
+        {
+          "name": "sas.position[4]",
+          "encoding": "ascii",
+          "value": "even list, index 185 (0xb9)"
+        },
+        {
+          "name": "sas.position[5]",
+          "encoding": "ascii",
+          "value": "odd list, index 249 (0xf9)"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": null,
+        "outputs": [
+          {
+            "name": "transcript_digest",
+            "encoding": "base64url",
+            "value": "PxKGRpY9qCb34YIHBTDpkuX862WmN5BuFkxA52WUMmk"
+          },
+          {
+            "name": "sas.bytes",
+            "encoding": "base64url",
+            "value": "TfEEz7n5"
+          },
+          {
+            "name": "sas.words",
+            "encoding": "sas-placeholder",
+            "value": "EVEN[77] ODD[241] EVEN[4] ODD[207] EVEN[185] ODD[249]"
+          }
+        ]
+      },
+      "substitutes": [],
+      "mutations": [
+        {
+          "id": "interactive.sas.m00",
+          "field": "transcript.schema_version",
+          "operation": "alter-value",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m01",
+          "field": "transcript.purpose",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m02",
+          "field": "transcript.instance_id",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m03",
+          "field": "transcript.server_identity",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m04",
+          "field": "transcript.trust_mode",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m05",
+          "field": "transcript.trust_anchor_spki_sha256",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m06",
+          "field": "transcript.proposed_reporter_jwk",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m07",
+          "field": "transcript.proposed_reporter_thumbprint",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m08",
+          "field": "transcript.reporter_commitment",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m09",
+          "field": "transcript.core_commitment",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m10",
+          "field": "transcript.reporter_nonce",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m11",
+          "field": "transcript.core_nonce",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m12",
+          "field": "transcript.expires_at",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m13",
+          "field": "transcript.field-order",
+          "operation": "reorder",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m14",
+          "field": "transcript.proposed_reporter_jwk.length",
+          "operation": "alter-value",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m15",
+          "field": "hkdf.ikm",
+          "operation": "reorder",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m16",
+          "field": "hkdf.info",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m17",
+          "field": "sas.bytes",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "interactive.sas.m18",
+          "field": "sas.position-list",
+          "operation": "reorder",
+          "expected_code": "conflict"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remote-energy-meter.example/protocol/v1/schemas/vector.schema.json",
+  "title": "REM protocol v1 public vector format",
+  "$ref": "#/$defs/vectorSet",
+  "$defs": {
+    "namedValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "encoding",
+        "name",
+        "value"
+      ],
+      "properties": {
+        "encoding": {
+          "enum": [
+            "ascii",
+            "utf8",
+            "hex",
+            "base64url",
+            "base64",
+            "decimal",
+            "sas-placeholder"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._@\\[\\]-]*$",
+          "maxLength": 96
+        },
+        "value": {
+          "type": "string",
+          "maxLength": 16384
+        }
+      }
+    },
+    "mutation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_code",
+        "field",
+        "id",
+        "operation"
+      ],
+      "properties": {
+        "expected_code": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/problem.schema.json#/$defs/problem/properties/code"
+        },
+        "field": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9.-]+\\.m[0-9]{2}$"
+        },
+        "operation": {
+          "enum": [
+            "alter-byte",
+            "alter-value",
+            "duplicate",
+            "omit",
+            "reorder",
+            "substitute"
+          ]
+        }
+      }
+    },
+    "substitute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "replacement"
+      ],
+      "properties": {
+        "field": {
+          "type": "string",
+          "minLength": 1
+        },
+        "replacement": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/vector.schema.json#/$defs/namedValue"
+        }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accept",
+        "outputs",
+        "status"
+      ],
+      "properties": {
+        "accept": {
+          "const": true
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/vector.schema.json#/$defs/namedValue"
+          }
+        },
+        "status": {
+          "oneOf": [
+            {
+              "enum": [
+                200,
+                201,
+                202
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description",
+        "expected",
+        "id",
+        "inputs",
+        "intermediates",
+        "mutations",
+        "requirements",
+        "routes",
+        "substitutes"
+      ],
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/vector.schema.json#/$defs/expected"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+\\.[a-z0-9.-]+$"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/vector.schema.json#/$defs/namedValue"
+          }
+        },
+        "intermediates": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/vector.schema.json#/$defs/namedValue"
+          }
+        },
+        "mutations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/vector.schema.json#/$defs/mutation"
+          }
+        },
+        "requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "substitutes": {
+          "type": "array",
+          "items": {
+            "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/vector.schema.json#/$defs/substitute"
+          }
+        }
+      }
+    },
+    "vectorSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cases",
+        "description",
+        "profile_version",
+        "schema"
+      ],
+      "properties": {
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/vector.schema.json#/$defs/case"
+          }
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profile_version": {
+          "const": 1
+        },
+        "schema": {
+          "const": "rem-vector-set-v1"
+        }
+      }
+    },
+    "manifestEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_ids",
+        "file",
+        "sha256"
+      ],
+      "properties": {
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "file": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+\\.json$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "contractEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^[a-z0-9/.-]+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "vectorManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checksum_algorithm",
+        "contract_files",
+        "files",
+        "profile_path",
+        "profile_version",
+        "schema",
+        "source_of_truth",
+        "source_repository"
+      ],
+      "properties": {
+        "checksum_algorithm": {
+          "const": "sha256"
+        },
+        "contract_files": {
+          "type": "array",
+          "items": {
+            "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/vector.schema.json#/$defs/contractEntry"
+          }
+        },
+        "files": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "items": {
+            "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/vector.schema.json#/$defs/manifestEntry"
+          }
+        },
+        "profile_path": {
+          "const": "docs/protocol/v1"
+        },
+        "profile_version": {
+          "const": 1
+        },
+        "schema": {
+          "const": "rem-vector-manifest-v1"
+        },
+        "source_of_truth": {
+          "const": "server-owned"
+        },
+        "source_repository": {
+          "const": "superkus/remote_energy_meter"
+        }
+      }
+    }
+  }
+}

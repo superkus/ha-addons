@@ -49,6 +49,7 @@ cipher suite 3; DCMI was unsupported there). See the add-on's `DOCS.md` for deta
 | --- | --- |
 | [`remote_energy_meter/DOCS.md`](remote_energy_meter/DOCS.md) | Add-on configuration, security, protocol preview, lifecycle, and troubleshooting. |
 | [`docs/writing-a-plugin.md`](docs/writing-a-plugin.md) | Adding a device family. |
+| [`docs/protocol/v1/`](docs/protocol/v1/README.md) | Native-reporter protocol v1 profile: wire rules, threat model, route manifest, schemas, and public vectors (draft, pending security review; no implementation ships here). |
 | [`CHANGELOG.md`](CHANGELOG.md) | Release history. |
 
 ## Development
@@ -123,6 +124,7 @@ pytest -m integration                    # needs a mosquitto binary on PATH
 pip-audit --strict --no-deps --disable-pip -r <(pip freeze --exclude-editable)
 gitleaks git --config .gitleaks.toml --redact .
 python tools/check_local_refs.py --history
+PYTHONDONTWRITEBYTECODE=1 pytest -p no:cacheprovider tests/conformance/test_protocol_v1_artifacts.py   # profile checksums and public P-256 signature verification
 ```
 
 The Python backend package lives in `src/remote_energy_meter/`; the add-on folder contains Supervisor/container
@@ -133,6 +135,27 @@ both):
 ```bash
 docker buildx build -f remote_energy_meter/Dockerfile --build-arg BUILD_ARCH=amd64 --build-arg BUILD_VERSION=dev .
 ```
+
+### Protocol v1 profile
+
+`docs/protocol/v1/` is the server-owned source of truth for the native-reporter, control, and MQTT v2 wire contract.
+Once the reporter repository implements this profile, it must consume the files byte-for-byte at a pinned commit,
+verify `vectors/manifest.json`, and never edit the files there. The profile is a draft until the independent security
+review (spec task 3.4) approves it. No protocol implementation is included in this repository; tasks 3.2 and 3.3 and
+reporter-repository consumption remain future work.
+
+- `tests/conformance/test_protocol_v1_artifacts.py` checks the exact file set, the 30-route manifest, closed schemas,
+  the RFC 9457 code/status mapping, vector structure and mutation declarations, the absence of private-key members, the
+  SHA-256 checksums of every listed vector and contract file, and every public P-256 signature and high-S twin. It uses
+  runtime-pinned `idna` for strict IDNA2008 checks and test-only `cryptography` for public-key verification. It does not
+  execute the declared mutations against protocol implementations.
+- Vectors are public, non-secret, test-only fixtures. They include public verification keys and public test-only
+  symmetric values such as pairing credentials, tokens, and an MQTT key, but no named private signing-key members. The
+  reported ephemeral-key generation and private-key disposal are maintainer-supplied provenance, not facts this
+  repository can prove without the generator or an audit record; see the profile README. Never commit a private key,
+  and never reuse a fixture value outside tests.
+- After any change under `docs/protocol/v1/`, recompute the checksums in `vectors/manifest.json` last. Once version 1
+  is approved its published bytes are frozen; incompatible changes go to a new `docs/protocol/v2/`.
 
 ## License
 
