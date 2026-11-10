@@ -21,7 +21,7 @@
     },
     {
       "file": "http-signatures.json",
-      "sha256": "f4b357d944fcfca47a7e1448a43bb4d744818fd73968a714e18a079655d9ca53",
+      "sha256": "75149ef360bfe9e116f93756727f9fca4266a643fe6ee8bb6e7432326b6c4ed6",
       "case_ids": [
         "http.route.reporter.enrollment.create",
         "http.route.reporter.enrollment.create.managed",
@@ -130,7 +130,7 @@
     },
     {
       "path": "wire-profile.md",
-      "sha256": "7baec7846d48b331e52fd3798159656ba703033b1826979b481d73ec1ee0b53a"
+      "sha256": "6b0aa172a6b7825408c421015ecb6bb18ce0d9242cd7144c0ebed233cc09c41e"
     }
   ]
 }

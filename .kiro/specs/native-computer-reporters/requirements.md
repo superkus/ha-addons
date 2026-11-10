@@ -48,8 +48,9 @@ limited to a user-editable display name, platform, architecture, and reporter ve
 other device-identifying metadata may be transmitted; prohibited examples include a hardware UUID/serial number,
 user/account name, and MAC address.
 
-2.6 Client clocks shall never drive energy integration; the add-on shall stamp accepted reports with server receipt
-time.
+2.6 Reporter signatures shall not transmit `created` or any other client wall-clock timestamp. Client clocks shall
+never drive freshness, ordering, expiry, or energy integration; the add-on shall stamp accepted reports with server
+receipt time.
 
 2.7 Every ingress and downstream schema, including enrollment, roster state, control snapshots/events, MQTT config, and
 Home Assistant registry updates, shall use the same metadata constraints and reject rather than truncate or repair
