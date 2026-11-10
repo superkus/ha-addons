@@ -49,7 +49,7 @@ cipher suite 3; DCMI was unsupported there). See the add-on's `DOCS.md` for deta
 | --- | --- |
 | [`remote_energy_meter/DOCS.md`](remote_energy_meter/DOCS.md) | Add-on configuration, security, protocol preview, lifecycle, and troubleshooting. |
 | [`docs/writing-a-plugin.md`](docs/writing-a-plugin.md) | Adding a device family. |
-| [`docs/protocol/v1/`](docs/protocol/v1/README.md) | Native-reporter protocol v1 profile: wire rules, threat model, route manifest, schemas, and public vectors (draft, pending security review; no implementation ships here). |
+| [`docs/protocol/v1/`](docs/protocol/v1/README.md) | Native-reporter protocol v1 profile and Python primitives: wire rules, threat model, route manifest, schemas, and public vectors (draft, pending security review). |
 | [`CHANGELOG.md`](CHANGELOG.md) | Release history. |
 
 ## Development
@@ -97,8 +97,10 @@ hooks check it in addition to the generic rules. The full policy is in `.kiro/st
 `.kiro/steering/workflow.md`.
 
 Dev tools are pinned to exact versions in `pyproject.toml`, so CI and the hooks run identical tools. Runtime
-dependencies are declared as ranges in `pyproject.toml` and resolved into the hash-locked `requirements.txt` that the
-Dockerfile installs with `--require-hashes`. After changing a runtime dependency, regenerate the lock:
+dependencies are declared in `pyproject.toml`; security-sensitive protocol dependencies use direct exact pins, while
+compatible application dependencies use bounded ranges. All runtime dependencies resolve into the hash-locked
+`requirements.txt` that the Dockerfile installs with `--require-hashes`. After changing a runtime dependency,
+regenerate the lock:
 
 ```bash
 uv pip compile pyproject.toml --python-version 3.12 --python-platform linux --generate-hashes -o requirements.txt
@@ -124,7 +126,7 @@ pytest -m integration                    # needs a mosquitto binary on PATH
 pip-audit --strict --no-deps --disable-pip -r <(pip freeze --exclude-editable)
 gitleaks git --config .gitleaks.toml --redact .
 python tools/check_local_refs.py --history
-PYTHONDONTWRITEBYTECODE=1 pytest -p no:cacheprovider tests/conformance/test_protocol_v1_artifacts.py   # profile checksums and public P-256 signature verification
+PYTHONDONTWRITEBYTECODE=1 pytest -p no:cacheprovider tests/conformance/test_protocol_v1_artifacts.py tests/conformance/test_protocol_v1_runtime.py
 ```
 
 The Python backend package lives in `src/remote_energy_meter/`; the add-on folder contains Supervisor/container
@@ -141,14 +143,24 @@ docker buildx build -f remote_energy_meter/Dockerfile --build-arg BUILD_ARCH=amd
 `docs/protocol/v1/` is the server-owned source of truth for the native-reporter, control, and MQTT v2 wire contract.
 Once the reporter repository implements this profile, it must consume the files byte-for-byte at a pinned commit,
 verify `vectors/manifest.json`, and never edit the files there. The profile is a draft until the independent security
-review (spec task 3.4) approves it. No protocol implementation is included in this repository; tasks 3.2 and 3.3 and
-reporter-repository consumption remain future work.
+review (spec task 3.4) approves it. The Python backend now includes only the pure Task 3.2 protocol primitives; it does
+not include a listener, route handlers, replay storage, authorization, or business state. Rust implementation,
+cross-language verification, SAS words (task 3.3), and reporter-repository consumption remain future work.
 
+- `src/remote_energy_meter/protocol_v1/` provides strict canonical base64url, bounded `REM-TRANSCRIPT`, canonical
+  public P-256 JWK and RFC 7638 identity, RFC 9530 Content-Digest, low-S IEEE P1363 P-256 verification, canonical JSON,
+  signed-route profiles, and the narrow reporter/control RFC 9421 verifier. Reporter signatures carry exactly
+  `keyid`, `alg`, and `tag`, never a client wall-clock timestamp; reporter freshness remains in server-issued protocol
+  state. Callers bind each accepted key to its trusted stable RFC 7638 identity; successful verification keeps that
+  identity separate from the rotatable request `keyid` and returns an immutable snapshot containing the exact request,
+  component, signature-input, signature, and signature-base bytes for later replay and business-state layers.
 - `tests/conformance/test_protocol_v1_artifacts.py` checks the exact file set, the 30-route manifest, closed schemas,
-  the RFC 9457 code/status mapping, vector structure and mutation declarations, the absence of private-key members, the
-  SHA-256 checksums of every listed vector and contract file, and every public P-256 signature and high-S twin. It uses
-  runtime-pinned `idna` for strict IDNA2008 checks and test-only `cryptography` for public-key verification. It does not
-  execute the declared mutations against protocol implementations.
+  the RFC 9457 code/status mapping, vector structure and mutation declarations, the absence of private-key members, and
+  the SHA-256 checksums of every listed vector and contract file.
+- `tests/conformance/test_protocol_v1_runtime.py` independently recomputes the Task 3.2 vector intermediates, verifies
+  every fixed signature, rejects every high-S twin, and executes the primitive-layer one-field HTTP and transcript
+  mutations against the Python runtime. Stateful replay and schema/business-state outcomes remain assigned to later
+  tasks.
 - Vectors are public, non-secret, test-only fixtures. They include public verification keys and public test-only
   symmetric values such as pairing credentials, tokens, and an MQTT key, but no named private signing-key members. The
   reported ephemeral-key generation and private-key disposal are maintainer-supplied provenance, not facts this

@@ -2,12 +2,17 @@
 
 This directory is the server-owned, versioned contract for native computer reporters, the Home Assistant
 integration's control channel, and MQTT v2. It is specification task 3.1 of
-`.kiro/specs/native-computer-reporters/`. Task 3.2 will implement Python and Rust primitives against these files. The
-normative SAS word tables (task 3.3) and rendering tests do not exist yet; task 3.3 will vendor and implement them. Task
-3.4's independent security review must approve the profile before anything that speaks it is distributed.
+`.kiro/specs/native-computer-reporters/`. Task 3.2's Python primitive layer is implemented in
+`src/remote_energy_meter/protocol_v1/`; the Rust and cross-language halves remain pending. The normative SAS word
+tables (task 3.3) and rendering tests do not exist yet; task 3.3 will vendor and implement them. Task 3.4's independent
+security review must approve the profile before anything that speaks it is distributed.
 
-Status: **draft, not approved for distribution.** No listener, route handler, or production cryptographic code exists
-in this repository yet.
+Status: **draft, not approved for distribution.** This repository includes pure production cryptographic and wire
+primitives, but no listener, route handler, replay store, authorization policy, or protocol business state. The runtime
+verifier preserves original request bytes while applying HTTP field-name case insensitivity and RFC 9421 field-value
+trimming. Its verification-key binding carries the trusted stable RFC 7638 identity separately from each rotatable
+signing `keyid`. A future listener must enforce target, header, and body limits while streaming before it constructs the
+bounded request passed to these primitives.
 
 | File | Content |
 | --- | --- |
@@ -29,21 +34,21 @@ keys, public SPKI DER are published.
 
 Every value except an ECDSA signature is specified as a deterministic function of the fixture inputs recorded in the
 same case, using SHA-256, HMAC-SHA-256, HKDF-SHA-256, the encodings in `wire-profile.md`, and
-XChaCha20-Poly1305. Future task 3.2 implementations must recompute and verify those values. The maintainer's provenance
-is that seven ephemeral P-256 key pairs were generated in memory, each signature was normalized to low-S, its high-S
-twin was recorded, and the private halves were discarded without serialization. Because neither that generator nor an
-audit record of the run is included, this repository cannot prove how the keys were generated or that no private copy
-was retained elsewhere.
+XChaCha20-Poly1305. The Python Task 3.2 implementation recomputes and verifies the values relevant to its primitive
+layer; later implementations must do the same for their assigned layers. The maintainer's provenance
+is that ephemeral P-256 key pairs were generated in process memory for one-use fixture generation, each signature was
+normalized to low-S, its high-S twin was recorded, and the private halves were discarded without being printed or
+serialized. Because neither that generator nor an audit record of the runs is included, this repository cannot prove
+how the keys were generated or that no private copy was retained elsewhere.
 
 `tests/conformance/test_protocol_v1_artifacts.py` checks structure, closed-object declarations, internal references,
 vector and contract checksums, canonical named-value encodings, mutation declarations, the absence of named private-key
-members, and every published P-256 signature against its public key and exact signed bytes. It also proves each declared
-high-S twin is mathematically related to its accepted low-S signature while requiring the mutation to be rejected. It
-does not decrypt AEAD fixtures, execute the declared mutations against a protocol implementation, validate documents
-with a Draft 2020-12 implementation, or reproduce the maintainer-reported generation run. Executable cryptographic and
-mutation rejection remain requirements for task 3.2's reviewed Python and Rust primitives. Implementations must verify
-the published signatures and reject the declared mutations; they must not treat this provenance statement as
-key-destruction evidence.
+members, and the mathematical validity of every published P-256 signature and its high-S twin.
+`tests/conformance/test_protocol_v1_runtime.py` independently recomputes Task 3.2 values, executes the relevant
+one-field mutations against the Python implementation, accepts each fixed low-S signature, and rejects every high-S
+twin. Rust, cross-language, AEAD, stateful replay, route schema/business-state outcomes, Draft 2020-12 validation, and
+reproduction of the maintainer-reported key-generation run remain outside this Python increment. Implementations must
+not treat this provenance statement as key-destruction evidence.
 
 ## Vector format (`rem-vector-set-v1`)
 
@@ -70,10 +75,11 @@ material as `signature-params.<label>`, `signature-base.<label>`, `signature.<la
 ### Mutation semantics
 
 Each mutation declaration identifies one field to change while keeping everything else, including any digest, proof,
-or signature computed over the original bytes. A future conformance implementation must construct the change and reject
-the result with `expected_code`; the current structural test validates the declaration but does not execute it. A field
-names an input, intermediate, output, header, signature parameter, JSON member (`<message>.<member>`),
-transcript field (`transcript.<field>`, `aad.<field>`), or one of these pseudo-fields:
+or signature computed over the original bytes. The Python runtime conformance test constructs and rejects mutations
+owned by the primitive layer with `expected_code`; the structural test validates every declaration, including stateful,
+AEAD, schema, and business-state cases assigned to later tasks. A field names an input, intermediate, output, header,
+signature parameter, JSON member (`<message>.<member>`), transcript field (`transcript.<field>`, `aad.<field>`), or one
+of these pseudo-fields:
 
 | Pseudo-field | Meaning |
 | --- | --- |
@@ -82,7 +88,7 @@ transcript field (`transcript.<field>`, `aad.<field>`), or one of these pseudo-f
 | `credential.reuse` | A consumed pairing credential presented again |
 | `confirm.retry-after-success.<member>` | A changed confirm retried after the bootstrap committed |
 | `confirm.connection_spki` | The SPKI of the TLS connection that carries the request |
-| `request.target.path`, `request.target.path-parameter`, `request.target.query`, `request.target.query-order`, `request.target.empty-query` | The fixed path, a path parameter, a query value, the query member order, or an empty `?` appended to a no-query target |
+| `request.target.path`, `request.target.path-parameter`, `request.target.query`, `request.target.query-member`, `request.target.query-order`, `request.target.empty-query` | The fixed path, a path parameter, a query value, one query member name, the order of a query with at least two members, or an empty `?` appended to a no-query target |
 | `signature-params.<label>.components`, `.component-list` | The covered-component inner list |
 | `signature-input.<label>`, `signature-input.labels` | One dictionary member, or the member order |
 | `<name>.low-s`, `signature.<label>.high-s` | The signature replaced by its high-S twin |
@@ -91,7 +97,7 @@ transcript field (`transcript.<field>`, `aad.<field>`), or one of these pseudo-f
 | --- | --- |
 | `alter-byte` | XOR `0x01` into the last byte of the decoded value (for text, the last byte) and re-encode canonically |
 | `alter-value` | Replace with the next value of the same type: integer + 1; enum or literal the next allowed value (method GET↔POST, `schema_version` 2, protocol version 3); binary XOR `0x01` into the first decoded byte; authority port + 1; an encoded transcript field's length prefix + 1; an empty value becomes one `0x00` byte |
-| `duplicate` | Repeat the field once (header line, JSON member, transcript field, dictionary member) or replay the whole message where the field is the message |
+| `duplicate` | Repeat the field once (header line, JSON member, transcript field, dictionary member, or query member name with a short valid value) or replay the whole message where the field is the message |
 | `omit` | Remove the field (for a component list, its last component; for a ciphertext tag, its last 16 bytes) |
 | `reorder` | Swap the field with its successor (with its predecessor when last); for `*.field-order`, swap the first two fields after `purpose`; for `hkdf.ikm`, `core_nonce` first; for `sas.position-list`, swap Even and Odd |
 | `substitute` | Replace with the case's `substitutes` entry for that field |
@@ -103,8 +109,8 @@ response) it is `internal_error`, and the client must never treat it as success.
 
 ## Updating the profile
 
-1. Change the documents and vectors. Recompute every changed value with two independent implementations (task 3.2's
-   Python and Rust primitives once they exist) and re-verify from the published bytes; never commit a private key.
-2. Run `PYTHONDONTWRITEBYTECODE=1 pytest -p no:cacheprovider tests/conformance/test_protocol_v1_artifacts.py`.
+1. Change the documents and vectors. Recompute every changed value with the Python implementation and, once it exists,
+   an independent Rust implementation; re-verify from the published bytes, and never commit a private key.
+2. Run `PYTHONDONTWRITEBYTECODE=1 pytest -p no:cacheprovider tests/conformance/test_protocol_v1_artifacts.py tests/conformance/test_protocol_v1_runtime.py`.
 3. Recompute every SHA-256 in `vectors/manifest.json` **last**, after all other files are final.
 4. Once task 3.4 approves version 1, published bytes never change; see `wire-profile.md` section 14.
