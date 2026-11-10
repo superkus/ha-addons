@@ -31,6 +31,10 @@ VECTORS: Final = PROFILE / "vectors"
 
 EXPECTED_PROFILE_FILES: Final = {
     "README.md",
+    "pgp-word-list/gfdl-1.2.txt",
+    "pgp-word-list/notice.md",
+    "pgp-word-list/even.txt",
+    "pgp-word-list/odd.txt",
     "threat-model.md",
     "wire-profile.md",
     "routes.json",
@@ -484,11 +488,9 @@ def _assert_canonical_named_value(value: dict[str, str]) -> None:
         except binascii.Error as error:
             raise AssertionError(f"invalid base64 value {value['name']}") from error
         assert base64.b64encode(decoded).decode() == text
-    elif encoding == "decimal":
-        assert text == str(int(text)) and not text.startswith("-")
     else:
-        assert encoding == "sas-placeholder"
-        assert re.fullmatch(r"EVEN\[\d{1,3}\](?: ODD\[\d{1,3}\] EVEN\[\d{1,3}\]){2} ODD\[\d{1,3}\]", text)
+        assert encoding == "decimal"
+        assert text == str(int(text)) and not text.startswith("-")
 
 
 def test_protocol_profile_has_the_exact_versioned_file_set() -> None:
@@ -638,6 +640,10 @@ def test_vector_manifest_checks_exact_files_checksums_and_unique_ids() -> None:
     contract_paths = [entry["path"] for entry in manifest["contract_files"]]
     assert len(contract_paths) == len(set(contract_paths))
     assert set(contract_paths) == {
+        "pgp-word-list/gfdl-1.2.txt",
+        "pgp-word-list/notice.md",
+        "pgp-word-list/even.txt",
+        "pgp-word-list/odd.txt",
         "routes.json",
         "schemas/common.schema.json",
         "schemas/problem.schema.json",
@@ -1128,17 +1134,14 @@ def test_control_key_rotation_completion_declares_full_http_mutation_and_replay_
     assert mutations["headers.rem-purpose.cross-purpose"]["expected_code"] == "authentication_required"
 
 
-def test_completed_vector_task_requires_real_sas_words_or_an_explicit_approved_split() -> None:
+def test_incomplete_sas_task_records_python_only_boundary() -> None:
     tasks = (ROOT / ".kiro" / "specs" / "native-computer-reporters" / "tasks.md").read_text(encoding="utf-8")
-    placeholders = [
-        path.name for path in sorted(VECTORS.glob("*.json")) if "sas-placeholder" in path.read_text(encoding="utf-8")
-    ]
-    if "- [x] 3.1 " in tasks and placeholders:
-        readme = " ".join((PROFILE / "README.md").read_text(encoding="utf-8").split())
-        wire_profile = " ".join((PROFILE / "wire-profile.md").read_text(encoding="utf-8").split())
-        assert "normative SAS word tables (task 3.3)" in readme
-        assert "task 3.3 pins and vendors both tables as normative data" in wire_profile
-        assert "MUST NOT be shown to a user or accepted by an implementation" in wire_profile
+    readme = " ".join((PROFILE / "README.md").read_text(encoding="utf-8").split())
+    threat_model = " ".join((PROFILE / "threat-model.md").read_text(encoding="utf-8").split())
+
+    assert "- [ ] 3.3 " in tasks
+    assert "Rust and cross-language" in readme
+    assert "Task 3.3 remains incomplete" in threat_model
 
 
 def test_rfc3339_utc_schema_rejects_impossible_gregorian_dates() -> None:

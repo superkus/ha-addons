@@ -29,6 +29,7 @@ from remote_energy_meter.protocol_v1.http_signatures import (
     route_profile,
     verify_signed_request,
 )
+from remote_energy_meter.protocol_v1.sas import derive_interactive_sas, parse_sas, render_sas, verify_sas
 
 __all__ = [
     "ErrorCode",
@@ -42,14 +43,18 @@ __all__ = [
     "VerifiedRequestIdentity",
     "decode_base64url",
     "decode_transcript",
+    "derive_interactive_sas",
     "encode_base64url",
     "encode_transcript",
     "parse_canonical_json",
     "parse_content_digest",
     "parse_p256_public_jwk",
+    "parse_sas",
     "render_content_digest",
+    "render_sas",
     "route_profile",
     "verify_content_digest",
     "verify_p256_p1363",
+    "verify_sas",
     "verify_signed_request",
 ]

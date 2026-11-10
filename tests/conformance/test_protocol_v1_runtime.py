@@ -23,11 +23,13 @@ from remote_energy_meter.protocol_v1 import (
     SignedRequest,
     VerificationKey,
     decode_transcript,
+    derive_interactive_sas,
     encode_transcript,
     parse_canonical_json,
     parse_content_digest,
     parse_p256_public_jwk,
     render_content_digest,
+    render_sas,
     route_profile,
     verify_content_digest,
     verify_p256_p1363,
@@ -1931,3 +1933,23 @@ def test_runtime_vector_matrix_executes_every_declared_in_scope_http_mutation() 
     executed_mutations = {cast(str, mutation["id"]) for _, mutation in HTTP_MUTATIONS}
 
     assert executed_mutations == declared_mutations
+
+
+def test_interactive_sas_derivation_and_rendering_match_the_published_vector() -> None:
+    case = _case("interactive-enrollment.json", "interactive.sas")
+    inputs = _entries(case, "inputs")
+    intermediates = _entries(case, "intermediates")
+    expected = _entries(case, "expected")
+    transcript = _bytes(intermediates["transcript"])
+
+    assert hashlib.sha256(transcript).digest() == _bytes(intermediates["transcript_digest"])
+    sas_bytes = derive_interactive_sas(
+        transcript=transcript,
+        reporter_nonce=_bytes(inputs["transcript.reporter_nonce"]),
+        core_nonce=_bytes(inputs["transcript.core_nonce"]),
+    )
+
+    assert sas_bytes == _bytes(intermediates["sas.bytes"])
+    assert sas_bytes == _bytes(expected["sas.bytes"])
+    assert render_sas(sas_bytes) == _text(expected, "sas.words")
+    assert _text(expected, "sas.words") == "dreadful vacancy adrift Saturday sentence Waterloo"

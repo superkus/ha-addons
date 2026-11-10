@@ -2,10 +2,11 @@
 
 This directory is the server-owned, versioned contract for native computer reporters, the Home Assistant
 integration's control channel, and MQTT v2. It is specification task 3.1 of
-`.kiro/specs/native-computer-reporters/`. Task 3.2's Python primitive layer is implemented in
-`src/remote_energy_meter/protocol_v1/`; the Rust and cross-language halves remain pending. The normative SAS word
-tables (task 3.3) and rendering tests do not exist yet; task 3.3 will vendor and implement them. Task 3.4's independent
-security review must approve the profile before anything that speaks it is distributed.
+`.kiro/specs/native-computer-reporters/`. Task 3.2's Python primitive layer and the server/Python half of Task 3.3's
+SAS derivation, exact word rendering, strict parser, and verification are implemented in
+`src/remote_energy_meter/protocol_v1/`. The pinned normative PGP word tables and their provenance are under
+`pgp-word-list/`. Rust and cross-language parity remain pending, so Tasks 3.2 and 3.3 stay incomplete. Task 3.4's
+independent security review must approve the profile before anything that speaks it is distributed.
 
 Status: **draft, not approved for distribution.** This repository includes pure production cryptographic and wire
 primitives, but no listener, route handler, replay store, authorization policy, or protocol business state. The runtime
@@ -18,6 +19,7 @@ bounded request passed to these primitives.
 | --- | --- |
 | `wire-profile.md` | Normative wire rules: encodings, canonical JSON, `REM-TRANSCRIPT`, every transcript field table, RFC 7638 / RFC 9530 / RFC 9421 / RFC 9457 profiles, P1363 low-S signatures, XChaCha20-Poly1305 MQTT envelopes, admission order, the route table, and the profile decisions beyond the specification |
 | `threat-model.md` | Assets, adversaries, threats, mitigations, and residual risks |
+| `pgp-word-list/` | Normative newline-terminated ASCII Even and Odd PGP Word List data, the source/extraction/cross-check record, and the complete GFDL 1.2 text; only the two list files and their packaged copies are GFDL, while repository code remains MIT |
 | `routes.json` | All 30 routes: method, path template, query forms, request and success caps, item cap, success status, purpose label, schema references, signature profile, trust state, replay rule |
 | `schemas/` | JSON Schema Draft 2020-12, every object closed with every property required: `common`, `problem`, `reporter-api`, `control-api`, `mqtt-v2`, `vector` |
 | `vectors/` | Eight public vector files and `manifest.json`, which records SHA-256 checksums for those vectors and the normative contract files |
@@ -44,11 +46,14 @@ how the keys were generated or that no private copy was retained elsewhere.
 `tests/conformance/test_protocol_v1_artifacts.py` checks structure, closed-object declarations, internal references,
 vector and contract checksums, canonical named-value encodings, mutation declarations, the absence of named private-key
 members, and the mathematical validity of every published P-256 signature and its high-S twin.
-`tests/conformance/test_protocol_v1_runtime.py` independently recomputes Task 3.2 values, executes the relevant
-one-field mutations against the Python implementation, accepts each fixed low-S signature, and rejects every high-S
-twin. Rust, cross-language, AEAD, stateful replay, route schema/business-state outcomes, Draft 2020-12 validation, and
-reproduction of the maintainer-reported key-generation run remain outside this Python increment. Implementations must
-not treat this provenance statement as key-destruction evidence.
+`tests/conformance/test_protocol_v1_runtime.py` independently recomputes Task 3.2 values and the interactive SAS
+transcript digest/HKDF bytes/rendering, executes the relevant one-field mutations against the Python implementation,
+accepts each fixed low-S signature, and rejects every high-S twin.
+`tests/conformance/test_protocol_v1_sas_data.py` pins both 256-entry lists, verifies ASCII/case/order/uniqueness and
+package byte identity, and checks the adjacent provenance and GFDL artifacts. Rust, cross-language, AEAD, stateful
+replay, route schema/business-state outcomes, Draft 2020-12 validation, and reproduction of the maintainer-reported
+key-generation run remain outside this Python increment. Implementations must not treat this provenance statement as
+key-destruction evidence.
 
 ## Vector format (`rem-vector-set-v1`)
 
@@ -67,7 +72,8 @@ Each file holds `schema`, `profile_version`, `description`, and `cases`. Each ca
 | `mutations` | Declarations of independent one-field changes and their expected rejection classifications |
 
 A named value is `{name, encoding, value}` with `encoding` one of `ascii`, `utf8`, `hex`, `base64url` (unpadded),
-`base64` (padded), `decimal`, or `sas-placeholder`. HTTP requests are given as `request.method`,
+`base64` (padded), or `decimal`. The `interactive.sas` output is the exact six-word ASCII rendering, not an index
+placeholder. HTTP requests are given as `request.method`,
 `request.authority`, `request.target`, `headers.<lowercase-name>`, and `body` (the exact canonical bytes); signature
 material as `signature-params.<label>`, `signature-base.<label>`, `signature.<label>.p1363`, and
 `signature.<label>.high-s`.
@@ -109,8 +115,9 @@ response) it is `internal_error`, and the client must never treat it as success.
 
 ## Updating the profile
 
-1. Change the documents and vectors. Recompute every changed value with the Python implementation and, once it exists,
-   an independent Rust implementation; re-verify from the published bytes, and never commit a private key.
-2. Run `PYTHONDONTWRITEBYTECODE=1 pytest -p no:cacheprovider tests/conformance/test_protocol_v1_artifacts.py tests/conformance/test_protocol_v1_runtime.py`.
+1. Change the documents, normative word-table data, and vectors. Verify source and list hashes from
+   `pgp-word-list/notice.md`. Recompute every changed value with the Python implementation and, once it exists, an
+   independent Rust implementation; re-verify from the published bytes, and never commit a private key.
+2. Run `PYTHONDONTWRITEBYTECODE=1 pytest -p no:cacheprovider tests/conformance/test_protocol_v1_artifacts.py tests/conformance/test_protocol_v1_runtime.py tests/conformance/test_protocol_v1_sas_data.py`.
 3. Recompute every SHA-256 in `vectors/manifest.json` **last**, after all other files are final.
 4. Once task 3.4 approves version 1, published bytes never change; see `wire-profile.md` section 14.
