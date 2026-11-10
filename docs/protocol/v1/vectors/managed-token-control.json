@@ -1,0 +1,204 @@
+{
+  "schema": "rem-vector-set-v1",
+  "profile_version": 1,
+  "description": "Managed-token issuance artifact, status and revocation bodies.",
+  "cases": [
+    {
+      "id": "managed-token.issue-status-revoke",
+      "description": "Issuance returns exactly the rem-managed-enrollment-v1 artifact with Cache-Control: no-store; the core persists only token_verifier = SHA-256(token) and the public operation record. Status and revoke are addressed by the client-held operation ID. Fixture token is public test data. Every timestamp uses the exact canonical UTC spelling and a real proleptic-Gregorian date; impossible month days and invalid leap days are rejected without normalization.",
+      "requirements": [
+        "4.5",
+        "7.5f"
+      ],
+      "routes": [
+        "control.managed-token.issue",
+        "control.managed-token.status",
+        "control.managed-token.revoke"
+      ],
+      "inputs": [
+        {
+          "name": "issue.request",
+          "encoding": "utf8",
+          "value": "{\"expires_in_seconds\":86400,\"managed_subject_id\":\"mdm-device-0002\",\"operation_id\":\"DQ0NDQ0NDQ0NDQ0NDQ0NDQ\",\"schema_version\":1}"
+        },
+        {
+          "name": "status.request",
+          "encoding": "utf8",
+          "value": "{\"operation_id\":\"DQ0NDQ0NDQ0NDQ0NDQ0NDQ\",\"schema_version\":1}"
+        },
+        {
+          "name": "revoke.request",
+          "encoding": "utf8",
+          "value": "{\"issuance_operation_id\":\"DQ0NDQ0NDQ0NDQ0NDQ0NDQ\",\"revocation_operation_id\":\"Dg4ODg4ODg4ODg4ODg4ODg\",\"schema_version\":1}"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "token",
+          "encoding": "base64url",
+          "value": "1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NQ"
+        },
+        {
+          "name": "token_verifier",
+          "encoding": "hex",
+          "value": "9559aa55ae8c13ddea0cb239f21bd88e462c0a572c911f811cd3ea6a17760bd8"
+        },
+        {
+          "name": "artifact.platform-pki",
+          "encoding": "utf8",
+          "value": "{\"expires_at\":\"2026-01-01T23:00:00Z\",\"schema\":\"rem-managed-enrollment-v1\",\"server\":{\"ca_spki_sha256\":null,\"host\":\"ha.example.com\",\"port\":58443,\"scheme\":\"https\",\"trust_mode\":\"platform-pki\"},\"token\":\"1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NQ\",\"token_id\":\"TU1NTU1NTU1NTU1NTU1NTQ\"}"
+        },
+        {
+          "name": "issue.response.headers.cache-control",
+          "encoding": "ascii",
+          "value": "no-store"
+        },
+        {
+          "name": "status.response",
+          "encoding": "utf8",
+          "value": "{\"expires_at\":\"2026-01-01T23:00:00Z\",\"managed_subject_id\":\"mdm-device-0002\",\"operation_id\":\"DQ0NDQ0NDQ0NDQ0NDQ0NDQ\",\"schema_version\":1,\"state\":\"issued\",\"token_id\":\"TU1NTU1NTU1NTU1NTU1NTQ\"}"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": 200,
+        "outputs": [
+          {
+            "name": "issue.response",
+            "encoding": "utf8",
+            "value": "{\"expires_at\":\"2026-01-01T23:00:00Z\",\"schema\":\"rem-managed-enrollment-v1\",\"server\":{\"ca_spki_sha256\":\"paWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaU\",\"host\":\"ha.example.com\",\"port\":58443,\"scheme\":\"https\",\"trust_mode\":\"ca-spki-sha256\"},\"token\":\"1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NQ\",\"token_id\":\"TU1NTU1NTU1NTU1NTU1NTQ\"}"
+          },
+          {
+            "name": "revoke.response",
+            "encoding": "utf8",
+            "value": "{\"issuance_operation_id\":\"DQ0NDQ0NDQ0NDQ0NDQ0NDQ\",\"managed_subject_id\":\"mdm-device-0002\",\"revocation_operation_id\":\"Dg4ODg4ODg4ODg4ODg4ODg\",\"revoked_at\":\"2026-01-01T00:00:00Z\",\"schema_version\":1,\"state\":\"revoked\",\"token_id\":\"TU1NTU1NTU1NTU1NTU1NTQ\"}"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "artifact.server.trust_mode",
+          "replacement": {
+            "name": "artifact.server.trust_mode",
+            "encoding": "ascii",
+            "value": "leaf-spki-sha256"
+          }
+        },
+        {
+          "field": "issue.request.expires_in_seconds",
+          "replacement": {
+            "name": "issue.request.expires_in_seconds",
+            "encoding": "decimal",
+            "value": "86401"
+          }
+        },
+        {
+          "field": "issue.request.operation_id",
+          "replacement": {
+            "name": "issue.request.operation_id",
+            "encoding": "ascii",
+            "value": "DQ0NDQ0NDQ0NDQ0NDQ0NDR"
+          }
+        },
+        {
+          "field": "artifact.expires_at.invalid-leap-day",
+          "replacement": {
+            "name": "artifact.expires_at.invalid-leap-day",
+            "encoding": "ascii",
+            "value": "2025-02-29T00:00:00Z"
+          }
+        },
+        {
+          "field": "status.response.expires_at.invalid-month-day",
+          "replacement": {
+            "name": "status.response.expires_at.invalid-month-day",
+            "encoding": "ascii",
+            "value": "2026-04-31T00:00:00Z"
+          }
+        },
+        {
+          "field": "revoke.response.revoked_at.invalid-year",
+          "replacement": {
+            "name": "revoke.response.revoked_at.invalid-year",
+            "encoding": "ascii",
+            "value": "0000-01-01T00:00:00Z"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "managed-token.issue-status-revoke.m00",
+          "field": "issue.request",
+          "operation": "duplicate",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "managed-token.issue-status-revoke.m01",
+          "field": "issue.request.operation_id",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "managed-token.issue-status-revoke.m02",
+          "field": "issue.request.expires_in_seconds",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "managed-token.issue-status-revoke.m03",
+          "field": "issue.request.managed_subject_id",
+          "operation": "omit",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "managed-token.issue-status-revoke.m04",
+          "field": "artifact.server.trust_mode",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "managed-token.issue-status-revoke.m05",
+          "field": "artifact.server.ca_spki_sha256",
+          "operation": "omit",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "managed-token.issue-status-revoke.m06",
+          "field": "status.request.operation_id",
+          "operation": "alter-value",
+          "expected_code": "not_found"
+        },
+        {
+          "id": "managed-token.issue-status-revoke.m07",
+          "field": "revoke.request.issuance_operation_id",
+          "operation": "alter-value",
+          "expected_code": "not_found"
+        },
+        {
+          "id": "managed-token.issue-status-revoke.m08",
+          "field": "revoke.request.revocation_operation_id",
+          "operation": "duplicate",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "managed-token.issue-status-revoke.m09",
+          "field": "artifact.expires_at.invalid-leap-day",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "managed-token.issue-status-revoke.m10",
+          "field": "status.response.expires_at.invalid-month-day",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "managed-token.issue-status-revoke.m11",
+          "field": "revoke.response.revoked_at.invalid-year",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        }
+      ]
+    }
+  ]
+}

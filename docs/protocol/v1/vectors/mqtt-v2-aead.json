@@ -1,0 +1,965 @@
+{
+  "schema": "rem-vector-set-v1",
+  "profile_version": 1,
+  "description": "MQTT v2 key provisioning/acknowledgement transcripts and XChaCha20-Poly1305 envelopes.",
+  "cases": [
+    {
+      "id": "mqtt.key-provision",
+      "description": "Provisioning transcript encode('rem-mqtt-key-provision-v1', 12 fields) binds instance, operation, the decoded 16-byte key_id, uint64 generation, previous generation, SHA-256 of the exact key bytes, the 16-byte nonce prefix and both 32-byte nonces; provision_digest = SHA-256(transcript). The integration recomputes it from the response and rejects any mismatch before storing the key. Fixture key is public test data.",
+      "requirements": [
+        "8.5",
+        "8.6a",
+        "7.5f"
+      ],
+      "routes": [
+        "control.mqtt-key.provision"
+      ],
+      "inputs": [
+        {
+          "name": "provision.request",
+          "encoding": "utf8",
+          "value": "{\"integration_nonce\":\"3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d0\",\"operation_id\":\"EhISEhISEhISEhISEhISEg\",\"previous_key_generation\":0,\"purpose\":\"rem-mqtt-key-provision-v1\",\"schema_version\":1}"
+        },
+        {
+          "name": "key",
+          "encoding": "hex",
+          "value": "4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "key_id",
+          "encoding": "base64url",
+          "value": "EBAQEBAQEBAQEBAQEBAQEA"
+        },
+        {
+          "name": "key_sha256",
+          "encoding": "hex",
+          "value": "07a98710826ae6fb9194e7c0a2c46e86227315fa75e42c21ea856d6f2d95d9d2"
+        },
+        {
+          "name": "transcript.encoded.header",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401"
+        },
+        {
+          "name": "transcript.encoded.domain-purpose",
+          "encoding": "hex",
+          "value": "001972656d2d6d7174742d6b65792d70726f766973696f6e2d7631"
+        },
+        {
+          "name": "transcript.encoded.schema_version",
+          "encoding": "hex",
+          "value": "000e736368656d615f76657273696f6e0000000101"
+        },
+        {
+          "name": "transcript.encoded.purpose",
+          "encoding": "hex",
+          "value": "0007707572706f73650000001972656d2d6d7174742d6b65792d70726f766973696f6e2d7631"
+        },
+        {
+          "name": "transcript.encoded.instance_id",
+          "encoding": "hex",
+          "value": "000b696e7374616e63655f69640000000a696e7374616e63652d61"
+        },
+        {
+          "name": "transcript.encoded.operation_id",
+          "encoding": "hex",
+          "value": "000c6f7065726174696f6e5f69640000001012121212121212121212121212121212"
+        },
+        {
+          "name": "transcript.encoded.key_id",
+          "encoding": "hex",
+          "value": "00066b65795f69640000001010101010101010101010101010101010"
+        },
+        {
+          "name": "transcript.encoded.key_generation",
+          "encoding": "hex",
+          "value": "000e6b65795f67656e65726174696f6e000000080000000000000001"
+        },
+        {
+          "name": "transcript.encoded.previous_key_generation",
+          "encoding": "hex",
+          "value": "001770726576696f75735f6b65795f67656e65726174696f6e000000080000000000000000"
+        },
+        {
+          "name": "transcript.encoded.key_sha256",
+          "encoding": "hex",
+          "value": "000a6b65795f7368613235360000002007a98710826ae6fb9194e7c0a2c46e86227315fa75e42c21ea856d6f2d95d9d2"
+        },
+        {
+          "name": "transcript.encoded.nonce_prefix",
+          "encoding": "hex",
+          "value": "000c6e6f6e63655f707265666978000000106e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e"
+        },
+        {
+          "name": "transcript.encoded.integration_nonce",
+          "encoding": "hex",
+          "value": "0011696e746567726174696f6e5f6e6f6e636500000020dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        {
+          "name": "transcript.encoded.core_nonce",
+          "encoding": "hex",
+          "value": "000a636f72655f6e6f6e636500000020eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        },
+        {
+          "name": "transcript.encoded.expires_at",
+          "encoding": "hex",
+          "value": "000a657870697265735f617400000008000000006955ff8c"
+        },
+        {
+          "name": "transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001972656d2d6d7174742d6b65792d70726f766973696f6e2d7631000e736368656d615f76657273696f6e00000001010007707572706f73650000001972656d2d6d7174742d6b65792d70726f766973696f6e2d7631000b696e7374616e63655f69640000000a696e7374616e63652d61000c6f7065726174696f6e5f6964000000101212121212121212121212121212121200066b65795f69640000001010101010101010101010101010101010000e6b65795f67656e65726174696f6e000000080000000000000001001770726576696f75735f6b65795f67656e65726174696f6e000000080000000000000000000a6b65795f7368613235360000002007a98710826ae6fb9194e7c0a2c46e86227315fa75e42c21ea856d6f2d95d9d2000c6e6f6e63655f707265666978000000106e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e0011696e746567726174696f6e5f6e6f6e636500000020dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd000a636f72655f6e6f6e636500000020eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee000a657870697265735f617400000008000000006955ff8c"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": 200,
+        "outputs": [
+          {
+            "name": "provision_digest",
+            "encoding": "base64url",
+            "value": "80LFNXEsxasFvAFF1TDnWookzf1FsgjJPae-zeSMQ9Q"
+          },
+          {
+            "name": "provision.response",
+            "encoding": "utf8",
+            "value": "{\"core_nonce\":\"7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u4\",\"expires_at\":1767243660,\"integration_nonce\":\"3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d0\",\"key\":\"S0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0s\",\"key_generation\":1,\"key_id\":\"EBAQEBAQEBAQEBAQEBAQEA\",\"key_sha256\":\"B6mHEIJq5vuRlOfAosRuhiJzFfp15Cwh6oVtby2V2dI\",\"nonce_prefix\":\"bm5ubm5ubm5ubm5ubm5ubg\",\"operation_id\":\"EhISEhISEhISEhISEhISEg\",\"previous_key_generation\":0,\"provision_digest\":\"80LFNXEsxasFvAFF1TDnWookzf1FsgjJPae-zeSMQ9Q\",\"purpose\":\"rem-mqtt-key-provision-v1\",\"schema_version\":1}"
+          },
+          {
+            "name": "provision.response.headers.cache-control",
+            "encoding": "ascii",
+            "value": "no-store"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "response.key_id",
+          "replacement": {
+            "name": "response.key_id",
+            "encoding": "ascii",
+            "value": "EBAQEBAQEBAQEBAQEBAQEA="
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "mqtt.key-provision.m00",
+          "field": "transcript.schema_version",
+          "operation": "alter-value",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m01",
+          "field": "transcript.purpose",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m02",
+          "field": "transcript.instance_id",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m03",
+          "field": "transcript.operation_id",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m04",
+          "field": "transcript.key_id",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m05",
+          "field": "transcript.key_generation",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m06",
+          "field": "transcript.previous_key_generation",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m07",
+          "field": "transcript.key_sha256",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m08",
+          "field": "transcript.nonce_prefix",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m09",
+          "field": "transcript.integration_nonce",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m10",
+          "field": "transcript.core_nonce",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m11",
+          "field": "transcript.expires_at",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m12",
+          "field": "transcript.field-order",
+          "operation": "reorder",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m13",
+          "field": "response.key",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m14",
+          "field": "response.key_id",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "mqtt.key-provision.m15",
+          "field": "response.nonce_prefix.reuse",
+          "operation": "duplicate",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-provision.m16",
+          "field": "response.key_generation",
+          "operation": "alter-value",
+          "expected_code": "conflict"
+        }
+      ]
+    },
+    {
+      "id": "mqtt.key-acknowledge",
+      "description": "Key confirmation proves both endpoints hold the exact key for this provisioning: confirmation = HMAC-SHA-256(key, encode('rem-mqtt-key-confirm-v1', [('role', role), ('provision_digest', digest)])) with role 'integration' in the request and 'core' in the response.",
+      "requirements": [
+        "8.6a"
+      ],
+      "routes": [
+        "control.mqtt-key.acknowledge"
+      ],
+      "inputs": [
+        {
+          "name": "key",
+          "encoding": "hex",
+          "value": "4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b"
+        },
+        {
+          "name": "provision_digest",
+          "encoding": "base64url",
+          "value": "80LFNXEsxasFvAFF1TDnWookzf1FsgjJPae-zeSMQ9Q"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "integration_confirm.transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001772656d2d6d7174742d6b65792d636f6e6669726d2d76310004726f6c650000000b696e746567726174696f6e001070726f766973696f6e5f64696765737400000020f342c535712cc5ab05bc0145d530e75a8a24cdfd45b208c93da7becde48c43d4"
+        },
+        {
+          "name": "core_confirm.transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001772656d2d6d7174742d6b65792d636f6e6669726d2d76310004726f6c6500000004636f7265001070726f766973696f6e5f64696765737400000020f342c535712cc5ab05bc0145d530e75a8a24cdfd45b208c93da7becde48c43d4"
+        },
+        {
+          "name": "acknowledge.request",
+          "encoding": "utf8",
+          "value": "{\"integration_key_confirmation\":\"18TkM0YDu8mWfF9-ISJkosgZ4bLiGSd7xfypdZx8_DU\",\"key_generation\":1,\"key_id\":\"EBAQEBAQEBAQEBAQEBAQEA\",\"operation_id\":\"ExMTExMTExMTExMTExMTEw\",\"provision_digest\":\"80LFNXEsxasFvAFF1TDnWookzf1FsgjJPae-zeSMQ9Q\",\"provision_operation_id\":\"EhISEhISEhISEhISEhISEg\",\"schema_version\":1}"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": 200,
+        "outputs": [
+          {
+            "name": "integration_key_confirmation",
+            "encoding": "base64url",
+            "value": "18TkM0YDu8mWfF9-ISJkosgZ4bLiGSd7xfypdZx8_DU"
+          },
+          {
+            "name": "core_key_confirmation",
+            "encoding": "base64url",
+            "value": "spN_vV4yLwEScQwf9l395pgGDP6SU-xFoC7RoX45ki0"
+          },
+          {
+            "name": "acknowledge.response",
+            "encoding": "utf8",
+            "value": "{\"core_key_confirmation\":\"spN_vV4yLwEScQwf9l395pgGDP6SU-xFoC7RoX45ki0\",\"key_generation\":1,\"key_id\":\"EBAQEBAQEBAQEBAQEBAQEA\",\"operation_id\":\"ExMTExMTExMTExMTExMTEw\",\"retiring_key_generation\":null,\"schema_version\":1,\"state\":\"active\"}"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "confirm.role",
+          "replacement": {
+            "name": "confirm.role",
+            "encoding": "ascii",
+            "value": "core"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "mqtt.key-acknowledge.m00",
+          "field": "key",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.key-acknowledge.m01",
+          "field": "provision_digest",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-acknowledge.m02",
+          "field": "confirm.role",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.key-acknowledge.m03",
+          "field": "integration_key_confirmation",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.key-acknowledge.m04",
+          "field": "core_key_confirmation",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.key-acknowledge.m05",
+          "field": "acknowledge.request.key_id",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-acknowledge.m06",
+          "field": "acknowledge.request.key_generation",
+          "operation": "alter-value",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "mqtt.key-acknowledge.m07",
+          "field": "acknowledge.request.provision_operation_id",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        }
+      ]
+    },
+    {
+      "id": "mqtt.aead-envelope",
+      "description": "Per-reporter power state. nonce = nonce_prefix(16) || uint64be(publication_counter); AAD = encode('rem-mqtt-v2-aad-v1', 13 fields) built from the independently derived topic, reporter and type, the durable key record's key_id bytes and generation, and the envelope header; ciphertext = XChaCha20-Poly1305(key, nonce, AAD, canonical payload) || 16-byte tag.",
+      "requirements": [
+        "8.5",
+        "8.6a"
+      ],
+      "routes": [],
+      "inputs": [
+        {
+          "name": "key",
+          "encoding": "hex",
+          "value": "4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b"
+        },
+        {
+          "name": "key_id",
+          "encoding": "base64url",
+          "value": "EBAQEBAQEBAQEBAQEBAQEA"
+        },
+        {
+          "name": "nonce_prefix",
+          "encoding": "hex",
+          "value": "6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e"
+        },
+        {
+          "name": "topic",
+          "encoding": "ascii",
+          "value": "remote_energy_meter/v2/devices/XvXTjzJmaKXJaWfpsV9mUH4K2PpAF6SjWjhbcCN9dIU/power/state"
+        },
+        {
+          "name": "message_type",
+          "encoding": "ascii",
+          "value": "device-power"
+        },
+        {
+          "name": "payload",
+          "encoding": "utf8",
+          "value": "{\"state\":\"available\",\"watts\":12.5}"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "nonce",
+          "encoding": "hex",
+          "value": "6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e0000000000000007"
+        },
+        {
+          "name": "aad.encoded.header",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401"
+        },
+        {
+          "name": "aad.encoded.purpose",
+          "encoding": "hex",
+          "value": "001272656d2d6d7174742d76322d6161642d7631"
+        },
+        {
+          "name": "aad.encoded.protocol_version",
+          "encoding": "hex",
+          "value": "001070726f746f636f6c5f76657273696f6e0000000102"
+        },
+        {
+          "name": "aad.encoded.topic",
+          "encoding": "hex",
+          "value": "0005746f7069630000005672656d6f74655f656e657267795f6d657465722f76322f646576696365732f587658546a7a4a6d614b584a615766707356396d5548344b325070414636536a576a686263434e396449552f706f7765722f7374617465"
+        },
+        {
+          "name": "aad.encoded.reporter_id",
+          "encoding": "hex",
+          "value": "000b7265706f727465725f69640000002b587658546a7a4a6d614b584a615766707356396d5548344b325070414636536a576a686263434e39644955"
+        },
+        {
+          "name": "aad.encoded.message_type",
+          "encoding": "hex",
+          "value": "000c6d6573736167655f747970650000000c6465766963652d706f776572"
+        },
+        {
+          "name": "aad.encoded.payload_schema_version",
+          "encoding": "hex",
+          "value": "00167061796c6f61645f736368656d615f76657273696f6e0000000101"
+        },
+        {
+          "name": "aad.encoded.key_id",
+          "encoding": "hex",
+          "value": "00066b65795f69640000001010101010101010101010101010101010"
+        },
+        {
+          "name": "aad.encoded.key_generation",
+          "encoding": "hex",
+          "value": "000e6b65795f67656e65726174696f6e000000080000000000000001"
+        },
+        {
+          "name": "aad.encoded.process_generation",
+          "encoding": "hex",
+          "value": "001270726f636573735f67656e65726174696f6e000000080000000000000003"
+        },
+        {
+          "name": "aad.encoded.state_generation",
+          "encoding": "hex",
+          "value": "001073746174655f67656e65726174696f6e000000080000000000000005"
+        },
+        {
+          "name": "aad.encoded.stream_sequence",
+          "encoding": "hex",
+          "value": "000f73747265616d5f73657175656e636500000008000000000000002a"
+        },
+        {
+          "name": "aad.encoded.issued_at",
+          "encoding": "hex",
+          "value": "00096973737565645f617400000008000000006955ff5a"
+        },
+        {
+          "name": "aad.encoded.expires_at",
+          "encoding": "hex",
+          "value": "000a657870697265735f617400000008000000006955ffb4"
+        },
+        {
+          "name": "aad.encoded.nonce",
+          "encoding": "hex",
+          "value": "00056e6f6e6365000000186e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e0000000000000007"
+        },
+        {
+          "name": "aad",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001272656d2d6d7174742d76322d6161642d7631001070726f746f636f6c5f76657273696f6e00000001020005746f7069630000005672656d6f74655f656e657267795f6d657465722f76322f646576696365732f587658546a7a4a6d614b584a615766707356396d5548344b325070414636536a576a686263434e396449552f706f7765722f7374617465000b7265706f727465725f69640000002b587658546a7a4a6d614b584a615766707356396d5548344b325070414636536a576a686263434e39644955000c6d6573736167655f747970650000000c6465766963652d706f77657200167061796c6f61645f736368656d615f76657273696f6e000000010100066b65795f69640000001010101010101010101010101010101010000e6b65795f67656e65726174696f6e000000080000000000000001001270726f636573735f67656e65726174696f6e000000080000000000000003001073746174655f67656e65726174696f6e000000080000000000000005000f73747265616d5f73657175656e636500000008000000000000002a00096973737565645f617400000008000000006955ff5a000a657870697265735f617400000008000000006955ffb400056e6f6e6365000000186e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e0000000000000007"
+        },
+        {
+          "name": "ciphertext_and_tag",
+          "encoding": "hex",
+          "value": "2a02600f7ec87ee40b946c9f0d9467f1815a431d7fb4ecbbc2eeeb118ae299bdbf442e4ab7baa2d1d21ad077d7547f385d4a"
+        },
+        {
+          "name": "tag",
+          "encoding": "hex",
+          "value": "2e4ab7baa2d1d21ad077d7547f385d4a"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": null,
+        "outputs": [
+          {
+            "name": "envelope",
+            "encoding": "utf8",
+            "value": "{\"ciphertext\":\"KgJgD37IfuQLlGyfDZRn8YFaQx1_tOy7wu7rEYrimb2_RC5Kt7qi0dIa0HfXVH84XUo\",\"expires_at\":1767243700,\"issued_at\":1767243610,\"key_generation\":1,\"key_id\":\"EBAQEBAQEBAQEBAQEBAQEA\",\"process_generation\":3,\"publication_counter\":7,\"schema\":\"rem-mqtt-envelope-v1\",\"state_generation\":5,\"stream_sequence\":42}"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "envelope.key_id",
+          "replacement": {
+            "name": "envelope.key_id",
+            "encoding": "ascii",
+            "value": "EBAQEBAQEBAQEBAQEBAQEA=="
+          }
+        },
+        {
+          "field": "topic",
+          "replacement": {
+            "name": "topic",
+            "encoding": "ascii",
+            "value": "remote_energy_meter/v2/devices/XvXTjzJmaKXJaWfpsV9mUH4K2PpAF6SjWjhbcCN9dIU/energy/state"
+          }
+        },
+        {
+          "field": "message_type",
+          "replacement": {
+            "name": "message_type",
+            "encoding": "ascii",
+            "value": "device-energy"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "mqtt.aead-envelope.m00",
+          "field": "aad.protocol_version",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m01",
+          "field": "aad.topic",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m02",
+          "field": "aad.reporter_id",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m03",
+          "field": "aad.message_type",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m04",
+          "field": "aad.payload_schema_version",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m05",
+          "field": "aad.key_id",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m06",
+          "field": "aad.key_generation",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m07",
+          "field": "aad.process_generation",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m08",
+          "field": "aad.state_generation",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m09",
+          "field": "aad.stream_sequence",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m10",
+          "field": "aad.issued_at",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m11",
+          "field": "aad.expires_at",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m12",
+          "field": "aad.nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m13",
+          "field": "aad.field-order",
+          "operation": "reorder",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m14",
+          "field": "ciphertext",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m15",
+          "field": "ciphertext.tag",
+          "operation": "omit",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m16",
+          "field": "envelope.key_id",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "mqtt.aead-envelope.m17",
+          "field": "envelope.key_generation",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m18",
+          "field": "envelope.stream_sequence",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m19",
+          "field": "topic",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.aead-envelope.m20",
+          "field": "message_type",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        }
+      ]
+    },
+    {
+      "id": "mqtt.process-offline-will",
+      "description": "Precomputed retained Last Will for process generation 3: no reporter, no state generation, no expiry (empty AAD values), sole offline sequence 0. It may only withdraw availability and is rejected below the durable process-generation high-water mark.",
+      "requirements": [
+        "8.5",
+        "8.6a"
+      ],
+      "routes": [],
+      "inputs": [
+        {
+          "name": "key",
+          "encoding": "hex",
+          "value": "4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b"
+        },
+        {
+          "name": "key_id",
+          "encoding": "base64url",
+          "value": "EBAQEBAQEBAQEBAQEBAQEA"
+        },
+        {
+          "name": "nonce_prefix",
+          "encoding": "hex",
+          "value": "6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e"
+        },
+        {
+          "name": "topic",
+          "encoding": "ascii",
+          "value": "remote_energy_meter/v2/meta/process-availability"
+        },
+        {
+          "name": "message_type",
+          "encoding": "ascii",
+          "value": "process-availability"
+        },
+        {
+          "name": "payload",
+          "encoding": "utf8",
+          "value": "{\"state\":\"offline\"}"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "nonce",
+          "encoding": "hex",
+          "value": "6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e0000000000000006"
+        },
+        {
+          "name": "aad.encoded.header",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401"
+        },
+        {
+          "name": "aad.encoded.purpose",
+          "encoding": "hex",
+          "value": "001272656d2d6d7174742d76322d6161642d7631"
+        },
+        {
+          "name": "aad.encoded.protocol_version",
+          "encoding": "hex",
+          "value": "001070726f746f636f6c5f76657273696f6e0000000102"
+        },
+        {
+          "name": "aad.encoded.topic",
+          "encoding": "hex",
+          "value": "0005746f7069630000003072656d6f74655f656e657267795f6d657465722f76322f6d6574612f70726f636573732d617661696c6162696c697479"
+        },
+        {
+          "name": "aad.encoded.reporter_id",
+          "encoding": "hex",
+          "value": "000b7265706f727465725f696400000000"
+        },
+        {
+          "name": "aad.encoded.message_type",
+          "encoding": "hex",
+          "value": "000c6d6573736167655f747970650000001470726f636573732d617661696c6162696c697479"
+        },
+        {
+          "name": "aad.encoded.payload_schema_version",
+          "encoding": "hex",
+          "value": "00167061796c6f61645f736368656d615f76657273696f6e0000000101"
+        },
+        {
+          "name": "aad.encoded.key_id",
+          "encoding": "hex",
+          "value": "00066b65795f69640000001010101010101010101010101010101010"
+        },
+        {
+          "name": "aad.encoded.key_generation",
+          "encoding": "hex",
+          "value": "000e6b65795f67656e65726174696f6e000000080000000000000001"
+        },
+        {
+          "name": "aad.encoded.process_generation",
+          "encoding": "hex",
+          "value": "001270726f636573735f67656e65726174696f6e000000080000000000000003"
+        },
+        {
+          "name": "aad.encoded.state_generation",
+          "encoding": "hex",
+          "value": "001073746174655f67656e65726174696f6e00000000"
+        },
+        {
+          "name": "aad.encoded.stream_sequence",
+          "encoding": "hex",
+          "value": "000f73747265616d5f73657175656e6365000000080000000000000000"
+        },
+        {
+          "name": "aad.encoded.issued_at",
+          "encoding": "hex",
+          "value": "00096973737565645f617400000008000000006955ff50"
+        },
+        {
+          "name": "aad.encoded.expires_at",
+          "encoding": "hex",
+          "value": "000a657870697265735f617400000000"
+        },
+        {
+          "name": "aad.encoded.nonce",
+          "encoding": "hex",
+          "value": "00056e6f6e6365000000186e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e0000000000000006"
+        },
+        {
+          "name": "aad",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001272656d2d6d7174742d76322d6161642d7631001070726f746f636f6c5f76657273696f6e00000001020005746f7069630000003072656d6f74655f656e657267795f6d657465722f76322f6d6574612f70726f636573732d617661696c6162696c697479000b7265706f727465725f696400000000000c6d6573736167655f747970650000001470726f636573732d617661696c6162696c69747900167061796c6f61645f736368656d615f76657273696f6e000000010100066b65795f69640000001010101010101010101010101010101010000e6b65795f67656e65726174696f6e000000080000000000000001001270726f636573735f67656e65726174696f6e000000080000000000000003001073746174655f67656e65726174696f6e00000000000f73747265616d5f73657175656e636500000008000000000000000000096973737565645f617400000008000000006955ff50000a657870697265735f61740000000000056e6f6e6365000000186e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e0000000000000006"
+        },
+        {
+          "name": "ciphertext_and_tag",
+          "encoding": "hex",
+          "value": "d47fdfb2c6d5a78883a0629d5601330888f4b7ce3cc1be9a25a25b16058301c80423b8"
+        },
+        {
+          "name": "tag",
+          "encoding": "hex",
+          "value": "ce3cc1be9a25a25b16058301c80423b8"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": null,
+        "outputs": [
+          {
+            "name": "envelope",
+            "encoding": "utf8",
+            "value": "{\"ciphertext\":\"1H_fssbVp4iDoGKdVgEzCIj0t848wb6aJaJbFgWDAcgEI7g\",\"expires_at\":null,\"issued_at\":1767243600,\"key_generation\":1,\"key_id\":\"EBAQEBAQEBAQEBAQEBAQEA\",\"process_generation\":3,\"publication_counter\":6,\"schema\":\"rem-mqtt-envelope-v1\",\"state_generation\":null,\"stream_sequence\":0}"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "envelope.key_id",
+          "replacement": {
+            "name": "envelope.key_id",
+            "encoding": "ascii",
+            "value": "EBAQEBAQEBAQEBAQEBAQEA=="
+          }
+        },
+        {
+          "field": "payload.state",
+          "replacement": {
+            "name": "payload.state",
+            "encoding": "utf8",
+            "value": "{\"state\":\"online\"}"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "mqtt.process-offline-will.m00",
+          "field": "aad.protocol_version",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m01",
+          "field": "aad.topic",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m02",
+          "field": "aad.reporter_id",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m03",
+          "field": "aad.message_type",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m04",
+          "field": "aad.payload_schema_version",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m05",
+          "field": "aad.key_id",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m06",
+          "field": "aad.key_generation",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m07",
+          "field": "aad.process_generation",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m08",
+          "field": "aad.state_generation",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m09",
+          "field": "aad.stream_sequence",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m10",
+          "field": "aad.issued_at",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m11",
+          "field": "aad.expires_at",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m12",
+          "field": "aad.nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m13",
+          "field": "aad.field-order",
+          "operation": "reorder",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m14",
+          "field": "ciphertext",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m15",
+          "field": "ciphertext.tag",
+          "operation": "omit",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m16",
+          "field": "envelope.key_id",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "mqtt.process-offline-will.m17",
+          "field": "envelope.key_generation",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m18",
+          "field": "envelope.stream_sequence",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "mqtt.process-offline-will.m19",
+          "field": "payload.state",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        }
+      ]
+    }
+  ]
+}

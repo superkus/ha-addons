@@ -1,0 +1,372 @@
+{
+  "schema": "rem-vector-set-v1",
+  "profile_version": 1,
+  "description": "Managed enrollment challenge, token verifier, HKDF proof key, HMAC proof and proposed-key signature.",
+  "cases": [
+    {
+      "id": "managed.proof",
+      "description": "token_verifier = SHA-256(token); proof_key = HKDF-SHA-256(IKM=token_verifier, salt=core_nonce, info='rem-managed-enroll-proof-v1', L=32); proof = HMAC-SHA-256(proof_key, transcript); proposed_signature = 64-byte IEEE P1363 low-S ECDSA P-256/SHA-256 over the same transcript by the proposed key. Fixture token is public and non-secret. The opaque challenge layout (0x01 || core_nonce || expires_at || MAC) is the reference core's private format; its MAC bytes here are a fixture.",
+      "requirements": [
+        "4.5"
+      ],
+      "routes": [
+        "reporter.managed-enrollment-challenge.create",
+        "reporter.enrollment.create"
+      ],
+      "inputs": [
+        {
+          "name": "token",
+          "encoding": "base64url",
+          "value": "w8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8M"
+        },
+        {
+          "name": "proposed_jwk",
+          "encoding": "utf8",
+          "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"cum_HoXnh5BFn8WJ2LyqK-rFXBXErVhXyN_eYTApt3U\",\"y\":\"Xii_8E7cAZRqDqG-SCfOhDvK4GVWjiYF35U0Max5Wrg\"}"
+        },
+        {
+          "name": "transcript.schema_version",
+          "encoding": "hex",
+          "value": "01"
+        },
+        {
+          "name": "transcript.purpose",
+          "encoding": "hex",
+          "value": "72656d2d6d616e616765642d656e726f6c6c6d656e742d7631"
+        },
+        {
+          "name": "transcript.token_id",
+          "encoding": "hex",
+          "value": "3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c"
+        },
+        {
+          "name": "transcript.opaque_challenge",
+          "encoding": "hex",
+          "value": "017777777777777777777777777777777777777777777777777777777777777777000000006955b93c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c"
+        },
+        {
+          "name": "transcript.core_nonce",
+          "encoding": "hex",
+          "value": "7777777777777777777777777777777777777777777777777777777777777777"
+        },
+        {
+          "name": "transcript.reporter_nonce",
+          "encoding": "hex",
+          "value": "8888888888888888888888888888888888888888888888888888888888888888"
+        },
+        {
+          "name": "transcript.scheme",
+          "encoding": "hex",
+          "value": "6874747073"
+        },
+        {
+          "name": "transcript.host",
+          "encoding": "hex",
+          "value": "68612e6578616d706c652e636f6d"
+        },
+        {
+          "name": "transcript.port",
+          "encoding": "hex",
+          "value": "e44b"
+        },
+        {
+          "name": "transcript.trust_mode",
+          "encoding": "hex",
+          "value": "63612d73706b692d736861323536"
+        },
+        {
+          "name": "transcript.ca_spki_sha256",
+          "encoding": "hex",
+          "value": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+        },
+        {
+          "name": "transcript.proposed_jwk",
+          "encoding": "hex",
+          "value": "7b22637276223a22502d323536222c226b7479223a224543222c2278223a2263756d5f486f586e683542466e38574a324c79714b2d72465842584572566858794e5f6559544170743355222c2279223a225869695f38453763415a52714471472d5343664f6844764b344756576a695946333555304d617835577267227d"
+        },
+        {
+          "name": "transcript.proposed_thumbprint",
+          "encoding": "hex",
+          "value": "e77ace96bad7963834e60f23388d3125889a470f32666724aae532d895db985a"
+        },
+        {
+          "name": "transcript.expires_at",
+          "encoding": "hex",
+          "value": "000000006955b93c"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "token_verifier",
+          "encoding": "hex",
+          "value": "4b80290f1d4d74e661a0ea719372cba50562116c980eda7f250ae4115017c641"
+        },
+        {
+          "name": "proof_key.info",
+          "encoding": "ascii",
+          "value": "rem-managed-enroll-proof-v1"
+        },
+        {
+          "name": "proof_key",
+          "encoding": "hex",
+          "value": "abb1ec7eea25c8c4e9ddbee2063d09a50be0abd84c8db3565a53de5fb18bc4d7"
+        },
+        {
+          "name": "transcript.encoded.header",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401"
+        },
+        {
+          "name": "transcript.encoded.domain-purpose",
+          "encoding": "hex",
+          "value": "001972656d2d6d616e616765642d656e726f6c6c6d656e742d7631"
+        },
+        {
+          "name": "transcript.encoded.schema_version",
+          "encoding": "hex",
+          "value": "000e736368656d615f76657273696f6e0000000101"
+        },
+        {
+          "name": "transcript.encoded.purpose",
+          "encoding": "hex",
+          "value": "0007707572706f73650000001972656d2d6d616e616765642d656e726f6c6c6d656e742d7631"
+        },
+        {
+          "name": "transcript.encoded.token_id",
+          "encoding": "hex",
+          "value": "0008746f6b656e5f6964000000103c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c"
+        },
+        {
+          "name": "transcript.encoded.opaque_challenge",
+          "encoding": "hex",
+          "value": "00106f70617175655f6368616c6c656e676500000049017777777777777777777777777777777777777777777777777777777777777777000000006955b93c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c"
+        },
+        {
+          "name": "transcript.encoded.core_nonce",
+          "encoding": "hex",
+          "value": "000a636f72655f6e6f6e6365000000207777777777777777777777777777777777777777777777777777777777777777"
+        },
+        {
+          "name": "transcript.encoded.reporter_nonce",
+          "encoding": "hex",
+          "value": "000e7265706f727465725f6e6f6e6365000000208888888888888888888888888888888888888888888888888888888888888888"
+        },
+        {
+          "name": "transcript.encoded.scheme",
+          "encoding": "hex",
+          "value": "0006736368656d65000000056874747073"
+        },
+        {
+          "name": "transcript.encoded.host",
+          "encoding": "hex",
+          "value": "0004686f73740000000e68612e6578616d706c652e636f6d"
+        },
+        {
+          "name": "transcript.encoded.port",
+          "encoding": "hex",
+          "value": "0004706f727400000002e44b"
+        },
+        {
+          "name": "transcript.encoded.trust_mode",
+          "encoding": "hex",
+          "value": "000a74727573745f6d6f64650000000e63612d73706b692d736861323536"
+        },
+        {
+          "name": "transcript.encoded.ca_spki_sha256",
+          "encoding": "hex",
+          "value": "000e63615f73706b695f73686132353600000020a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+        },
+        {
+          "name": "transcript.encoded.proposed_jwk",
+          "encoding": "hex",
+          "value": "000c70726f706f7365645f6a776b0000007e7b22637276223a22502d323536222c226b7479223a224543222c2278223a2263756d5f486f586e683542466e38574a324c79714b2d72465842584572566858794e5f6559544170743355222c2279223a225869695f38453763415a52714471472d5343664f6844764b344756576a695946333555304d617835577267227d"
+        },
+        {
+          "name": "transcript.encoded.proposed_thumbprint",
+          "encoding": "hex",
+          "value": "001370726f706f7365645f7468756d627072696e7400000020e77ace96bad7963834e60f23388d3125889a470f32666724aae532d895db985a"
+        },
+        {
+          "name": "transcript.encoded.expires_at",
+          "encoding": "hex",
+          "value": "000a657870697265735f617400000008000000006955b93c"
+        },
+        {
+          "name": "transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001972656d2d6d616e616765642d656e726f6c6c6d656e742d7631000e736368656d615f76657273696f6e00000001010007707572706f73650000001972656d2d6d616e616765642d656e726f6c6c6d656e742d76310008746f6b656e5f6964000000103c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c00106f70617175655f6368616c6c656e676500000049017777777777777777777777777777777777777777777777777777777777777777000000006955b93c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c000a636f72655f6e6f6e6365000000207777777777777777777777777777777777777777777777777777777777777777000e7265706f727465725f6e6f6e63650000002088888888888888888888888888888888888888888888888888888888888888880006736368656d650000000568747470730004686f73740000000e68612e6578616d706c652e636f6d0004706f727400000002e44b000a74727573745f6d6f64650000000e63612d73706b692d736861323536000e63615f73706b695f73686132353600000020a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5000c70726f706f7365645f6a776b0000007e7b22637276223a22502d323536222c226b7479223a224543222c2278223a2263756d5f486f586e683542466e38574a324c79714b2d72465842584572566858794e5f6559544170743355222c2279223a225869695f38453763415a52714471472d5343664f6844764b344756576a695946333555304d617835577267227d001370726f706f7365645f7468756d627072696e7400000020e77ace96bad7963834e60f23388d3125889a470f32666724aae532d895db985a000a657870697265735f617400000008000000006955b93c"
+        },
+        {
+          "name": "transcript.length",
+          "encoding": "decimal",
+          "value": "686"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": 201,
+        "outputs": [
+          {
+            "name": "proof",
+            "encoding": "base64url",
+            "value": "XvoaM7xTg7tKU2E4wNfsgZODyfGkr4OPqHKhmlgy77I"
+          },
+          {
+            "name": "proposed_signature",
+            "encoding": "base64url",
+            "value": "BKyg5pbT_1zn-kFrVKXIt_Zcql0AO7c-tSib-DEM_HdDeYnnnqF5CkWDJVMr2YYcrQRYJF5vcq3KBrxmGgM2yg"
+          },
+          {
+            "name": "proposed_thumbprint",
+            "encoding": "base64url",
+            "value": "53rOlrrXljg05g8jOI0xJYiaRw8yZmckquUy2JXbmFo"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "proposed_signature.high-s",
+          "replacement": {
+            "name": "proposed_signature.high-s",
+            "encoding": "base64url",
+            "value": "BKyg5pbT_1zn-kFrVKXIt_Zcql0AO7c-tSib-DEM_He8hnYXYV6G9rp82qzUJnnjD-KiiUioK9cpsw5c4l_uhw"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "managed.proof.m00",
+          "field": "transcript.schema_version",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m01",
+          "field": "transcript.purpose",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m02",
+          "field": "transcript.token_id",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m03",
+          "field": "transcript.opaque_challenge",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m04",
+          "field": "transcript.core_nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m05",
+          "field": "transcript.reporter_nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m06",
+          "field": "transcript.scheme",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m07",
+          "field": "transcript.host",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m08",
+          "field": "transcript.port",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m09",
+          "field": "transcript.trust_mode",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m10",
+          "field": "transcript.ca_spki_sha256",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m11",
+          "field": "transcript.proposed_jwk",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m12",
+          "field": "transcript.proposed_thumbprint",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m13",
+          "field": "transcript.expires_at",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m14",
+          "field": "transcript.field-order",
+          "operation": "reorder",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m15",
+          "field": "token",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m16",
+          "field": "token_verifier",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m17",
+          "field": "proof_key.info",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m18",
+          "field": "proof",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m19",
+          "field": "proposed_signature",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m20",
+          "field": "proposed_signature.high-s",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "managed.proof.m21",
+          "field": "request",
+          "operation": "duplicate",
+          "expected_code": "authentication_required"
+        }
+      ]
+    }
+  ]
+}

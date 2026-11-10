@@ -1,0 +1,697 @@
+{
+  "schema": "rem-vector-set-v1",
+  "profile_version": 1,
+  "description": "Common encodings: REM-TRANSCRIPT, RFC 7638 thumbprints, RFC 9530 Content-Digest, canonical JSON, server identity, problem responses and roster snapshot digest.",
+  "cases": [
+    {
+      "id": "common.transcript-encoding",
+      "description": "encode(purpose, fields) = 'REM-TRANSCRIPT' || 0x01 || uint16be(len(purpose)) || purpose || for each field: uint16be(len(name)) || name || uint32be(len(value)) || value. Shown on the interactive reporter commitment input. A decoder that parses transcripts must reject every mutation below.",
+      "requirements": [
+        "4.3",
+        "7.5a"
+      ],
+      "routes": [],
+      "inputs": [
+        {
+          "name": "purpose",
+          "encoding": "ascii",
+          "value": "rem-interactive-commit-v1"
+        },
+        {
+          "name": "field.role",
+          "encoding": "ascii",
+          "value": "reporter"
+        },
+        {
+          "name": "field.nonce",
+          "encoding": "hex",
+          "value": "1111111111111111111111111111111111111111111111111111111111111111"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "transcript.encoded.header",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401"
+        },
+        {
+          "name": "transcript.encoded.purpose",
+          "encoding": "hex",
+          "value": "001972656d2d696e7465726163746976652d636f6d6d69742d7631"
+        },
+        {
+          "name": "transcript.encoded.role",
+          "encoding": "hex",
+          "value": "0004726f6c65000000087265706f72746572"
+        },
+        {
+          "name": "transcript.encoded.nonce",
+          "encoding": "hex",
+          "value": "00056e6f6e6365000000201111111111111111111111111111111111111111111111111111111111111111"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": null,
+        "outputs": [
+          {
+            "name": "transcript",
+            "encoding": "hex",
+            "value": "52454d2d5452414e53435249505401001972656d2d696e7465726163746976652d636f6d6d69742d76310004726f6c65000000087265706f7274657200056e6f6e6365000000201111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "name": "transcript.length",
+            "encoding": "decimal",
+            "value": "103"
+          }
+        ]
+      },
+      "substitutes": [],
+      "mutations": [
+        {
+          "id": "common.transcript-encoding.m00",
+          "field": "transcript.encoded.header",
+          "operation": "alter-byte",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.transcript-encoding.m01",
+          "field": "transcript.encoded.purpose",
+          "operation": "alter-byte",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.transcript-encoding.m02",
+          "field": "field.role",
+          "operation": "duplicate",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.transcript-encoding.m03",
+          "field": "field.nonce",
+          "operation": "omit",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.transcript-encoding.m04",
+          "field": "transcript.encoded.role",
+          "operation": "reorder",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.transcript-encoding.m05",
+          "field": "transcript.encoded.nonce",
+          "operation": "alter-value",
+          "expected_code": "invalid_request"
+        }
+      ]
+    },
+    {
+      "id": "common.jwk-thumbprint",
+      "description": "RFC 7638 thumbprint of an exact public P-256 JWK: SHA-256 over the canonical UTF-8 JSON {crv,kty,x,y} with no whitespace; reporter_id and keyid are its unpadded base64url form.",
+      "requirements": [
+        "3.1",
+        "6.1"
+      ],
+      "routes": [],
+      "inputs": [
+        {
+          "name": "jwk.x",
+          "encoding": "base64url",
+          "value": "qXlTk75KQKYN-PBJPDM4qHw8tYKgDLaqixcHrthpc_U"
+        },
+        {
+          "name": "jwk.y",
+          "encoding": "base64url",
+          "value": "tdXohmn4d0O78ACF989uLrxgHWAryPJteiOQIvBjRDo"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "jwk.canonical",
+          "encoding": "utf8",
+          "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"qXlTk75KQKYN-PBJPDM4qHw8tYKgDLaqixcHrthpc_U\",\"y\":\"tdXohmn4d0O78ACF989uLrxgHWAryPJteiOQIvBjRDo\"}"
+        },
+        {
+          "name": "jwk.canonical.hex",
+          "encoding": "hex",
+          "value": "7b22637276223a22502d323536222c226b7479223a224543222c2278223a2271586c546b37354b514b594e2d50424a50444d347148773874594b67444c61716978634872746870635f55222c2279223a227464586f686d6e3464304f3738414346393839754c7278674857417279504a7465694f514976426a52446f227d"
+        },
+        {
+          "name": "thumbprint.sha256",
+          "encoding": "hex",
+          "value": "5ef5d38f326668a5c96967e9b15f66507e0ad8fa4017a4a35a385b70237d7485"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": null,
+        "outputs": [
+          {
+            "name": "reporter_id",
+            "encoding": "base64url",
+            "value": "XvXTjzJmaKXJaWfpsV9mUH4K2PpAF6SjWjhbcCN9dIU"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "jwk.canonical",
+          "replacement": {
+            "name": "jwk.canonical",
+            "encoding": "utf8",
+            "value": "{\"crv\": \"P-256\", \"kty\": \"EC\", \"x\": \"qXlTk75KQKYN-PBJPDM4qHw8tYKgDLaqixcHrthpc_U\", \"y\": \"tdXohmn4d0O78ACF989uLrxgHWAryPJteiOQIvBjRDo\"}"
+          }
+        },
+        {
+          "field": "jwk.x",
+          "replacement": {
+            "name": "jwk.x",
+            "encoding": "base64url",
+            "value": "AKl5U5O-SkCmDfjwSTwzOKh8PLWCoAy2qosXB67YaXP1"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "common.jwk-thumbprint.m00",
+          "field": "jwk.x",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.jwk-thumbprint.m01",
+          "field": "jwk.y",
+          "operation": "alter-byte",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.jwk-thumbprint.m02",
+          "field": "jwk.canonical",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.jwk-thumbprint.m03",
+          "field": "jwk.canonical.hex",
+          "operation": "reorder",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.jwk-thumbprint.m04",
+          "field": "thumbprint.sha256",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        }
+      ]
+    },
+    {
+      "id": "common.content-digest",
+      "description": "RFC 9530 Content-Digest over the exact canonical body bytes; only sha-256, one member, RFC 8941 byte sequence with standard padded base64.",
+      "requirements": [
+        "6.1",
+        "6.5",
+        "7.5f"
+      ],
+      "routes": [
+        "reporter.report.create"
+      ],
+      "inputs": [
+        {
+          "name": "body",
+          "encoding": "utf8",
+          "value": "{\"state\":\"available\",\"watts\":12.5}"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "body.sha256",
+          "encoding": "hex",
+          "value": "d24c693eb8f99f7241d943fd1c3394498deb6743da0d4fab696665538119ef7d"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": null,
+        "outputs": [
+          {
+            "name": "headers.content-digest",
+            "encoding": "ascii",
+            "value": "sha-256=:0kxpPrj5n3JB2UP9HDOUSY3rZ0PaDU+raWZlU4EZ730=:"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "headers.content-digest",
+          "replacement": {
+            "name": "headers.content-digest",
+            "encoding": "ascii",
+            "value": "sha-512=:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==:"
+          }
+        },
+        {
+          "field": "body",
+          "replacement": {
+            "name": "body",
+            "encoding": "utf8",
+            "value": "{\"watts\":12.5,\"state\":\"available\"}"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "common.content-digest.m00",
+          "field": "headers.content-digest",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.content-digest.m01",
+          "field": "body",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.content-digest.m02",
+          "field": "body.sha256",
+          "operation": "alter-byte",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.content-digest.m03",
+          "field": "headers.content-digest.member",
+          "operation": "duplicate",
+          "expected_code": "invalid_request"
+        }
+      ]
+    },
+    {
+      "id": "common.server-identity",
+      "description": "Interactive server_identity is exactly https://<canonical lowercase IDNA2008 A-label host>:<canonical port>, at most 267 bytes, with no userinfo, path, query, fragment, percent encoding, malformed or noncanonical A-label, IP literal, or alternate numeric IP form recognized by the connection stack.",
+      "requirements": [
+        "4.3",
+        "4.5"
+      ],
+      "routes": [
+        "reporter.enrollment.create"
+      ],
+      "inputs": [
+        {
+          "name": "host",
+          "encoding": "ascii",
+          "value": "ha.example.com"
+        },
+        {
+          "name": "port",
+          "encoding": "decimal",
+          "value": "58443"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "server_identity.hex",
+          "encoding": "hex",
+          "value": "68747470733a2f2f68612e6578616d706c652e636f6d3a3538343433"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": null,
+        "outputs": [
+          {
+            "name": "server_identity",
+            "encoding": "ascii",
+            "value": "https://ha.example.com:58443"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "host",
+          "replacement": {
+            "name": "host",
+            "encoding": "ascii",
+            "value": "HA.example.com"
+          }
+        },
+        {
+          "field": "port",
+          "replacement": {
+            "name": "port",
+            "encoding": "ascii",
+            "value": "058443"
+          }
+        },
+        {
+          "field": "server_identity.path",
+          "replacement": {
+            "name": "server_identity.path",
+            "encoding": "ascii",
+            "value": "https://ha.example.com:58443/"
+          }
+        },
+        {
+          "field": "server_identity.literal",
+          "replacement": {
+            "name": "server_identity.literal",
+            "encoding": "ascii",
+            "value": "https://192.0.2.10:58443"
+          }
+        },
+        {
+          "field": "server_identity.alternate-ip",
+          "replacement": {
+            "name": "server_identity.alternate-ip",
+            "encoding": "ascii",
+            "value": "https://0xc000020a:58443"
+          }
+        },
+        {
+          "field": "server_identity.malformed-alabel",
+          "replacement": {
+            "name": "server_identity.malformed-alabel",
+            "encoding": "ascii",
+            "value": "https://xn--a.example:58443"
+          }
+        },
+        {
+          "field": "server_identity.trailing-dot",
+          "replacement": {
+            "name": "server_identity.trailing-dot",
+            "encoding": "ascii",
+            "value": "https://ha.example.com.:58443"
+          }
+        },
+        {
+          "field": "server_identity.userinfo",
+          "replacement": {
+            "name": "server_identity.userinfo",
+            "encoding": "ascii",
+            "value": "https://u@ha.example.com:58443"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "common.server-identity.m00",
+          "field": "host",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.server-identity.m01",
+          "field": "port",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.server-identity.m02",
+          "field": "server_identity.path",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.server-identity.m03",
+          "field": "server_identity.literal",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.server-identity.m04",
+          "field": "server_identity.trailing-dot",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.server-identity.m05",
+          "field": "server_identity.userinfo",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.server-identity.m06",
+          "field": "server_identity.hex",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "common.server-identity.m07",
+          "field": "server_identity.alternate-ip",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        },
+        {
+          "id": "common.server-identity.m08",
+          "field": "server_identity.malformed-alabel",
+          "operation": "substitute",
+          "expected_code": "invalid_request"
+        }
+      ]
+    },
+    {
+      "id": "common.problem-response",
+      "description": "Closed RFC 9457 problem: exactly type, title, status and code; status equals the HTTP status mapped from code; no member echoes input; the complete response including headers fits 2 KiB.",
+      "requirements": [
+        "6.1",
+        "6.8"
+      ],
+      "routes": [],
+      "inputs": [
+        {
+          "name": "code",
+          "encoding": "ascii",
+          "value": "conflict"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "body",
+          "encoding": "utf8",
+          "value": "{\"code\":\"conflict\",\"status\":409,\"title\":\"Conflict\",\"type\":\"https://remote-energy-meter.example/protocol/v1/problems/conflict\"}"
+        },
+        {
+          "name": "response.length",
+          "encoding": "decimal",
+          "value": "237"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": null,
+        "outputs": [
+          {
+            "name": "response",
+            "encoding": "ascii",
+            "value": "HTTP/1.1 409 Conflict\r\nContent-Type: application/problem+json\r\nCache-Control: no-store\r\nContent-Length: 126\r\n\r\n{\"code\":\"conflict\",\"status\":409,\"title\":\"Conflict\",\"type\":\"https://remote-energy-meter.example/protocol/v1/problems/conflict\"}"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "body.status",
+          "replacement": {
+            "name": "body.status",
+            "encoding": "decimal",
+            "value": "410"
+          }
+        },
+        {
+          "field": "body.code",
+          "replacement": {
+            "name": "body.code",
+            "encoding": "ascii",
+            "value": "conflict_detail"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "common.problem-response.m00",
+          "field": "body.status",
+          "operation": "substitute",
+          "expected_code": "internal_error"
+        },
+        {
+          "id": "common.problem-response.m01",
+          "field": "body.code",
+          "operation": "substitute",
+          "expected_code": "internal_error"
+        },
+        {
+          "id": "common.problem-response.m02",
+          "field": "body.detail",
+          "operation": "duplicate",
+          "expected_code": "internal_error"
+        },
+        {
+          "id": "common.problem-response.m03",
+          "field": "headers.content-type",
+          "operation": "alter-value",
+          "expected_code": "internal_error"
+        }
+      ]
+    },
+    {
+      "id": "common.roster-snapshot-digest",
+      "description": "completeness_digest = SHA-256(encode('rem-roster-snapshot-v1', [schema_version, purpose, snapshot_id, snapshot_generation, total_count, records_sha256])) where records_sha256 hashes every ordered record as uint32be(len) || canonical JSON.",
+      "requirements": [
+        "8.6f",
+        "8.6g"
+      ],
+      "routes": [
+        "control.roster.snapshot"
+      ],
+      "inputs": [
+        {
+          "name": "snapshot_id",
+          "encoding": "base64url",
+          "value": "GBgYGBgYGBgYGBgYGBgYGA"
+        },
+        {
+          "name": "snapshot_generation",
+          "encoding": "decimal",
+          "value": "9"
+        },
+        {
+          "name": "record[0]",
+          "encoding": "utf8",
+          "value": "{\"active_key_generation\":1,\"active_key_thumbprint\":\"XvXTjzJmaKXJaWfpsV9mUH4K2PpAF6SjWjhbcCN9dIU\",\"enrollment_mode\":\"interactive\",\"metadata\":{\"architecture\":\"arm64\",\"display_name\":\"Studio laptop\",\"platform\":\"macos\",\"reporter_version\":\"0.1.0\"},\"pending_enrollment\":null,\"pending_key_rotation\":null,\"record_state\":\"active\",\"reporter_id\":\"XvXTjzJmaKXJaWfpsV9mUH4K2PpAF6SjWjhbcCN9dIU\",\"reporter_state_generation\":3}"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "records.stream",
+          "encoding": "hex",
+          "value": "0000019a7b226163746976655f6b65795f67656e65726174696f6e223a312c226163746976655f6b65795f7468756d627072696e74223a22587658546a7a4a6d614b584a615766707356396d5548344b325070414636536a576a686263434e39644955222c22656e726f6c6c6d656e745f6d6f6465223a22696e746572616374697665222c226d65746164617461223a7b22617263686974656374757265223a2261726d3634222c22646973706c61795f6e616d65223a2253747564696f206c6170746f70222c22706c6174666f726d223a226d61636f73222c227265706f727465725f76657273696f6e223a22302e312e30227d2c2270656e64696e675f656e726f6c6c6d656e74223a6e756c6c2c2270656e64696e675f6b65795f726f746174696f6e223a6e756c6c2c227265636f72645f7374617465223a22616374697665222c227265706f727465725f6964223a22587658546a7a4a6d614b584a615766707356396d5548344b325070414636536a576a686263434e39644955222c227265706f727465725f73746174655f67656e65726174696f6e223a337d"
+        },
+        {
+          "name": "transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001672656d2d726f737465722d736e617073686f742d7631000e736368656d615f76657273696f6e00000001010007707572706f73650000001672656d2d726f737465722d736e617073686f742d7631000b736e617073686f745f696400000010181818181818181818181818181818180013736e617073686f745f67656e65726174696f6e000000080000000000000009000b746f74616c5f636f756e74000000080000000000000001000e7265636f7264735f73686132353600000020681f84939b76a54b76751fdbc6d1e4d63fbcafbb27668afc0f6548aba7ce3009"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": null,
+        "outputs": [
+          {
+            "name": "completeness_digest",
+            "encoding": "base64url",
+            "value": "-kHfqn0ddRRnH4RADC4fB_AW6D_H_CN_QQjzksJzGfc"
+          }
+        ]
+      },
+      "substitutes": [],
+      "mutations": [
+        {
+          "id": "common.roster-snapshot-digest.m00",
+          "field": "snapshot_id",
+          "operation": "alter-byte",
+          "expected_code": "stale_snapshot"
+        },
+        {
+          "id": "common.roster-snapshot-digest.m01",
+          "field": "snapshot_generation",
+          "operation": "alter-value",
+          "expected_code": "stale_snapshot"
+        },
+        {
+          "id": "common.roster-snapshot-digest.m02",
+          "field": "record[0]",
+          "operation": "alter-byte",
+          "expected_code": "stale_snapshot"
+        },
+        {
+          "id": "common.roster-snapshot-digest.m03",
+          "field": "records.stream",
+          "operation": "duplicate",
+          "expected_code": "stale_snapshot"
+        },
+        {
+          "id": "common.roster-snapshot-digest.m04",
+          "field": "transcript",
+          "operation": "reorder",
+          "expected_code": "stale_snapshot"
+        }
+      ]
+    },
+    {
+      "id": "common.operation-digest",
+      "description": "operation_digest = SHA-256(canonical JSON of the reporter-action body plus member purpose='rem-control-operation-v1'). Canonical JSON: members sorted by byte order, no whitespace, minimal escaping, canonical integers.",
+      "requirements": [
+        "8.6d"
+      ],
+      "routes": [
+        "control.reporter.action"
+      ],
+      "inputs": [
+        {
+          "name": "body",
+          "encoding": "utf8",
+          "value": "{\"action\":\"approve\",\"enrollment_id\":\"AQEBAQEBAQEBAQEBAQEBAQ\",\"expected_roster_generation\":7,\"operation_id\":\"GhoaGhoaGhoaGhoaGhoaGg\",\"reporter_id\":\"XvXTjzJmaKXJaWfpsV9mUH4K2PpAF6SjWjhbcCN9dIU\",\"schema_version\":1,\"transcript_digest\":\"PxKGRpY9qCb34YIHBTDpkuX862WmN5BuFkxA52WUMmk\"}"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "operation.canonical",
+          "encoding": "utf8",
+          "value": "{\"action\":\"approve\",\"enrollment_id\":\"AQEBAQEBAQEBAQEBAQEBAQ\",\"expected_roster_generation\":7,\"operation_id\":\"GhoaGhoaGhoaGhoaGhoaGg\",\"purpose\":\"rem-control-operation-v1\",\"reporter_id\":\"XvXTjzJmaKXJaWfpsV9mUH4K2PpAF6SjWjhbcCN9dIU\",\"schema_version\":1,\"transcript_digest\":\"PxKGRpY9qCb34YIHBTDpkuX862WmN5BuFkxA52WUMmk\"}"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": null,
+        "outputs": [
+          {
+            "name": "operation_digest",
+            "encoding": "base64url",
+            "value": "EbZrcoTYk5ozjJK04NmXyYtIyYTlkGvShGWXX2yorJw"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "operation.purpose",
+          "replacement": {
+            "name": "operation.purpose",
+            "encoding": "ascii",
+            "value": "rem-control-operation-v2"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "common.operation-digest.m00",
+          "field": "body.expected_roster_generation",
+          "operation": "alter-value",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "common.operation-digest.m01",
+          "field": "body.reporter_id",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "common.operation-digest.m02",
+          "field": "operation.purpose",
+          "operation": "substitute",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "common.operation-digest.m03",
+          "field": "operation.canonical",
+          "operation": "reorder",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "common.operation-digest.m04",
+          "field": "body.action",
+          "operation": "alter-value",
+          "expected_code": "conflict"
+        }
+      ]
+    }
+  ]
+}
