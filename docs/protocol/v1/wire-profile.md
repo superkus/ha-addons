@@ -333,40 +333,38 @@ The integration sends the confirmation in the acknowledgement, and the core retu
 
 `completeness_digest = SHA-256(transcript)`.
 
-## 4. Commit-before-reveal, SAS indexes, and future rendering
+## 4. Commit-before-reveal and SAS rendering
 
 Each side MUST fix its commitment before either nonce is revealed. The proposing side (reporter or integration) reveals
 first; the core MUST verify that reveal against the stored commitment and discard the pending state on mismatch
 **before** revealing its own nonce; the proposing side MUST then verify the core's commitment before any proof,
 confirmation or trust persistence. Proofs and commitments are compared in constant time.
 
-After task 3.3 vendors the normative tables, implementations MUST render the six SAS words as
-`Even[b[0]] Odd[b[1]] Even[b[2]] Odd[b[3]] Even[b[4]] Odd[b[5]]`, joined by single U+0020 spaces, using the exact
-256-entry **Even Word List** and **Odd Word List** of the PGP Word List referenced by RFC 6189 §5.1.6
-(`[pgpwordlist]`), zero-based, ASCII spelling and case preserved. RFC 6189 renders only two words (16 bits); this
-profile deliberately extends that rendering to six bytes and six words and does not claim RFC 6189 conformance.
+Implementations MUST render the six SAS words as
+`Even[b[0]] Odd[b[1]] Even[b[2]] Odd[b[3]] Even[b[4]] Odd[b[5]]`, joined by single U+0020 spaces. `Even` is the
+zero-based 256-entry table in `pgp-word-list/even.txt`; `Odd` is the zero-based 256-entry table in
+`pgp-word-list/odd.txt`. Implementations MUST preserve every ASCII byte, index, spelling, and letter case and MUST NOT
+apply locale or Unicode normalization. The newline-terminated files have these SHA-256 values:
 
-**Task 3.3 boundary and provenance.** This repository does not yet vendor the PGP Word List. The sole normative
-lineage is the **PGP Word List** referenced by [RFC 6189 section 5.1.6](https://www.rfc-editor.org/rfc/rfc6189#section-5.1.6):
-that RFC's `[pgpwordlist]` citation fixes the 2010-12 source as the Wikipedia revision with
-`oldid=400752943`. Task 3.3 MUST preserve an immutable copy of that cited revision and record, beside the extracted
-lists:
+- `even.txt`: `37a65f88512467edd12a1ab3eeb5f4328230e86711a8efde6333361ce10f4fcf`;
+- `odd.txt`: `c2f23c2233d4d7291107e8f796c374d0cb1fb30c1391bcb4f6480243de8ebf5a`.
 
-1. the exact source URL including `oldid`, retrieval UTC timestamp, media type, and SHA-256 of the unmodified source
-   bytes;
-2. the source's authorship/licensing notice and the repository's redistribution determination, without silently
-   treating a later Wikipedia revision or another implementation as authoritative;
-3. the reviewed extraction procedure and SHA-256 of each final newline-terminated ASCII data file;
-4. proof that each file has exactly 256 unique non-empty entries in zero-based order, preserves spelling and case,
-   contains ASCII only, and has no leading/trailing whitespace; and
-5. an independent comparison against a second published implementation used only as a cross-check. Any disagreement
-   blocks vendoring until resolved against the RFC-cited revision.
+RFC 6189 section 5.1.6 renders only two words (16 bits). This profile deliberately extends that B256 rendering to six
+bytes and six words and does not claim RFC 6189 conformance. The server's Python implementation derives the six bytes
+as `HKDF-SHA-256(IKM=reporter_nonce || core_nonce, salt=SHA-256(transcript),
+info="rem-interactive-enroll-sas-v1", L=6)`, renders exactly six words, parses only that exact single-space ASCII form,
+and compares parsed authentication bytes in constant time.
 
-Until those requirements are met and task 3.3 pins and vendors both tables as normative data, the vector field
-`sas.words` uses the encoding `sas-placeholder` and the text `EVEN[i] ODD[j] …`. That text is **not** a rendered phrase
-and MUST NOT be shown to a user or accepted by an implementation. The transcript, digest, HKDF output bytes,
-per-position list selection and indexes are normative now; task 3.3 adds only the word strings and cross-language
-rendering tests. No implementation may ship SAS confirmation before task 3.3.
+**Normative PGP Word List provenance and license boundary.** RFC 6189's `[pgpwordlist]` citation fixes Wikipedia revision
+`oldid=400752943`. The tables were mechanically extracted from the immutable `20200228011544` archived capture of
+that revision. `pgp-word-list/notice.md` records the exact source URL, archive and retrieval times, source media type,
+source-byte SHA-256, authorship, license basis, extraction method, output hashes, and pinned PGPfone/thblt independent
+comparison results. `pgp-word-list/gfdl-1.2.txt` contains the full applicable GNU Free Documentation License. Only the
+two table data files and their byte-identical packaged resource copies are under GFDL 1.2; repository code remains
+MIT. The PGPfone and thblt source code was not copied and is not a redistribution or license basis.
+
+The server vector corpus now carries exact rendered ASCII words. Task 3.3 remains incomplete until the Rust reporter
+uses these server-owned files byte-for-byte and cross-language derivation, rendering, parsing, and tamper tests pass.
 
 ## 5. Keys and identifiers
 

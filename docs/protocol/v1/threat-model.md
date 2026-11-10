@@ -6,11 +6,12 @@ cover the existing polled devices or MQTT v1, which are unchanged.
 
 ## Scope of this increment
 
-Task 3.2 currently provides the Python half of the protocol primitive layer. The production package
-`src/remote_energy_meter/protocol_v1/` implements bounded canonical encodings and JSON, public P-256 JWK and RFC 7638
-identity parsing, RFC 9530 Content-Digest, low-S P1363 verification, signed-route profiles, and narrow reporter/control
-RFC 9421 request verification. The add-on's exact runtime dependencies now include `cryptography==50.0.0` and
-`idna==3.20`.
+Task 3.2 currently provides the Python half of the protocol primitive layer, and this increment adds the server/Python
+half of Task 3.3. The production package `src/remote_energy_meter/protocol_v1/` implements bounded canonical encodings
+and JSON, public P-256 JWK and RFC 7638 identity parsing, RFC 9530 Content-Digest, low-S P1363 verification,
+signed-route profiles, narrow reporter/control RFC 9421 request verification, and exact interactive SAS derivation,
+six-word rendering, strict parsing, and constant-time authentication-byte comparison. The add-on's exact runtime
+dependencies include `cryptography==50.0.0` and `idna==3.20`.
 
 This increment still adds **no listener**, route handler, replay store, authorization policy, or protocol business
 state. Nothing opens a protocol port or holds protocol keys. `tests/unit/test_protocol_v1_primitives.py` and
@@ -18,7 +19,9 @@ state. Nothing opens a protocol port or holds protocol keys. `tests/unit/test_pr
 `tests/conformance/test_protocol_v1_runtime.py` independently recomputes the Task 3.2 vector intermediates, verifies
 all fixed P-256 signatures, rejects every high-S twin, and executes the primitive-layer HTTP and transcript mutations.
 `tests/conformance/test_protocol_v1_artifacts.py` checks the contract, vector structure, checksums, and public-key-only
-fixture boundary.
+fixture boundary. `tests/conformance/test_protocol_v1_sas_data.py` checks the pinned source/list hashes, all 256 entries
+in both lists, exact package copies, and adjacent attribution/license record. Task 3.3 remains incomplete until Rust
+uses the same data and the cross-language tests pass.
 
 Rust implementation, Python/Rust interoperability, AEAD, stateful replay, authorization, route-schema outcomes, and
 business-state behavior remain assigned to later work. Task 3.2 remains incomplete until its Rust and cross-language
@@ -81,7 +84,7 @@ business-state coverage.
 
 | # | Threat | Required mitigation | Declared vector coverage |
 | ---: | --- | --- | --- |
-| T1 | Fake server during interactive first contact (MITM over provisional TLS) | Commit-before-reveal nonces bound into the SAS transcript with server identity, trust anchor and both commitments; after task 3.3, six rendered words compared on both surfaces; reciprocal confirmation of the same digest before activation; provisional TLS limited to the four interactive route IDs (`reporter.enrollment.create` in interactive mode, `reporter.enrollment.reveal`, `reporter.enrollment.confirm`, and `reporter.enrollment.status`) and memory-only state | `interactive.commitments`, `interactive.sas`, enrollment HTTP cases |
+| T1 | Fake server during interactive first contact (MITM over provisional TLS) | Commit-before-reveal nonces bound into the SAS transcript with server identity, trust anchor and both commitments; six exact rendered words compared on both surfaces; reciprocal confirmation of the same digest before activation; provisional TLS limited to the four interactive route IDs (`reporter.enrollment.create` in interactive mode, `reporter.enrollment.reveal`, `reporter.enrollment.confirm`, and `reporter.enrollment.status`) and memory-only state | `interactive.commitments`, `interactive.sas`, enrollment HTTP cases |
 | T2 | Attacker grinds nonces to match a SAS | Each side commits before seeing the other's nonce; a mismatched reveal discards the pending enrollment before the core reveals | `interactive.commitments` (`reveal.order`) |
 | T3 | Server identity confusion, redirect, alternate host encodings | Exact `https://host:port` identity compared by both sides before commitment; redirects never followed; IP literals, U-labels, case, leading zeros, paths rejected | `common.server-identity` |
 | T4 | Managed token theft at the TLS edge | Token never sent; proof is an HMAC under an HKDF key derived from SHA-256(token) and the core nonce; the core, not the edge, verifies; one durable transaction consumes token, nonce and creates identity | `managed.proof` |
@@ -108,8 +111,9 @@ business-state coverage.
 
 - **SAS strength.** Six words carry 48 bits; an online attacker gets one guess per pending enrollment, bounded by
   the enrollment rate limits. The review should confirm this margin.
-- **SAS word tables not yet vendored.** Until task 3.3, vectors carry a placeholder rendering. No user-facing SAS may
-  ship before task 3.3 lands the pinned PGP Word List with recorded provenance.
+- **SAS parity remains incomplete.** The server now pins and packages the RFC-cited word tables, and Python executes the
+  exact vectors and tamper cases. The reporter's Rust implementation and cross-language parity are still absent, so no
+  user-facing SAS may ship and Task 3.3 remains incomplete.
 - **Interactive enrollment creation replay.** The initial interactive create request carries no client clock and no
   prior server-issued freshness value. A captured valid request can recreate pending state after the previous pending
   window expires or the core restarts. One pending enrollment per proposed identity, source/global rate limits,

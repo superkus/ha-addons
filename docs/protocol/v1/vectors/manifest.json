@@ -51,7 +51,7 @@
     },
     {
       "file": "interactive-enrollment.json",
-      "sha256": "1d19b6a1aa3bc7226165682fd7f831a0cc9f7b5b6b5ebae6b993b9aa6422f36d",
+      "sha256": "195e6a4f9c2a1a7e4043df714f757ed71b7f077baa8b717d1ccc40834cda7423",
       "case_ids": [
         "interactive.commitments",
         "interactive.sas"
@@ -101,6 +101,22 @@
   ],
   "contract_files": [
     {
+      "path": "pgp-word-list/gfdl-1.2.txt",
+      "sha256": "2652c22ba086f92e55ae4a9f9c890ad4766ffd7814a73d318e22a597edf857a4"
+    },
+    {
+      "path": "pgp-word-list/notice.md",
+      "sha256": "10163dd18c1d3f3100e6129185138d9a6a99cf89939ae86659be649f9e6b0f3f"
+    },
+    {
+      "path": "pgp-word-list/even.txt",
+      "sha256": "37a65f88512467edd12a1ab3eeb5f4328230e86711a8efde6333361ce10f4fcf"
+    },
+    {
+      "path": "pgp-word-list/odd.txt",
+      "sha256": "c2f23c2233d4d7291107e8f796c374d0cb1fb30c1391bcb4f6480243de8ebf5a"
+    },
+    {
       "path": "routes.json",
       "sha256": "8d13873daa0f0a681f3b99ff579fb1d8f78310862a26d3a64d4f252ac6860c84"
     },
@@ -126,11 +142,11 @@
     },
     {
       "path": "schemas/vector.schema.json",
-      "sha256": "df06128903e3a60e9792031471588966a6646c67d3c324eb824ebeb9a8466cf5"
+      "sha256": "7ea7e9f18ffc90fac1125c1dc683870f5b1ca2ee8a3cc3964e50c291169220e4"
     },
     {
       "path": "wire-profile.md",
-      "sha256": "6b0aa172a6b7825408c421015ecb6bb18ce0d9242cd7144c0ebed233cc09c41e"
+      "sha256": "e0fa848ec9bc8e1717c5ade17f6d7317fb60d69b91f4c6a6d6345b10f0799c9a"
     }
   ]
 }

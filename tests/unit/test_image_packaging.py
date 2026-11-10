@@ -86,6 +86,12 @@ def test_base_image_python_minor_matches_the_project_python_version() -> None:
     assert tag.startswith(f"{expected}-"), f"base image tag {tag!r} is not Python {expected}"
 
 
+def test_image_license_label_covers_mit_code_and_gfdl_word_list_data() -> None:
+    dockerfile = DOCKERFILE.read_text(encoding="utf-8")
+
+    assert 'org.opencontainers.image.licenses="MIT AND GFDL-1.2-only"' in dockerfile
+
+
 def test_manifest_arch_list_matches_the_supported_set_and_the_ci_image_matrix() -> None:
     """An arch in config.yaml that CI never builds advertises an image nobody has verified, and vice versa."""
     manifest = _mapping(yaml.safe_load(MANIFEST.read_text(encoding="utf-8")))

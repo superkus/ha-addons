@@ -84,6 +84,6 @@ LABEL \
     io.hass.version="${BUILD_VERSION}" \
     org.opencontainers.image.title="Remote Energy Meter" \
     org.opencontainers.image.description="Home Assistant add-on that meters power of network-attached devices through per-family plugins and publishes power and energy over MQTT discovery." \
-    org.opencontainers.image.licenses="MIT" \
+    org.opencontainers.image.licenses="MIT AND GFDL-1.2-only" \
     org.opencontainers.image.source="https://github.com/superkus/remote_energy_meter" \
     org.opencontainers.image.version="${BUILD_VERSION}"
