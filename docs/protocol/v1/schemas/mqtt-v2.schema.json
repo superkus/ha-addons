@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remote-energy-meter.example/protocol/v1/schemas/mqtt-v2.schema.json",
+  "title": "REM MQTT v2 AEAD envelope and payloads",
+  "$ref": "#/$defs/envelope",
+  "$defs": {
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ciphertext",
+        "expires_at",
+        "issued_at",
+        "key_generation",
+        "key_id",
+        "process_generation",
+        "publication_counter",
+        "schema",
+        "state_generation",
+        "stream_sequence"
+      ],
+      "properties": {
+        "ciphertext": {
+          "type": "string",
+          "minLength": 22,
+          "maxLength": 704,
+          "pattern": "^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048]|[A-Za-z0-9_-][AQgw])?$",
+          "x-rem-decoded-max-bytes": 528
+        },
+        "expires_at": {
+          "oneOf": [
+            {
+              "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/unixSeconds"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "issued_at": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/unixSeconds"
+        },
+        "key_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "key_id": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/b64u16"
+        },
+        "process_generation": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+        },
+        "publication_counter": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        },
+        "schema": {
+          "const": "rem-mqtt-envelope-v1"
+        },
+        "state_generation": {
+          "oneOf": [
+            {
+              "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/positiveUint64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stream_sequence": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/uint64"
+        }
+      },
+      "x-rem-canonical-max-bytes": 1024
+    },
+    "processAvailabilityPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "online",
+            "offline"
+          ]
+        }
+      }
+    },
+    "deviceConfigPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "architecture",
+        "display_name",
+        "platform",
+        "reporter_version"
+      ],
+      "properties": {
+        "architecture": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/architecture"
+        },
+        "display_name": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/displayName"
+        },
+        "platform": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/platform"
+        },
+        "reporter_version": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/reporterVersion"
+        }
+      },
+      "x-rem-canonical-max-bytes": 512
+    },
+    "devicePowerAvailable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "watts"
+      ],
+      "properties": {
+        "state": {
+          "const": "available"
+        },
+        "watts": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/watts"
+        }
+      }
+    },
+    "devicePowerUnavailable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state"
+      ],
+      "properties": {
+        "state": {
+          "const": "unavailable"
+        }
+      }
+    },
+    "devicePowerPayload": {
+      "oneOf": [
+        {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/mqtt-v2.schema.json#/$defs/devicePowerAvailable"
+        },
+        {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/mqtt-v2.schema.json#/$defs/devicePowerUnavailable"
+        }
+      ]
+    },
+    "deviceEnergyPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_kwh"
+      ],
+      "properties": {
+        "total_kwh": {
+          "$ref": "https://remote-energy-meter.example/protocol/v1/schemas/common.schema.json#/$defs/kilowattHours"
+        }
+      }
+    },
+    "deviceAvailabilityPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "online",
+            "offline"
+          ]
+        }
+      }
+    },
+    "messageTypes": {
+      "const": {
+        "process-availability": "<base>/v2/meta/process-availability",
+        "device-config": "<base>/v2/devices/<reporter_id>/config",
+        "device-power": "<base>/v2/devices/<reporter_id>/power/state",
+        "device-energy": "<base>/v2/devices/<reporter_id>/energy/state",
+        "device-availability": "<base>/v2/devices/<reporter_id>/availability"
+      }
+    }
+  }
+}

@@ -1,0 +1,808 @@
+{
+  "schema": "rem-vector-set-v1",
+  "profile_version": 1,
+  "description": "Control pairing credential, bootstrap commit/reveal/confirm and recovery commit/reveal/revoke.",
+  "cases": [
+    {
+      "id": "bootstrap.commit-reveal-confirm",
+      "description": "control_pairing_credential is the exact ASCII 'remcp1.<expires_at>.<secret>'; control_pairing_key is only the 32 bytes decoded from <secret>; consumed_credential_digest = SHA-256(credential bytes). Commitments are HMAC(key, encode('rem-control-pairing-commit-v1', role, nonce)); proofs are HMAC(key, encode('rem-control-pairing-proof-v1', role, pairing_digest)). The observed SPKI is the handshake leaf. confirm.request duplicate means a changed duplicate (same ID, different proof).",
+      "requirements": [
+        "7.5a"
+      ],
+      "routes": [
+        "control.bootstrap.commit",
+        "control.bootstrap.reveal",
+        "control.bootstrap.confirm"
+      ],
+      "inputs": [
+        {
+          "name": "credential.text",
+          "encoding": "ascii",
+          "value": "remcp1.1767226200.WlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlo"
+        },
+        {
+          "name": "credential.expires_at",
+          "encoding": "decimal",
+          "value": "1767226200"
+        },
+        {
+          "name": "observed_control_spki_der",
+          "encoding": "base64url",
+          "value": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5OsyrgOSEnupoFEGB11Wgfo53mjn8aLe4FQlX_9-szq3zG4UvgYN5Kc6vYI9TfdIBVFueafLQmothTjUaNirfQ"
+        },
+        {
+          "name": "integration_jwk",
+          "encoding": "utf8",
+          "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"W8tCaCB6BFTCLuP-orrQwedBMTJ7KRMvCPxErXO2cuc\",\"y\":\"ydFT-fbBu__emzqMA2CgOo7gLZ2320-DS6N6MeX9GAU\"}"
+        },
+        {
+          "name": "integration_nonce",
+          "encoding": "base64url",
+          "value": "MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM"
+        },
+        {
+          "name": "core_nonce",
+          "encoding": "base64url",
+          "value": "REREREREREREREREREREREREREREREREREREREREREQ"
+        },
+        {
+          "name": "bootstrap_id",
+          "encoding": "base64url",
+          "value": "AgICAgICAgICAgICAgICAg"
+        },
+        {
+          "name": "expires_at",
+          "encoding": "decimal",
+          "value": "1767226200"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "control_pairing_key",
+          "encoding": "hex",
+          "value": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
+        },
+        {
+          "name": "consumed_credential_digest",
+          "encoding": "hex",
+          "value": "446546bb2f61e8f74157ef9699a1e712bf46db9f3e2a7f9c3da88406651094f1"
+        },
+        {
+          "name": "control_spki_sha256",
+          "encoding": "hex",
+          "value": "088f88eb17dc1202d871a5f4dacdd34c0350d10dc47949eaa179a13e36b0c077"
+        },
+        {
+          "name": "integration_commit.transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001d72656d2d636f6e74726f6c2d70616972696e672d636f6d6d69742d76310004726f6c650000000b696e746567726174696f6e00056e6f6e6365000000203333333333333333333333333333333333333333333333333333333333333333"
+        },
+        {
+          "name": "core_commit.transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001d72656d2d636f6e74726f6c2d70616972696e672d636f6d6d69742d76310004726f6c6500000004636f726500056e6f6e6365000000204444444444444444444444444444444444444444444444444444444444444444"
+        },
+        {
+          "name": "transcript.encoded.header",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401"
+        },
+        {
+          "name": "transcript.encoded.domain-purpose",
+          "encoding": "hex",
+          "value": "001672656d2d636f6e74726f6c2d70616972696e672d7631"
+        },
+        {
+          "name": "transcript.encoded.schema_version",
+          "encoding": "hex",
+          "value": "000e736368656d615f76657273696f6e0000000101"
+        },
+        {
+          "name": "transcript.encoded.purpose",
+          "encoding": "hex",
+          "value": "0007707572706f73650000001672656d2d636f6e74726f6c2d70616972696e672d7631"
+        },
+        {
+          "name": "transcript.encoded.instance_id",
+          "encoding": "hex",
+          "value": "000b696e7374616e63655f69640000000a696e7374616e63652d61"
+        },
+        {
+          "name": "transcript.encoded.control_spki_sha256",
+          "encoding": "hex",
+          "value": "0013636f6e74726f6c5f73706b695f73686132353600000020088f88eb17dc1202d871a5f4dacdd34c0350d10dc47949eaa179a13e36b0c077"
+        },
+        {
+          "name": "transcript.encoded.integration_jwk",
+          "encoding": "hex",
+          "value": "000f696e746567726174696f6e5f6a776b0000007e7b22637276223a22502d323536222c226b7479223a224543222c2278223a225738744361434236424654434c75502d6f727251776564424d544a374b524d764350784572584f32637563222c2279223a22796446542d666242755f5f656d7a714d413243674f6f37674c5a323332302d4453364e364d655839474155227d"
+        },
+        {
+          "name": "transcript.encoded.integration_thumbprint",
+          "encoding": "hex",
+          "value": "0016696e746567726174696f6e5f7468756d627072696e7400000020321fe133ef965756c6ff1b1dcba59d76b6d3f3b4f4532e58dd06a2616f6484de"
+        },
+        {
+          "name": "transcript.encoded.integration_commitment",
+          "encoding": "hex",
+          "value": "0016696e746567726174696f6e5f636f6d6d69746d656e740000002036818e9a92a25466f707b449793542c0d5cd3a59fd094da9c6d0b0ac0877dd79"
+        },
+        {
+          "name": "transcript.encoded.core_commitment",
+          "encoding": "hex",
+          "value": "000f636f72655f636f6d6d69746d656e7400000020589849e3d24e4cfda90cabd361fedd1038407e95a294e2b5b32948729badd28e"
+        },
+        {
+          "name": "transcript.encoded.integration_nonce",
+          "encoding": "hex",
+          "value": "0011696e746567726174696f6e5f6e6f6e6365000000203333333333333333333333333333333333333333333333333333333333333333"
+        },
+        {
+          "name": "transcript.encoded.core_nonce",
+          "encoding": "hex",
+          "value": "000a636f72655f6e6f6e6365000000204444444444444444444444444444444444444444444444444444444444444444"
+        },
+        {
+          "name": "transcript.encoded.expires_at",
+          "encoding": "hex",
+          "value": "000a657870697265735f617400000008000000006955bb58"
+        },
+        {
+          "name": "transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001672656d2d636f6e74726f6c2d70616972696e672d7631000e736368656d615f76657273696f6e00000001010007707572706f73650000001672656d2d636f6e74726f6c2d70616972696e672d7631000b696e7374616e63655f69640000000a696e7374616e63652d610013636f6e74726f6c5f73706b695f73686132353600000020088f88eb17dc1202d871a5f4dacdd34c0350d10dc47949eaa179a13e36b0c077000f696e746567726174696f6e5f6a776b0000007e7b22637276223a22502d323536222c226b7479223a224543222c2278223a225738744361434236424654434c75502d6f727251776564424d544a374b524d764350784572584f32637563222c2279223a22796446542d666242755f5f656d7a714d413243674f6f37674c5a323332302d4453364e364d655839474155227d0016696e746567726174696f6e5f7468756d627072696e7400000020321fe133ef965756c6ff1b1dcba59d76b6d3f3b4f4532e58dd06a2616f6484de0016696e746567726174696f6e5f636f6d6d69746d656e740000002036818e9a92a25466f707b449793542c0d5cd3a59fd094da9c6d0b0ac0877dd79000f636f72655f636f6d6d69746d656e7400000020589849e3d24e4cfda90cabd361fedd1038407e95a294e2b5b32948729badd28e0011696e746567726174696f6e5f6e6f6e6365000000203333333333333333333333333333333333333333333333333333333333333333000a636f72655f6e6f6e6365000000204444444444444444444444444444444444444444444444444444444444444444000a657870697265735f617400000008000000006955bb58"
+        },
+        {
+          "name": "pairing_digest",
+          "encoding": "hex",
+          "value": "02da719977fda0e1510ff8001b2de42476bb8e8a7a6ce174138770cdcc8e2189"
+        },
+        {
+          "name": "integration_proof.transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001c72656d2d636f6e74726f6c2d70616972696e672d70726f6f662d76310004726f6c650000000b696e746567726174696f6e000e70616972696e675f6469676573740000002002da719977fda0e1510ff8001b2de42476bb8e8a7a6ce174138770cdcc8e2189"
+        },
+        {
+          "name": "core_proof.transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001c72656d2d636f6e74726f6c2d70616972696e672d70726f6f662d76310004726f6c6500000004636f7265000e70616972696e675f6469676573740000002002da719977fda0e1510ff8001b2de42476bb8e8a7a6ce174138770cdcc8e2189"
+        },
+        {
+          "name": "commit.request",
+          "encoding": "utf8",
+          "value": "{\"control_spki_sha256\":\"CI-I6xfcEgLYcaX02s3TTANQ0Q3EeUnqoXmhPjawwHc\",\"instance_id\":\"instance-a\",\"integration_commitment\":\"NoGOmpKiVGb3B7RJeTVCwNXNOln9CU2pxtCwrAh33Xk\",\"integration_jwk\":{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"W8tCaCB6BFTCLuP-orrQwedBMTJ7KRMvCPxErXO2cuc\",\"y\":\"ydFT-fbBu__emzqMA2CgOo7gLZ2320-DS6N6MeX9GAU\"},\"integration_thumbprint\":\"Mh_hM--WV1bG_xsdy6WddrbT87T0Uy5Y3QaiYW9khN4\",\"purpose\":\"rem-control-pairing-v1\",\"schema_version\":1}"
+        },
+        {
+          "name": "commit.response",
+          "encoding": "utf8",
+          "value": "{\"bootstrap_id\":\"AgICAgICAgICAgICAgICAg\",\"control_spki_sha256\":\"CI-I6xfcEgLYcaX02s3TTANQ0Q3EeUnqoXmhPjawwHc\",\"core_commitment\":\"WJhJ49JOTP2pDKvTYf7dEDhAfpWilOK1sylIcput0o4\",\"expires_at\":1767226200,\"instance_id\":\"instance-a\",\"integration_commitment\":\"NoGOmpKiVGb3B7RJeTVCwNXNOln9CU2pxtCwrAh33Xk\",\"integration_jwk\":{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"W8tCaCB6BFTCLuP-orrQwedBMTJ7KRMvCPxErXO2cuc\",\"y\":\"ydFT-fbBu__emzqMA2CgOo7gLZ2320-DS6N6MeX9GAU\"},\"integration_thumbprint\":\"Mh_hM--WV1bG_xsdy6WddrbT87T0Uy5Y3QaiYW9khN4\",\"purpose\":\"rem-control-pairing-v1\",\"schema_version\":1}"
+        },
+        {
+          "name": "reveal.request",
+          "encoding": "utf8",
+          "value": "{\"bootstrap_id\":\"AgICAgICAgICAgICAgICAg\",\"integration_nonce\":\"MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM\",\"schema_version\":1}"
+        },
+        {
+          "name": "reveal.response",
+          "encoding": "utf8",
+          "value": "{\"bootstrap_id\":\"AgICAgICAgICAgICAgICAg\",\"core_nonce\":\"REREREREREREREREREREREREREREREREREREREREREQ\",\"schema_version\":1}"
+        },
+        {
+          "name": "confirm.request",
+          "encoding": "utf8",
+          "value": "{\"bootstrap_id\":\"AgICAgICAgICAgICAgICAg\",\"integration_proof\":\"AQnXvZCwDd5p_GfL5NqL11eu9V2_BCC-gcHL7qiKfoU\",\"schema_version\":1}"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": 200,
+        "outputs": [
+          {
+            "name": "integration_commitment",
+            "encoding": "base64url",
+            "value": "NoGOmpKiVGb3B7RJeTVCwNXNOln9CU2pxtCwrAh33Xk"
+          },
+          {
+            "name": "core_commitment",
+            "encoding": "base64url",
+            "value": "WJhJ49JOTP2pDKvTYf7dEDhAfpWilOK1sylIcput0o4"
+          },
+          {
+            "name": "integration_proof",
+            "encoding": "base64url",
+            "value": "AQnXvZCwDd5p_GfL5NqL11eu9V2_BCC-gcHL7qiKfoU"
+          },
+          {
+            "name": "core_proof",
+            "encoding": "base64url",
+            "value": "n10I5F2h8aYUQRwF9OSUEfLbimw7mjz8EOsrHwBCMfA"
+          },
+          {
+            "name": "confirm.response",
+            "encoding": "utf8",
+            "value": "{\"bootstrap_id\":\"AgICAgICAgICAgICAgICAg\",\"control_key_generation\":1,\"control_spki_sha256\":\"CI-I6xfcEgLYcaX02s3TTANQ0Q3EeUnqoXmhPjawwHc\",\"core_proof\":\"n10I5F2h8aYUQRwF9OSUEfLbimw7mjz8EOsrHwBCMfA\",\"integration_thumbprint\":\"Mh_hM--WV1bG_xsdy6WddrbT87T0Uy5Y3QaiYW9khN4\",\"pairing_digest\":\"AtpxmXf9oOFRD_gAGy3kJHa7jop6bOF0E4dwzcyOIYk\",\"schema_version\":1}"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "control_pairing_key",
+          "replacement": {
+            "name": "control_pairing_key",
+            "encoding": "hex",
+            "value": "60bf07c488aad18fda339df07e4fbc47b4f00be71711936f18d04d352ad01890"
+          }
+        },
+        {
+          "field": "proof.role",
+          "replacement": {
+            "name": "proof.role",
+            "encoding": "ascii",
+            "value": "core"
+          }
+        },
+        {
+          "field": "consumed_credential_digest",
+          "replacement": {
+            "name": "consumed_credential_digest",
+            "encoding": "hex",
+            "value": "60bf07c488aad18fda339df07e4fbc47b4f00be71711936f18d04d352ad01890"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "bootstrap.commit-reveal-confirm.m00",
+          "field": "transcript.schema_version",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m01",
+          "field": "transcript.purpose",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m02",
+          "field": "transcript.instance_id",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m03",
+          "field": "transcript.control_spki_sha256",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m04",
+          "field": "transcript.integration_jwk",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m05",
+          "field": "transcript.integration_thumbprint",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m06",
+          "field": "transcript.integration_commitment",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m07",
+          "field": "transcript.core_commitment",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m08",
+          "field": "transcript.integration_nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m09",
+          "field": "transcript.core_nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m10",
+          "field": "transcript.expires_at",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m11",
+          "field": "transcript.field-order",
+          "operation": "reorder",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m12",
+          "field": "credential.text",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m13",
+          "field": "credential.expires_at",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m14",
+          "field": "control_pairing_key",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m15",
+          "field": "integration_commitment",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m16",
+          "field": "core_commitment",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m17",
+          "field": "integration_proof",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m18",
+          "field": "core_proof",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m19",
+          "field": "proof.role",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m20",
+          "field": "reveal.order",
+          "operation": "reorder",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m21",
+          "field": "commit.request.integration_jwk",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m22",
+          "field": "confirm.retry-after-success.integration_proof",
+          "operation": "alter-byte",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "bootstrap.commit-reveal-confirm.m23",
+          "field": "consumed_credential_digest",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        }
+      ]
+    },
+    {
+      "id": "recovery.commit-reveal-revoke",
+      "description": "Recovery under a second fresh credential. Same credential/key/consumed-digest definitions as bootstrap; commitments use 'rem-control-recovery-commit-v1', proofs 'rem-control-recovery-proof-v1' over recovery_digest = SHA-256(encode('rem-control-recovery-v1', 15 fields)). The observed SPKI here differs from the current pinned SPKI and scope revokes both.",
+      "requirements": [
+        "7.5e"
+      ],
+      "routes": [
+        "control.recovery.commit",
+        "control.recovery.reveal",
+        "control.recovery.revoke"
+      ],
+      "inputs": [
+        {
+          "name": "credential.text",
+          "encoding": "ascii",
+          "value": "remcp1.1767312600.a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s"
+        },
+        {
+          "name": "integration_nonce",
+          "encoding": "base64url",
+          "value": "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU"
+        },
+        {
+          "name": "core_nonce",
+          "encoding": "base64url",
+          "value": "ZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmY"
+        },
+        {
+          "name": "recovery_id",
+          "encoding": "base64url",
+          "value": "AwMDAwMDAwMDAwMDAwMDAw"
+        }
+      ],
+      "intermediates": [
+        {
+          "name": "control_pairing_key",
+          "encoding": "hex",
+          "value": "6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b"
+        },
+        {
+          "name": "consumed_credential_digest",
+          "encoding": "hex",
+          "value": "1311f77d22794f83b549880ef9328d317585a641ac7897575a00eeafe83517e0"
+        },
+        {
+          "name": "integration_commit.transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001e72656d2d636f6e74726f6c2d7265636f766572792d636f6d6d69742d76310004726f6c650000000b696e746567726174696f6e00056e6f6e6365000000205555555555555555555555555555555555555555555555555555555555555555"
+        },
+        {
+          "name": "core_commit.transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001e72656d2d636f6e74726f6c2d7265636f766572792d636f6d6d69742d76310004726f6c6500000004636f726500056e6f6e6365000000206666666666666666666666666666666666666666666666666666666666666666"
+        },
+        {
+          "name": "transcript.encoded.header",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401"
+        },
+        {
+          "name": "transcript.encoded.domain-purpose",
+          "encoding": "hex",
+          "value": "001772656d2d636f6e74726f6c2d7265636f766572792d7631"
+        },
+        {
+          "name": "transcript.encoded.schema_version",
+          "encoding": "hex",
+          "value": "000e736368656d615f76657273696f6e0000000101"
+        },
+        {
+          "name": "transcript.encoded.purpose",
+          "encoding": "hex",
+          "value": "0007707572706f73650000001772656d2d636f6e74726f6c2d7265636f766572792d7631"
+        },
+        {
+          "name": "transcript.encoded.instance_id",
+          "encoding": "hex",
+          "value": "000b696e7374616e63655f69640000000a696e7374616e63652d61"
+        },
+        {
+          "name": "transcript.encoded.current_control_key_thumbprint",
+          "encoding": "hex",
+          "value": "001e63757272656e745f636f6e74726f6c5f6b65795f7468756d627072696e7400000020321fe133ef965756c6ff1b1dcba59d76b6d3f3b4f4532e58dd06a2616f6484de"
+        },
+        {
+          "name": "transcript.encoded.current_control_key_generation",
+          "encoding": "hex",
+          "value": "001e63757272656e745f636f6e74726f6c5f6b65795f67656e65726174696f6e000000080000000000000001"
+        },
+        {
+          "name": "transcript.encoded.current_control_spki_sha256",
+          "encoding": "hex",
+          "value": "001b63757272656e745f636f6e74726f6c5f73706b695f73686132353600000020088f88eb17dc1202d871a5f4dacdd34c0350d10dc47949eaa179a13e36b0c077"
+        },
+        {
+          "name": "transcript.encoded.current_control_spki_generation",
+          "encoding": "hex",
+          "value": "001f63757272656e745f636f6e74726f6c5f73706b695f67656e65726174696f6e000000080000000000000001"
+        },
+        {
+          "name": "transcript.encoded.observed_control_spki_sha256",
+          "encoding": "hex",
+          "value": "001c6f627365727665645f636f6e74726f6c5f73706b695f7368613235360000002096bc654d763396587e97ff026b5249450472550054ac261170ff368000a6081b"
+        },
+        {
+          "name": "transcript.encoded.revocation_scope",
+          "encoding": "hex",
+          "value": "00107265766f636174696f6e5f73636f706500000014636f6e74726f6c2d6b65792d616e642d73706b69"
+        },
+        {
+          "name": "transcript.encoded.integration_commitment",
+          "encoding": "hex",
+          "value": "0016696e746567726174696f6e5f636f6d6d69746d656e74000000203490104f319d842cc592825f61f53ab503969ebfe46ee4c918220e4f51bb58a8"
+        },
+        {
+          "name": "transcript.encoded.core_commitment",
+          "encoding": "hex",
+          "value": "000f636f72655f636f6d6d69746d656e7400000020373cc22ec73f6397612fc8ff4cdc8179330129a3161cba5dae84accf8cf64109"
+        },
+        {
+          "name": "transcript.encoded.integration_nonce",
+          "encoding": "hex",
+          "value": "0011696e746567726174696f6e5f6e6f6e6365000000205555555555555555555555555555555555555555555555555555555555555555"
+        },
+        {
+          "name": "transcript.encoded.core_nonce",
+          "encoding": "hex",
+          "value": "000a636f72655f6e6f6e6365000000206666666666666666666666666666666666666666666666666666666666666666"
+        },
+        {
+          "name": "transcript.encoded.expires_at",
+          "encoding": "hex",
+          "value": "000a657870697265735f6174000000080000000069570cd8"
+        },
+        {
+          "name": "transcript.encoded.recovery_generation",
+          "encoding": "hex",
+          "value": "00137265636f766572795f67656e65726174696f6e000000080000000000000001"
+        },
+        {
+          "name": "transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001772656d2d636f6e74726f6c2d7265636f766572792d7631000e736368656d615f76657273696f6e00000001010007707572706f73650000001772656d2d636f6e74726f6c2d7265636f766572792d7631000b696e7374616e63655f69640000000a696e7374616e63652d61001e63757272656e745f636f6e74726f6c5f6b65795f7468756d627072696e7400000020321fe133ef965756c6ff1b1dcba59d76b6d3f3b4f4532e58dd06a2616f6484de001e63757272656e745f636f6e74726f6c5f6b65795f67656e65726174696f6e000000080000000000000001001b63757272656e745f636f6e74726f6c5f73706b695f73686132353600000020088f88eb17dc1202d871a5f4dacdd34c0350d10dc47949eaa179a13e36b0c077001f63757272656e745f636f6e74726f6c5f73706b695f67656e65726174696f6e000000080000000000000001001c6f627365727665645f636f6e74726f6c5f73706b695f7368613235360000002096bc654d763396587e97ff026b5249450472550054ac261170ff368000a6081b00107265766f636174696f6e5f73636f706500000014636f6e74726f6c2d6b65792d616e642d73706b690016696e746567726174696f6e5f636f6d6d69746d656e74000000203490104f319d842cc592825f61f53ab503969ebfe46ee4c918220e4f51bb58a8000f636f72655f636f6d6d69746d656e7400000020373cc22ec73f6397612fc8ff4cdc8179330129a3161cba5dae84accf8cf641090011696e746567726174696f6e5f6e6f6e6365000000205555555555555555555555555555555555555555555555555555555555555555000a636f72655f6e6f6e6365000000206666666666666666666666666666666666666666666666666666666666666666000a657870697265735f6174000000080000000069570cd800137265636f766572795f67656e65726174696f6e000000080000000000000001"
+        },
+        {
+          "name": "recovery_digest",
+          "encoding": "hex",
+          "value": "58253b28f808178a790daca70a64bf2a62705d2f0a5705ec461616a31510442a"
+        },
+        {
+          "name": "integration_proof.transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001d72656d2d636f6e74726f6c2d7265636f766572792d70726f6f662d76310004726f6c650000000b696e746567726174696f6e000f7265636f766572795f6469676573740000002058253b28f808178a790daca70a64bf2a62705d2f0a5705ec461616a31510442a"
+        },
+        {
+          "name": "core_proof.transcript",
+          "encoding": "hex",
+          "value": "52454d2d5452414e53435249505401001d72656d2d636f6e74726f6c2d7265636f766572792d70726f6f662d76310004726f6c6500000004636f7265000f7265636f766572795f6469676573740000002058253b28f808178a790daca70a64bf2a62705d2f0a5705ec461616a31510442a"
+        },
+        {
+          "name": "commit.request",
+          "encoding": "utf8",
+          "value": "{\"current_control_key_generation\":1,\"current_control_key_thumbprint\":\"Mh_hM--WV1bG_xsdy6WddrbT87T0Uy5Y3QaiYW9khN4\",\"current_control_spki_generation\":1,\"current_control_spki_sha256\":\"CI-I6xfcEgLYcaX02s3TTANQ0Q3EeUnqoXmhPjawwHc\",\"instance_id\":\"instance-a\",\"integration_commitment\":\"NJAQTzGdhCzFkoJfYfU6tQOWnr_kbuTJGCIOT1G7WKg\",\"observed_control_spki_sha256\":\"lrxlTXYzllh-l_8Ca1JJRQRyVQBUrCYRcP82gACmCBs\",\"purpose\":\"rem-control-recovery-v1\",\"recovery_generation\":1,\"revocation_scope\":\"control-key-and-spki\",\"schema_version\":1}"
+        },
+        {
+          "name": "commit.response",
+          "encoding": "utf8",
+          "value": "{\"core_commitment\":\"NzzCLsc_Y5dhL8j_TNyBeTMBKaMWHLpdroSsz4z2QQk\",\"current_control_key_generation\":1,\"current_control_key_thumbprint\":\"Mh_hM--WV1bG_xsdy6WddrbT87T0Uy5Y3QaiYW9khN4\",\"current_control_spki_generation\":1,\"current_control_spki_sha256\":\"CI-I6xfcEgLYcaX02s3TTANQ0Q3EeUnqoXmhPjawwHc\",\"expires_at\":1767312600,\"instance_id\":\"instance-a\",\"integration_commitment\":\"NJAQTzGdhCzFkoJfYfU6tQOWnr_kbuTJGCIOT1G7WKg\",\"observed_control_spki_sha256\":\"lrxlTXYzllh-l_8Ca1JJRQRyVQBUrCYRcP82gACmCBs\",\"purpose\":\"rem-control-recovery-v1\",\"recovery_generation\":1,\"recovery_id\":\"AwMDAwMDAwMDAwMDAwMDAw\",\"revocation_scope\":\"control-key-and-spki\",\"schema_version\":1}"
+        },
+        {
+          "name": "reveal.request",
+          "encoding": "utf8",
+          "value": "{\"integration_nonce\":\"VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU\",\"recovery_id\":\"AwMDAwMDAwMDAwMDAwMDAw\",\"schema_version\":1}"
+        },
+        {
+          "name": "reveal.response",
+          "encoding": "utf8",
+          "value": "{\"core_nonce\":\"ZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmY\",\"recovery_id\":\"AwMDAwMDAwMDAwMDAwMDAw\",\"schema_version\":1}"
+        },
+        {
+          "name": "revoke.request",
+          "encoding": "utf8",
+          "value": "{\"integration_proof\":\"w4KkIBEzHoeWUzkiKOq4WJR1t2Am3CILFKss7l06NTM\",\"recovery_id\":\"AwMDAwMDAwMDAwMDAwMDAw\",\"schema_version\":1}"
+        }
+      ],
+      "expected": {
+        "accept": true,
+        "status": 200,
+        "outputs": [
+          {
+            "name": "integration_commitment",
+            "encoding": "base64url",
+            "value": "NJAQTzGdhCzFkoJfYfU6tQOWnr_kbuTJGCIOT1G7WKg"
+          },
+          {
+            "name": "core_commitment",
+            "encoding": "base64url",
+            "value": "NzzCLsc_Y5dhL8j_TNyBeTMBKaMWHLpdroSsz4z2QQk"
+          },
+          {
+            "name": "integration_proof",
+            "encoding": "base64url",
+            "value": "w4KkIBEzHoeWUzkiKOq4WJR1t2Am3CILFKss7l06NTM"
+          },
+          {
+            "name": "core_proof",
+            "encoding": "base64url",
+            "value": "nvhqnPPXGLFGKL2T2lXLHgsLgHg03HYD_yaxOzwT9No"
+          },
+          {
+            "name": "revoke.response",
+            "encoding": "utf8",
+            "value": "{\"core_proof\":\"nvhqnPPXGLFGKL2T2lXLHgsLgHg03HYD_yaxOzwT9No\",\"recovery_digest\":\"WCU7KPgIF4p5DaynCmS_KmJwXS8KVwXsRhYWoxUQRCo\",\"recovery_generation\":1,\"recovery_id\":\"AwMDAwMDAwMDAwMDAwMDAw\",\"schema_version\":1}"
+          }
+        ]
+      },
+      "substitutes": [
+        {
+          "field": "transcript.revocation_scope.value",
+          "replacement": {
+            "name": "transcript.revocation_scope.value",
+            "encoding": "ascii",
+            "value": "control-key"
+          }
+        },
+        {
+          "field": "proof.purpose",
+          "replacement": {
+            "name": "proof.purpose",
+            "encoding": "ascii",
+            "value": "rem-control-pairing-proof-v1"
+          }
+        },
+        {
+          "field": "commit.request.instance_id",
+          "replacement": {
+            "name": "commit.request.instance_id",
+            "encoding": "ascii",
+            "value": "instance-b"
+          }
+        }
+      ],
+      "mutations": [
+        {
+          "id": "recovery.commit-reveal-revoke.m00",
+          "field": "transcript.schema_version",
+          "operation": "alter-value",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m01",
+          "field": "transcript.purpose",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m02",
+          "field": "transcript.instance_id",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m03",
+          "field": "transcript.current_control_key_thumbprint",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m04",
+          "field": "transcript.current_control_key_generation",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m05",
+          "field": "transcript.current_control_spki_sha256",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m06",
+          "field": "transcript.current_control_spki_generation",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m07",
+          "field": "transcript.observed_control_spki_sha256",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m08",
+          "field": "transcript.revocation_scope",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m09",
+          "field": "transcript.integration_commitment",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m10",
+          "field": "transcript.core_commitment",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m11",
+          "field": "transcript.integration_nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m12",
+          "field": "transcript.core_nonce",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m13",
+          "field": "transcript.expires_at",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m14",
+          "field": "transcript.recovery_generation",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m15",
+          "field": "transcript.field-order",
+          "operation": "reorder",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m16",
+          "field": "transcript.revocation_scope.value",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m17",
+          "field": "credential.text",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m18",
+          "field": "integration_commitment",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m19",
+          "field": "core_commitment",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m20",
+          "field": "integration_proof",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m21",
+          "field": "core_proof",
+          "operation": "alter-byte",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m22",
+          "field": "proof.purpose",
+          "operation": "substitute",
+          "expected_code": "authentication_required"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m23",
+          "field": "reveal.order",
+          "operation": "reorder",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m24",
+          "field": "commit.request.recovery_generation",
+          "operation": "alter-value",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m25",
+          "field": "commit.request.instance_id",
+          "operation": "substitute",
+          "expected_code": "conflict"
+        },
+        {
+          "id": "recovery.commit-reveal-revoke.m26",
+          "field": "credential.reuse",
+          "operation": "duplicate",
+          "expected_code": "authentication_required"
+        }
+      ]
+    }
+  ]
+}

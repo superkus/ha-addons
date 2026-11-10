@@ -1,0 +1,466 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remote-energy-meter.example/protocol/v1/schemas/problem.schema.json",
+  "title": "REM protocol v1 RFC 9457 problem response",
+  "$ref": "#/$defs/problem",
+  "x-rem-code-status": {
+    "invalid_request": 400,
+    "authentication_required": 401,
+    "authorization_denied": 403,
+    "not_found": 404,
+    "method_not_allowed": 405,
+    "request_timeout": 408,
+    "conflict": 409,
+    "snapshot_required": 409,
+    "stale_snapshot": 410,
+    "operation_result_expired": 410,
+    "request_body_too_large": 413,
+    "target_too_long": 414,
+    "unsupported_media_type": 415,
+    "rate_limited": 429,
+    "headers_too_large": 431,
+    "internal_error": 500,
+    "overloaded": 503
+  },
+  "$defs": {
+    "problem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "title",
+        "status",
+        "code"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "pattern": "^https://remote-energy-meter\\.example/protocol/v1/problems/[a-z_]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "status": {
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            405,
+            408,
+            409,
+            410,
+            413,
+            414,
+            415,
+            429,
+            431,
+            500,
+            503
+          ]
+        },
+        "code": {
+          "enum": [
+            "invalid_request",
+            "authentication_required",
+            "authorization_denied",
+            "not_found",
+            "method_not_allowed",
+            "request_timeout",
+            "conflict",
+            "snapshot_required",
+            "stale_snapshot",
+            "operation_result_expired",
+            "request_body_too_large",
+            "target_too_long",
+            "unsupported_media_type",
+            "rate_limited",
+            "headers_too_large",
+            "internal_error",
+            "overloaded"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "invalid_request"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 400
+              },
+              "title": {
+                "const": "Invalid request"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/invalid_request"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "authentication_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 401
+              },
+              "title": {
+                "const": "Authentication required"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/authentication_required"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "authorization_denied"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 403
+              },
+              "title": {
+                "const": "Authorization denied"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/authorization_denied"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "not_found"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 404
+              },
+              "title": {
+                "const": "Not found"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/not_found"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "method_not_allowed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 405
+              },
+              "title": {
+                "const": "Method not allowed"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/method_not_allowed"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "request_timeout"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 408
+              },
+              "title": {
+                "const": "Request timeout"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/request_timeout"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "conflict"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 409
+              },
+              "title": {
+                "const": "Conflict"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/conflict"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "snapshot_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 409
+              },
+              "title": {
+                "const": "Snapshot required"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/snapshot_required"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "stale_snapshot"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 410
+              },
+              "title": {
+                "const": "Stale snapshot"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/stale_snapshot"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "operation_result_expired"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 410
+              },
+              "title": {
+                "const": "Operation result expired"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/operation_result_expired"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "request_body_too_large"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 413
+              },
+              "title": {
+                "const": "Request body too large"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/request_body_too_large"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "target_too_long"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 414
+              },
+              "title": {
+                "const": "Request target too long"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/target_too_long"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "unsupported_media_type"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 415
+              },
+              "title": {
+                "const": "Unsupported media type"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/unsupported_media_type"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "rate_limited"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 429
+              },
+              "title": {
+                "const": "Rate limited"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/rate_limited"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "headers_too_large"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 431
+              },
+              "title": {
+                "const": "Request headers too large"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/headers_too_large"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "internal_error"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 500
+              },
+              "title": {
+                "const": "Internal error"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/internal_error"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "overloaded"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 503
+              },
+              "title": {
+                "const": "Overloaded"
+              },
+              "type": {
+                "const": "https://remote-energy-meter.example/protocol/v1/problems/overloaded"
+              }
+            }
+          }
+        }
+      ],
+      "x-rem-media-type": "application/problem+json",
+      "x-rem-complete-response-max-bytes": 2048
+    }
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "schema": "rem-vector-manifest-v1",
+  "profile_version": 1,
+  "source_of_truth": "server-owned",
+  "source_repository": "superkus/remote_energy_meter",
+  "profile_path": "docs/protocol/v1",
+  "checksum_algorithm": "sha256",
+  "files": [
+    {
+      "file": "common.json",
+      "sha256": "7e8262fa26ed3ee7ce7f13558b8ceaf5b42e3182204693206143295ceaca7150",
+      "case_ids": [
+        "common.transcript-encoding",
+        "common.jwk-thumbprint",
+        "common.content-digest",
+        "common.server-identity",
+        "common.problem-response",
+        "common.roster-snapshot-digest",
+        "common.operation-digest"
+      ]
+    },
+    {
+      "file": "http-signatures.json",
+      "sha256": "f4b357d944fcfca47a7e1448a43bb4d744818fd73968a714e18a079655d9ca53",
+      "case_ids": [
+        "http.route.reporter.enrollment.create",
+        "http.route.reporter.enrollment.create.managed",
+        "http.route.reporter.enrollment.reveal",
+        "http.route.reporter.enrollment.confirm",
+        "http.route.reporter.enrollment.status",
+        "http.route.reporter.challenge.create",
+        "http.route.reporter.session.create",
+        "http.reporter-signature",
+        "http.route.reporter.key-rotation-challenge.create",
+        "http.route.reporter.key-rotation.complete",
+        "http.route.control.managed-token.issue",
+        "http.route.control.managed-token.status",
+        "http.route.control.managed-token.revoke",
+        "http.route.control.roster.events",
+        "http.route.control.roster.snapshot",
+        "http.route.control.roster.snapshot.continuation",
+        "http.route.control.reporter.action",
+        "http.route.control.reporter-key-rotation.confirm",
+        "http.route.control.control-key-rotation-challenge.create",
+        "http.route.control.control-spki-rotation",
+        "http.route.control.control-spki-rotation.confirm",
+        "http.route.control.mqtt-key.provision",
+        "http.route.control.mqtt-key.acknowledge",
+        "http.control-signature"
+      ]
+    },
+    {
+      "file": "interactive-enrollment.json",
+      "sha256": "1d19b6a1aa3bc7226165682fd7f831a0cc9f7b5b6b5ebae6b993b9aa6422f36d",
+      "case_ids": [
+        "interactive.commitments",
+        "interactive.sas"
+      ]
+    },
+    {
+      "file": "managed-enrollment.json",
+      "sha256": "cecb3a8f55e7a8ac6283d00f1abb5b364cf83cb0a952c67a07b5183c87bb4cd9",
+      "case_ids": [
+        "managed.proof"
+      ]
+    },
+    {
+      "file": "control-bootstrap-recovery.json",
+      "sha256": "941eba8898ccbdaf4b51e4f6c23a40d82e3c8c375b9acc7df4d5065281621d38",
+      "case_ids": [
+        "bootstrap.commit-reveal-confirm",
+        "recovery.commit-reveal-revoke"
+      ]
+    },
+    {
+      "file": "key-rotations.json",
+      "sha256": "40e672058799b924edff5c3316e2be541dc6aef00b17e0bcf5125a5148fcef3a",
+      "case_ids": [
+        "rotation.reporter",
+        "rotation.control-key",
+        "rotation.control-spki"
+      ]
+    },
+    {
+      "file": "managed-token-control.json",
+      "sha256": "850fe3e3867b364de98c99fcaeae61375623f434ebbc7a24e33d0f4d1dd5cad9",
+      "case_ids": [
+        "managed-token.issue-status-revoke"
+      ]
+    },
+    {
+      "file": "mqtt-v2-aead.json",
+      "sha256": "452a45eac40fb31d516cc4b2d981d0be952faffa7862bbdf0ff4d4063527203f",
+      "case_ids": [
+        "mqtt.key-provision",
+        "mqtt.key-acknowledge",
+        "mqtt.aead-envelope",
+        "mqtt.process-offline-will"
+      ]
+    }
+  ],
+  "contract_files": [
+    {
+      "path": "routes.json",
+      "sha256": "8d13873daa0f0a681f3b99ff579fb1d8f78310862a26d3a64d4f252ac6860c84"
+    },
+    {
+      "path": "schemas/common.schema.json",
+      "sha256": "b4e1dde01230629a4dbf78bdddd32cdd95ccb6c0ff5cef565046c70321b1a6d6"
+    },
+    {
+      "path": "schemas/problem.schema.json",
+      "sha256": "8ee8bd525dec6466125f60fcf637b309630f887d695e596ecf1dfb9081184000"
+    },
+    {
+      "path": "schemas/reporter-api.schema.json",
+      "sha256": "116ac61346e0e43d908be956be6acc9f4b11081b56dc19e38aafa97ac11e8c56"
+    },
+    {
+      "path": "schemas/control-api.schema.json",
+      "sha256": "ba240db28b8c63b7e9206bd058d5845fccf5b9874f11cddccc2f0294ca788464"
+    },
+    {
+      "path": "schemas/mqtt-v2.schema.json",
+      "sha256": "30aac4d0fd1b9d04ae03246012a47a4e0fc71f002807055511b33e6d1648e8c4"
+    },
+    {
+      "path": "schemas/vector.schema.json",
+      "sha256": "df06128903e3a60e9792031471588966a6646c67d3c324eb824ebeb9a8466cf5"
+    },
+    {
+      "path": "wire-profile.md",
+      "sha256": "7baec7846d48b331e52fd3798159656ba703033b1826979b481d73ec1ee0b53a"
+    }
+  ]
+}
