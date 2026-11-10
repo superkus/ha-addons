@@ -6,6 +6,30 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Added pure Python protocol-v1 primitives for strict, allocation-bounded canonical base64url and JSON, bounded
+  transcripts, public P-256 JWKs and RFC 7638 identities, RFC 9530 Content-Digest, low-S P1363 verification, and the
+  narrow reporter/control RFC 9421 profiles. Verification handles HTTP field names case-insensitively, uses trimmed
+  field values in the signature base, rejects ambiguous framing metadata, binds active/proposed keys by signature role,
+  and returns both the trusted stable identity and rotatable signing key IDs with an immutable snapshot of the exact
+  request for later replay and business-state layers; no listener, route handler, state, or business logic is included.
+- Added executable unit, property, and vector-backed conformance coverage for the Python primitives, including every
+  fixed signature, high-S twin, and primitive-layer one-field HTTP mutation.
+
+### Changed
+
+- Corrected the draft protocol-v1 reporter signature profile to omit client wall-clock parameters entirely. Reporter
+  `Signature-Input` now contains exactly `keyid`, `alg`, and `tag`; freshness remains exclusively bound to server-issued
+  pending-enrollment, challenge, session, and sequence state. Regenerated the affected public reporter HTTP vectors
+  with in-memory ephemeral P-256 keys and replaced impossible one-member query reorder mutations with executable
+  duplicate-member rejection cases.
+
+### Security
+
+- Added exact runtime pins for `cryptography` 50.0.0 and `idna` 3.20 and included them in the hash-locked, audited add-on
+  dependency set.
+
 ## [0.1.3]
 
 ### Added

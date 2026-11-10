@@ -205,8 +205,9 @@ each transaction boundary.
   compromise requires revocation and re-enrollment.
 - Message signatures: one RFC 9421 signature labelled `rem`, algorithm `ecdsa-p256-sha256`, RFC 9530 SHA-256
   Content-Digest, fixed component sets and purpose-specific tags (`rem-enroll-v1`, `rem-managed-enroll-v1`,
-  `rem-challenge-v1`, `rem-session-v1`, `rem-report-v1`, `rem-rotate-challenge-v1`, `rem-rotate-v1`).
-- Client `created` is informational only. It never establishes freshness or measurement time.
+  `rem-challenge-v1`, `rem-session-v1`, `rem-report-v1`, `rem-rotate-challenge-v1`, `rem-rotate-v1`). Reporter
+  Signature-Input parameters are exactly `keyid`, `alg`, and `tag`; reporters transmit no client wall-clock timestamp.
+  Freshness comes exclusively from server-issued pending-enrollment, challenge, session, and sequence state.
 
 Session/replay flow:
 

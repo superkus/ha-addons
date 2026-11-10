@@ -1,7 +1,7 @@
 """Conformance checks for the server-owned protocol-v1 contract.
 
-These tests use the runtime-pinned IDNA implementation and a test-only cryptography
-library to validate public P-256 signatures. They provide no production
+These tests use the runtime-pinned IDNA and cryptography implementations to
+validate public P-256 signatures. The artifact checks provide no production
 cryptographic primitive or network listener.
 """
 
@@ -776,7 +776,7 @@ def test_key_provenance_is_documented_as_an_unverifiable_maintainer_claim() -> N
     readme = " ".join((PROFILE / "README.md").read_text(encoding="utf-8").split())
     threat_model = " ".join((PROFILE / "threat-model.md").read_text(encoding="utf-8").split())
     # The discard statement must stay attributed to the maintainer, never stated as a verified fact.
-    assert "The maintainer's provenance is that seven ephemeral P-256 key pairs were generated" in readme
+    assert "The maintainer's provenance is that ephemeral P-256 key pairs were generated" in readme
     assert "cannot prove how the keys were generated or that no private copy was retained elsewhere" in readme
     assert "must not treat this provenance statement as key-destruction evidence" in readme
     assert "The maintainer reports that the private halves were discarded" in threat_model

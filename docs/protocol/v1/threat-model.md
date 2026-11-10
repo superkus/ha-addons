@@ -6,15 +6,28 @@ cover the existing polled devices or MQTT v1, which are unchanged.
 
 ## Scope of this increment
 
-Task 3.1 publishes the profile, schemas and public vectors only. It adds **no listener**, no production cryptographic
-code, no runtime dependency, and no runtime behaviour: nothing in the add-on or the integration opens a port, parses
-these requests, or holds any key described here. The threats below are the ones every later implementation task must
-defeat. The vectors currently record fixtures and expected outcomes; they are not evidence that an implementation
-performs those checks.
+Task 3.2 currently provides the Python half of the protocol primitive layer. The production package
+`src/remote_energy_meter/protocol_v1/` implements bounded canonical encodings and JSON, public P-256 JWK and RFC 7638
+identity parsing, RFC 9530 Content-Digest, low-S P1363 verification, signed-route profiles, and narrow reporter/control
+RFC 9421 request verification. The add-on's exact runtime dependencies now include `cryptography==50.0.0` and
+`idna==3.20`.
+
+This increment still adds **no listener**, route handler, replay store, authorization policy, or protocol business
+state. Nothing opens a protocol port or holds protocol keys. `tests/unit/test_protocol_v1_primitives.py` and
+`tests/property/test_protocol_v1_properties.py` exercise the Python primitives;
+`tests/conformance/test_protocol_v1_runtime.py` independently recomputes the Task 3.2 vector intermediates, verifies
+all fixed P-256 signatures, rejects every high-S twin, and executes the primitive-layer HTTP and transcript mutations.
+`tests/conformance/test_protocol_v1_artifacts.py` checks the contract, vector structure, checksums, and public-key-only
+fixture boundary.
+
+Rust implementation, Python/Rust interoperability, AEAD, stateful replay, authorization, route-schema outcomes, and
+business-state behavior remain assigned to later work. Task 3.2 remains incomplete until its Rust and cross-language
+requirements pass.
 
 ## Security principles
 
-These are requirements for later implementations, not descriptions of current runtime behavior.
+These are requirements for the complete protocol. The Python primitive layer implements only the subset identified
+above; later implementation tasks must enforce the remaining requirements.
 
 - **Network location grants no trust.** The LAN, VPN, loopback, Docker and add-on bridge networks, the Supervisor
   internal network, the MQTT broker, and mDNS/zeroconf are untrusted transport. Discovery is a routing hint only.
@@ -25,8 +38,8 @@ These are requirements for later implementations, not descriptions of current ru
   credential copied by an administrator) or by MDM-delivered configuration; never by reachability.
 - Every message is bound to its purpose, route, peer identity, key generation, and freshness state, so it cannot be
   replayed on another route, against another instance, or after rotation.
-- Energy uses **server receipt time**. A client clock (`created`, any reporter timestamp) never drives integration,
-  freshness, ordering, or expiry.
+- Energy uses **server receipt time**. Reporter signatures transmit no client wall-clock timestamp, and no reporter
+  timestamp drives integration, freshness, ordering, or expiry.
 - Every input is capped and strictly validated before allocation; unknown fields, duplicates, and non-canonical
   encodings are rejected, never repaired.
 
@@ -61,8 +74,10 @@ only network path (they can always drop traffic; the protocol fails closed and v
 
 ## Threats and required mitigations
 
-The table states required mitigations for later implementation tasks. “Declared vector coverage” identifies fixture
-cases and expected outcomes; it does not claim executable conformance or independent cryptographic verification.
+The table states the complete protocol's required mitigations. “Declared vector coverage” names the fixtures that
+declare the expected values and rejection codes. The Python tests identified above execute the primitive-layer subset
+only; a listed vector does not imply executable Rust, cross-language, AEAD, replay, authorization, schema, or
+business-state coverage.
 
 | # | Threat | Required mitigation | Declared vector coverage |
 | ---: | --- | --- | --- |
@@ -87,7 +102,7 @@ cases and expected outcomes; it does not claim executable conformance or indepen
 | T19 | Information leak through errors or metadata | Closed four-member problem object; device metadata limited to four validated fields and sent only after trust | `common.problem-response`, session schema |
 | T20 | Roster snapshot tampering or truncation | Frozen snapshot ID and generation, authenticated continuation tokens, completeness digest over the exact ordered records | `common.roster-snapshot-digest` |
 | T21 | Rollback by restoring one side | Independent generation/high-water state on both ends and durable tombstones; coordinated full restore requires declared quarantine and fresh pairing (specification 5.3) | specification tests (tasks 4, 7, 9) |
-| T22 | Client clock manipulation skews energy | Reporter `created` is informational; energy and freshness use server receipt and monotonic time | profile section 8.2 |
+| T22 | Client clock manipulation skews energy | Reporter signatures carry no client wall-clock timestamp; energy uses server receipt time, and freshness uses server-issued state | profile section 8.2 |
 
 ## Residual risks and open questions for review
 
@@ -95,9 +110,12 @@ cases and expected outcomes; it does not claim executable conformance or indepen
   the enrollment rate limits. The review should confirm this margin.
 - **SAS word tables not yet vendored.** Until task 3.3, vectors carry a placeholder rendering. No user-facing SAS may
   ship before task 3.3 lands the pinned PGP Word List with recorded provenance.
-- **Reporter `created` is unenforced.** Freshness relies on server-issued challenge, session and sequence state; a
-  captured enrollment-phase request can be replayed only within its memory-only pending window and only with
-  idempotent effect.
+- **Interactive enrollment creation replay.** The initial interactive create request carries no client clock and no
+  prior server-issued freshness value. A captured valid request can recreate pending state after the previous pending
+  window expires or the core restarts. One pending enrollment per proposed identity, source/global rate limits,
+  memory-only expiry, and mandatory SAS/admin confirmation contain its effect, but do not prevent repeated operator
+  prompts. Task 3.4 must explicitly accept this exposure or require a server-issued pre-enrollment challenge in a later
+  profile correction. Managed enrollment is separately bound to its server-issued opaque challenge.
 - **Interactive provisional TLS** gives confidentiality but no server authentication until SAS completes. Its dispatcher
   admits exactly four reporter route IDs: `reporter.enrollment.create` only in interactive mode,
   `reporter.enrollment.reveal`, `reporter.enrollment.confirm`, and `reporter.enrollment.status`. Managed first contact is

@@ -426,13 +426,12 @@ Covered components, in this order: `@method`, `@authority`, `@path`, `@query`, `
 (`rem-session-id`, `rem-sequence` on `POST /api/v1/reports`; `"@query-param";name="after_status_generation"`,
 `"@query-param";name="wait_seconds"` on enrollment status); then `content-type`, `content-digest` on body routes.
 
-Signature parameters, exactly once and in this order: `created`, `keyid`, `alg`, `tag`. `keyid` is the RFC 7638
-thumbprint of the signing key (the proposed key on enrollment routes, the active key otherwise); `tag` equals the
-`REM-Purpose` header and the route purpose (`rem-enroll-v1` for interactive and `rem-managed-enroll-v1` for managed
-enrollment). `created` is a client clock value and is **informational only**: it is covered by the signature but
-never establishes freshness, measurement time or ordering. Reporter freshness and replay protection come from
-server-issued state: pending enrollment, the single-use challenge, the session, and the strictly increasing
-`REM-Sequence`.
+Signature parameters, exactly once and in this order: `keyid`, `alg`, `tag`. `keyid` is the RFC 7638 thumbprint of
+the signing key (the proposed key on enrollment routes, the active key otherwise); `tag` equals the `REM-Purpose`
+header and the route purpose (`rem-enroll-v1` for interactive and `rem-managed-enroll-v1` for managed enrollment).
+A reporter MUST NOT transmit `created` or any other client wall-clock timestamp. Reporter freshness and replay
+protection come exclusively from server-issued state: pending enrollment, the single-use challenge, the session, and
+the strictly increasing `REM-Sequence`.
 
 Headers: `REM-Purpose` (route tag), `REM-Session-Id` (b64u16), `REM-Sequence` (canonical uint64).
 
@@ -460,7 +459,8 @@ route without a query form rejects any `?`.
 ### 8.4 Header serialization
 
 ```text
-Signature-Input: rem=("@method" "@authority" … "content-digest");created=…;expires=…;nonce="…";keyid="…";alg="ecdsa-p256-sha256";tag="…"
+Reporter Signature-Input: rem=("@method" "@authority" … "content-digest");keyid="…";alg="ecdsa-p256-sha256";tag="…"
+Control Signature-Input: rem=("@method" "@authority" … "content-digest");created=…;expires=…;nonce="…";keyid="…";alg="ecdsa-p256-sha256";tag="…"
 Signature: rem=:<standard base64 of the 64-byte P1363 signature>:
 ```
 
@@ -485,12 +485,13 @@ codes are deterministic:
 6. Body over the route cap (counted while streaming) → `request_body_too_large`; wrong or parameterized
    `Content-Type`, or any `Content-Encoding` → `unsupported_media_type`.
 7. Missing, duplicate or malformed REM header, malformed or duplicate `Content-Digest`, digest mismatch,
-   non-canonical JSON, or a schema violation → `invalid_request`.
+   non-canonical JSON, an invalid enrollment body `mode`, or another schema violation → `invalid_request`.
 8. Missing or duplicate signature header, a label, component list, component order or parameter set that differs
    from the profile, a parameter that differs from its header, `alg` other than `ecdsa-p256-sha256`, an unknown or
-   superseded `keyid`, a stale `REM-Control-Key-Generation`, freshness outside section 8.3, signature verification
-   failure, or a high-S or non-64-byte signature → `authentication_required`. (Route-specific exact-retry lookups that
-   the route manifest permits run immediately before the active-key/generation check.)
+   superseded `keyid`, a stale `REM-Control-Key-Generation`, an allowed enrollment purpose that does not match the
+   authenticated body `mode`, freshness outside section 8.3, signature verification failure, or a high-S or non-64-byte
+   signature → `authentication_required`. (Route-specific exact-retry lookups that the route manifest permits run
+   immediately before the active-key/generation check.)
 9. Replayed control nonce outside the route's exact-retry rule → `authentication_required`.
 10. Authenticated identity lacks authority for the resource → `authorization_denied`.
 11. Business state: conflicts → `conflict`; roster cursor gaps → `snapshot_required`; stale snapshot tokens →
@@ -594,12 +595,12 @@ may only withdraw availability, and is rejected below the durable process-genera
 
 ## 13. Vector conformance semantics
 
-See `README.md` for the vector file format. A case will be accepted by a future conformance implementation when that
-implementation reproduces every `outputs` value from the `inputs`, matching every `intermediates` value on the way.
-Each mutation declaration instructs the implementation to change exactly one named field while keeping everything else,
-including any signature or proof computed over the original; the implementation MUST reject the resulting message with
-`expected_code`. The current structural conformance test validates the declarations but does not construct these
-mutations or execute them against protocol code.
+See `README.md` for the vector file format. The Python Task 3.2 conformance implementation reproduces the primitive
+layer's `outputs` values from the recorded `inputs`, matches the relevant `intermediates`, and executes that layer's
+mutations against the runtime. Each mutation changes exactly one named field while leaving everything else, including
+any signature or proof computed over the original, unchanged; the implementation rejects it with `expected_code`.
+The structural conformance test validates every declaration. Rust and cross-language execution, AEAD, stateful replay,
+route-schema outcomes, and business-state mutations remain assigned to later work.
 
 ## 14. Source of truth, versioning, and checksums
 
@@ -628,8 +629,8 @@ These details were not fixed by the specification; this profile fixes them, and 
 3. **Per-route reporter tags** `rem-enroll-reveal-v1`, `rem-enroll-confirm-v1`, `rem-enroll-status-v1`; all are signed
    by the proposed key so a third party cannot poll, reveal into, or confirm someone else's pending enrollment, and no
    signature can be reused across routes.
-4. **Reporter signature parameters** are `created`, `keyid`, `alg`, `tag` only; `created` is informational, because a
-   client clock must never establish freshness. Freshness is server-issued state.
+4. **Reporter signature parameters** are `keyid`, `alg`, `tag` only. Reporters send no client wall-clock timestamp;
+   freshness is derived exclusively from server-issued state.
 5. **Enrollment status long-poll** uses the exact query `after_status_generation=<uint64>&wait_seconds=<0..25>`,
    mirroring roster events.
 6. **Device metadata** is sent only in the signed session-creation body, after trust is established, satisfying
