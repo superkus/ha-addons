@@ -15,7 +15,15 @@ All notable changes to this project are documented here. The format follows
   and returns both the trusted stable identity and rotatable signing key IDs with an immutable snapshot of the exact
   request for later replay and business-state layers; no listener, route handler, state, or business logic is included.
 - Added executable unit, property, and vector-backed conformance coverage for the Python primitives, including every
-  fixed signature, high-S twin, and primitive-layer one-field HTTP mutation.
+  fixed signature, high-S twin, primitive-layer one-field HTTP mutation, every PGP word-list index in all six SAS
+  positions, strict phrase tamper rejection, and wheel package-data inclusion.
+- Added the server/Python half of the six-word interactive-enrollment SAS: transcript-hash-salted HKDF-SHA-256,
+  alternating exact Even/Odd rendering, strict six-word parsing, and constant-time authentication-byte comparison.
+  Vendored the two RFC-cited 256-entry ASCII PGP word lists as isolated GFDL 1.2 data with source-byte and list hashes,
+  complete license and attribution, reviewed extraction details, and pinned PGPfone/thblt comparison results. Wheel
+  metadata and the add-on's OCI license label identify both the MIT and GFDL-1.2-only portions of the shipped artifact.
+  The published interactive vector now contains its exact rendered phrase; Rust and cross-language parity remain
+  pending.
 
 ### Changed
 

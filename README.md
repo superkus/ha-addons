@@ -143,9 +143,10 @@ docker buildx build -f remote_energy_meter/Dockerfile --build-arg BUILD_ARCH=amd
 `docs/protocol/v1/` is the server-owned source of truth for the native-reporter, control, and MQTT v2 wire contract.
 Once the reporter repository implements this profile, it must consume the files byte-for-byte at a pinned commit,
 verify `vectors/manifest.json`, and never edit the files there. The profile is a draft until the independent security
-review (spec task 3.4) approves it. The Python backend now includes only the pure Task 3.2 protocol primitives; it does
-not include a listener, route handlers, replay storage, authorization, or business state. Rust implementation,
-cross-language verification, SAS words (task 3.3), and reporter-repository consumption remain future work.
+review (spec task 3.4) approves it. The Python backend now includes the pure Task 3.2 protocol primitives and the
+server/Python half of Task 3.3's exact SAS derivation, rendering, strict parsing, and verification; it does not include a
+listener, route handlers, replay storage, authorization, or business state. Rust implementation, cross-language
+verification, and reporter-repository consumption remain future work, so Tasks 3.2 and 3.3 remain incomplete.
 
 - `src/remote_energy_meter/protocol_v1/` provides strict canonical base64url, bounded `REM-TRANSCRIPT`, canonical
   public P-256 JWK and RFC 7638 identity, RFC 9530 Content-Digest, low-S IEEE P1363 P-256 verification, canonical JSON,
@@ -153,14 +154,21 @@ cross-language verification, SAS words (task 3.3), and reporter-repository consu
   `keyid`, `alg`, and `tag`, never a client wall-clock timestamp; reporter freshness remains in server-issued protocol
   state. Callers bind each accepted key to its trusted stable RFC 7638 identity; successful verification keeps that
   identity separate from the rotatable request `keyid` and returns an immutable snapshot containing the exact request,
-  component, signature-input, signature, and signature-base bytes for later replay and business-state layers.
+  component, signature-input, signature, and signature-base bytes for later replay and business-state layers. It also
+  derives the interactive SAS from the transcript hash and ordered nonces, renders the exact six alternating PGP words,
+  parses only exact single-space ASCII phrases, and compares SAS authentication bytes in constant time.
+- `docs/protocol/v1/pgp-word-list/` contains the two normative 256-entry newline-terminated ASCII lists, their source
+  and extraction record, pinned independent comparison results, and the full GFDL 1.2 text. Byte-identical copies ship
+  as Python package resources. Only those two list data files are GFDL; the repository code remains MIT.
 - `tests/conformance/test_protocol_v1_artifacts.py` checks the exact file set, the 30-route manifest, closed schemas,
   the RFC 9457 code/status mapping, vector structure and mutation declarations, the absence of private-key members, and
   the SHA-256 checksums of every listed vector and contract file.
-- `tests/conformance/test_protocol_v1_runtime.py` independently recomputes the Task 3.2 vector intermediates, verifies
-  every fixed signature, rejects every high-S twin, and executes the primitive-layer one-field HTTP and transcript
-  mutations against the Python runtime. Stateful replay and schema/business-state outcomes remain assigned to later
-  tasks.
+- `tests/conformance/test_protocol_v1_runtime.py` independently recomputes the Task 3.2 vector intermediates and the
+  interactive SAS digest/HKDF/rendering, verifies every fixed signature, rejects every high-S twin, and executes the
+  primitive-layer one-field HTTP and transcript mutations against the Python runtime. Stateful replay and
+  schema/business-state outcomes remain assigned to later tasks.
+- `tests/conformance/test_protocol_v1_sas_data.py` pins the source and list hashes, validates every table entry and
+  packaged copy, and checks the adjacent attribution, GFDL, extraction, and cross-check record.
 - Vectors are public, non-secret, test-only fixtures. They include public verification keys and public test-only
   symmetric values such as pairing credentials, tokens, and an MQTT key, but no named private signing-key members. The
   reported ephemeral-key generation and private-key disposal are maintainer-supplied provenance, not facts this
@@ -171,4 +179,8 @@ cross-language verification, SAS words (task 3.3), and reporter-repository consu
 
 ## License
 
-MIT.
+Repository code, tests, schemas, vectors, and documentation are MIT licensed. The two PGP Word List data files
+`even.txt` and `odd.txt` under `docs/protocol/v1/pgp-word-list/`, plus their byte-identical packaged resource copies,
+are distributed under the GNU Free Documentation License 1.2. Wheel metadata describes this per-file split, and the
+add-on image's aggregate OCI license expression is `MIT AND GFDL-1.2-only`. See the adjacent `notice.md` and
+`gfdl-1.2.txt` for the source, attribution, extraction record, cross-check evidence, and complete license.

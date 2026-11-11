@@ -124,7 +124,7 @@
     },
     {
       "id": "interactive.sas",
-      "description": "SAS transcript encode('rem-interactive-enroll-v1', ...) over the 13 named fields of requirement 4.3; digest = SHA-256(transcript); six bytes = HKDF-SHA-256(IKM=reporter_nonce || core_nonce, salt=digest, info='rem-interactive-enroll-sas-v1', L=6); words = Even[b0] Odd[b1] Even[b2] Odd[b3] Even[b4] Odd[b5]. The rendered words are a PLACEHOLDER until task 3.3 vendors the PGP Word List; transcript, digest, HKDF output, list selection and indexes are normative now.",
+      "description": "SAS transcript encode('rem-interactive-enroll-v1', ...) over the 13 named fields of requirement 4.3; digest = SHA-256(transcript); six bytes = HKDF-SHA-256(IKM=reporter_nonce || core_nonce, salt=digest, info='rem-interactive-enroll-sas-v1', L=6); words = Even[b0] Odd[b1] Even[b2] Odd[b3] Even[b4] Odd[b5], rendered from the pinned RFC-cited ASCII tables with exact case and single-space separation.",
       "requirements": [
         "4.3"
       ],
@@ -353,8 +353,8 @@
           },
           {
             "name": "sas.words",
-            "encoding": "sas-placeholder",
-            "value": "EVEN[77] ODD[241] EVEN[4] ODD[207] EVEN[185] ODD[249]"
+            "encoding": "ascii",
+            "value": "dreadful vacancy adrift Saturday sentence Waterloo"
           }
         ]
       },
