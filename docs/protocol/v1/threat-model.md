@@ -6,12 +6,12 @@ cover the existing polled devices or MQTT v1, which are unchanged.
 
 ## Scope of this increment
 
-Task 3.2 currently provides the Python half of the protocol primitive layer, and this increment adds the server/Python
-half of Task 3.3. The production package `src/remote_energy_meter/protocol_v1/` implements bounded canonical encodings
-and JSON, public P-256 JWK and RFC 7638 identity parsing, RFC 9530 Content-Digest, low-S P1363 verification,
-signed-route profiles, narrow reporter/control RFC 9421 request verification, and exact interactive SAS derivation,
-six-word rendering, strict parsing, and constant-time authentication-byte comparison. The add-on's exact runtime
-dependencies include `cryptography==50.0.0` and `idna==3.20`.
+Task 3.2 provides the protocol primitive layer in Python here and in Rust in the reporter repository, and Task 3.3 adds
+the matching SAS rendering on both sides. The production package `src/remote_energy_meter/protocol_v1/` implements
+bounded canonical encodings and JSON, public P-256 JWK and RFC 7638 identity parsing, RFC 9530 Content-Digest, low-S
+P1363 verification, signed-route profiles, narrow reporter/control RFC 9421 request verification, and exact
+interactive SAS derivation, six-word rendering, strict parsing, and constant-time authentication-byte comparison. The
+add-on's exact runtime dependencies include `cryptography==50.0.0` and `idna==3.20`.
 
 This increment still adds **no listener**, route handler, replay store, authorization policy, or protocol business
 state. Nothing opens a protocol port or holds protocol keys. `tests/unit/test_protocol_v1_primitives.py` and
@@ -20,12 +20,12 @@ state. Nothing opens a protocol port or holds protocol keys. `tests/unit/test_pr
 all fixed P-256 signatures, rejects every high-S twin, and executes the primitive-layer HTTP and transcript mutations.
 `tests/conformance/test_protocol_v1_artifacts.py` checks the contract, vector structure, checksums, and public-key-only
 fixture boundary. `tests/conformance/test_protocol_v1_sas_data.py` checks the pinned source/list hashes, all 256 entries
-in both lists, exact package copies, and adjacent attribution/license record. Task 3.3 remains incomplete until Rust
-uses the same data and the cross-language tests pass.
+in both lists, exact package copies, and adjacent attribution/license record. The reporter's Rust tests execute the same
+server-owned vectors, word lists, and mutations byte-for-byte, and `tests/conformance/test_protocol_v1_interop.py`
+verifies a Rust-signed reporter request and rejects every one-byte mutation of it.
 
-Rust implementation, Python/Rust interoperability, AEAD, stateful replay, authorization, route-schema outcomes, and
-business-state behavior remain assigned to later work. Task 3.2 remains incomplete until its Rust and cross-language
-requirements pass.
+AEAD, managed-token HMAC, stateful replay, authorization, route-schema outcomes, and business-state behavior remain
+assigned to later work.
 
 ## Security principles
 
@@ -78,9 +78,8 @@ only network path (they can always drop traffic; the protocol fails closed and v
 ## Threats and required mitigations
 
 The table states the complete protocol's required mitigations. “Declared vector coverage” names the fixtures that
-declare the expected values and rejection codes. The Python tests identified above execute the primitive-layer subset
-only; a listed vector does not imply executable Rust, cross-language, AEAD, replay, authorization, schema, or
-business-state coverage.
+declare the expected values and rejection codes. The Python and Rust tests identified above execute the primitive-layer
+subset only; a listed vector does not imply executable AEAD, replay, authorization, schema, or business-state coverage.
 
 | # | Threat | Required mitigation | Declared vector coverage |
 | ---: | --- | --- | --- |
@@ -111,9 +110,9 @@ business-state coverage.
 
 - **SAS strength.** Six words carry 48 bits; an online attacker gets one guess per pending enrollment, bounded by
   the enrollment rate limits. The review should confirm this margin.
-- **SAS parity remains incomplete.** The server now pins and packages the RFC-cited word tables, and Python executes the
-  exact vectors and tamper cases. The reporter's Rust implementation and cross-language parity are still absent, so no
-  user-facing SAS may ship and Task 3.3 remains incomplete.
+- **SAS parity is primitive-only.** Python and Rust derive, render, parse, and verify the same exact vectors and tamper
+  cases from the same pinned word tables. No enrollment flow displays a SAS yet, and none may ship before Task 3.4's
+  review approves the profile.
 - **Interactive enrollment creation replay.** The initial interactive create request carries no client clock and no
   prior server-issued freshness value. A captured valid request can recreate pending state after the previous pending
   window expires or the core restarts. One pending enrollment per proposed identity, source/global rate limits,

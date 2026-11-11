@@ -5,8 +5,9 @@ integration's control channel, and MQTT v2. It is specification task 3.1 of
 `.kiro/specs/native-computer-reporters/`. Task 3.2's Python primitive layer and the server/Python half of Task 3.3's
 SAS derivation, exact word rendering, strict parser, and verification are implemented in
 `src/remote_energy_meter/protocol_v1/`. The pinned normative PGP word tables and their provenance are under
-`pgp-word-list/`. Rust and cross-language parity remain pending, so Tasks 3.2 and 3.3 stay incomplete. Task 3.4's
-independent security review must approve the profile before anything that speaks it is distributed.
+`pgp-word-list/`. The reporter repository's Rust implementation of both tasks executes this corpus byte-for-byte, and a
+Rust-signed request verifies here, so Tasks 3.2 and 3.3 are complete at the primitive layer. Task 3.4's independent
+security review must approve the profile before anything that speaks it is distributed.
 
 Status: **draft, not approved for distribution.** This repository includes pure production cryptographic and wire
 primitives, but no listener, route handler, replay store, authorization policy, or protocol business state. The runtime
@@ -50,9 +51,14 @@ members, and the mathematical validity of every published P-256 signature and it
 transcript digest/HKDF bytes/rendering, executes the relevant one-field mutations against the Python implementation,
 accepts each fixed low-S signature, and rejects every high-S twin.
 `tests/conformance/test_protocol_v1_sas_data.py` pins both 256-entry lists, verifies ASCII/case/order/uniqueness and
-package byte identity, and checks the adjacent provenance and GFDL artifacts. Rust, cross-language, AEAD, stateful
+package byte identity, and checks the adjacent provenance and GFDL artifacts.
+`tests/conformance/test_protocol_v1_interop.py` verifies a request signed by the reporter's Rust implementation (its
+`protocol_v1_sign_demo` example, stored byte-exact under `tests/conformance/fixtures/`) and rejects every one-byte
+mutation of its request bytes, raw signature, and public-key coordinates. The reporter's own tests cover the opposite
+direction against this corpus: HTTP signatures and their one-field mutations, transcripts, JWKs, Content-Digest, and the
+SAS derivation, rendering, and tamper cases for every index in every position. AEAD, managed-token HMAC, stateful
 replay, route schema/business-state outcomes, Draft 2020-12 validation, and reproduction of the maintainer-reported
-key-generation run remain outside this Python increment. Implementations must not treat this provenance statement as
+key-generation run remain outside these increments. Implementations must not treat this provenance statement as
 key-destruction evidence.
 
 ## Vector format (`rem-vector-set-v1`)

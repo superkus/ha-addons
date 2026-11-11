@@ -102,13 +102,13 @@ documentation pass.
     the PGP word lists or publish rendered SAS words. Task 3.3 exclusively owns those lists, rendered words, and their
     cross-language tests.
     - _Requirements: 2.3, 2.7, 4.3, 4.5, 6.1, 7.5a, 7.5b, 7.5d, 7.5e, 7.5f, 8.5, 8.6a_
-  - [ ] 3.2 Implement Python and Rust P-256 JWK, RFC 7638, RFC 9530, and narrow RFC 9421 primitives against the
+  - [x] 3.2 Implement Python and Rust P-256 JWK, RFC 7638, RFC 9530, and narrow RFC 9421 primitives against the
     vectors. The post-pair control profile shall cover purpose, active key generation, exact uppercase method, canonical
     authority, exact path, whole query and every individually named query value, content type/digest, bounded
     `created`/expiry, signed nonce, and signature parameters. Reject every one-field mutation, route/purpose reuse,
     replay outside the endpoint's exact-retry rule, and any rewritten, normalized, aliased, or mismatched target.
     - _Requirements: 3.1, 6.1, 7.5f_
-  - [ ] 3.3 Replace task 3.1's SAS index placeholders by implementing requirement 4.3's normative rendering: pin and
+  - [x] 3.3 Replace task 3.1's SAS index placeholders by implementing requirement 4.3's normative rendering: pin and
     vendor the exact 256-entry PGP Even Word List and Odd Word List identified there, preserve their zero-based index
     order and ASCII spelling, and render output bytes `b[0]` through `b[5]` with the exact even/odd position selection
     defined there. Document that this profile extends RFC 6189's two-word B256 rendering to six bytes/six words, and
@@ -116,7 +116,8 @@ documentation pass.
     - _Requirements: 4.3, 6.1_
   - [ ] 3.4 Obtain independent security review; block distribution until approved.
     - _Requirements: 10.1_
-  - Planned demo after tasks 3.2 and 3.3: a Rust-signed fixture verifies in Python, and any one-byte mutation fails.
+  - Demo: a Rust-signed fixture verifies in Python, and any one-byte mutation fails
+    (`tests/conformance/test_protocol_v1_interop.py`).
 
 - [ ] 4. Add configuration, durable PKI, roster, and one-use token state
   - _Requirements: 1.5, 2.2, 3.1, 4.5, 5.1, 5.2, 5.3, 5.4, 6.5, 7.3, 7.6, 8.1_

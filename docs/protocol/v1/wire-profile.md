@@ -363,8 +363,8 @@ comparison results. `pgp-word-list/gfdl-1.2.txt` contains the full applicable GN
 two table data files and their byte-identical packaged resource copies are under GFDL 1.2; repository code remains
 MIT. The PGPfone and thblt source code was not copied and is not a redistribution or license basis.
 
-The server vector corpus now carries exact rendered ASCII words. Task 3.3 remains incomplete until the Rust reporter
-uses these server-owned files byte-for-byte and cross-language derivation, rendering, parsing, and tamper tests pass.
+The server vector corpus now carries exact rendered ASCII words. The Rust reporter uses these server-owned files
+byte-for-byte, and both implementations pass the derivation, rendering, parsing, and tamper tests.
 
 ## 5. Keys and identifiers
 
@@ -595,10 +595,11 @@ may only withdraw availability, and is rejected below the durable process-genera
 
 See `README.md` for the vector file format. The Python Task 3.2 conformance implementation reproduces the primitive
 layer's `outputs` values from the recorded `inputs`, matches the relevant `intermediates`, and executes that layer's
-mutations against the runtime. Each mutation changes exactly one named field while leaving everything else, including
-any signature or proof computed over the original, unchanged; the implementation rejects it with `expected_code`.
-The structural conformance test validates every declaration. Rust and cross-language execution, AEAD, stateful replay,
-route-schema outcomes, and business-state mutations remain assigned to later work.
+mutations against the runtime; the Rust reporter's conformance tests do the same for their primitive layer. Each
+mutation changes exactly one named field while leaving everything else, including any signature or proof computed over
+the original, unchanged; the implementation rejects it with `expected_code`. The structural conformance test validates
+every declaration. AEAD, stateful replay, route-schema outcomes, and business-state mutations remain assigned to later
+work.
 
 ## 14. Source of truth, versioning, and checksums
 
