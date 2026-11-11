@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import stat
 import time
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
@@ -23,6 +24,7 @@ from typing import Any
 
 import pytest
 
+from remote_energy_meter.atomic_file import write_atomically
 from remote_energy_meter.energy import EnergyAccumulator
 from remote_energy_meter.persistence import CURRENT_SCHEMA_VERSION, DeviceEnergyState, EnergyStateFile
 from remote_energy_meter.state_store import (
@@ -286,6 +288,33 @@ def test_an_unsupported_directory_fsync_does_not_fail_the_flush(
 
     monkeypatch.setattr(os, "fsync", refuse_directories)
     assert store.flush({DEVICE_A: state(1.0)}).written
+
+
+def test_flush_writes_through_the_shared_atomic_writer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The store must not grow a parallel writer: its document goes through ``atomic_file.write_atomically``."""
+    writes: list[tuple[Path, bytes]] = []
+
+    def recording_write(path: Path, data: bytes) -> None:
+        writes.append((path, data))
+        write_atomically(path, data)
+
+    monkeypatch.setattr("remote_energy_meter.state_store.write_atomically", recording_write)
+    store = store_at(tmp_path)
+    snapshot = {DEVICE_A: state(2.5, 120.0, T0)}
+
+    assert store.flush(snapshot).written
+
+    expected = serialize_state(build_state_file(snapshot, T0)).encode("utf-8")
+    assert writes == [(store.path, expected)]
+    assert store.path.read_bytes() == expected
+
+
+def test_the_state_document_is_owner_only(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+
+    assert store.flush({DEVICE_A: state(1.0)}).written
+
+    assert stat.S_IMODE(store.path.stat().st_mode) == 0o600
 
 
 # --------------------------------------------------------------------------------------------------
