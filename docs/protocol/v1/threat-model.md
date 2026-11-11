@@ -20,9 +20,11 @@ state. Nothing opens a protocol port or holds protocol keys. `tests/unit/test_pr
 all fixed P-256 signatures, rejects every high-S twin, and executes the primitive-layer HTTP and transcript mutations.
 `tests/conformance/test_protocol_v1_artifacts.py` checks the contract, vector structure, checksums, and public-key-only
 fixture boundary. `tests/conformance/test_protocol_v1_sas_data.py` checks the pinned source/list hashes, all 256 entries
-in both lists, exact package copies, and adjacent attribution/license record. The reporter's Rust tests execute the same
-server-owned vectors, word lists, and mutations byte-for-byte, and `tests/conformance/test_protocol_v1_interop.py`
-verifies a Rust-signed reporter request and rejects every one-byte mutation of it.
+in both lists, exact package copies, and adjacent attribution/license record. The reporter's Rust tests execute the
+primitive-layer subset of the same server-owned vectors, word lists, and mutations from a byte-identical pinned copy, and
+`tests/conformance/test_protocol_v1_interop.py` verifies a Rust-signed reporter request and rejects every one-byte
+mutation of it and a substituted public key. Neither implementation executes the declared `interactive.sas` vector
+mutations yet.
 
 AEAD, managed-token HMAC, stateful replay, authorization, route-schema outcomes, and business-state behavior remain
 assigned to later work.

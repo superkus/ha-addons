@@ -363,8 +363,7 @@ comparison results. `pgp-word-list/gfdl-1.2.txt` contains the full applicable GN
 two table data files and their byte-identical packaged resource copies are under GFDL 1.2; repository code remains
 MIT. The PGPfone and thblt source code was not copied and is not a redistribution or license basis.
 
-The server vector corpus now carries exact rendered ASCII words. The Rust reporter uses these server-owned files
-byte-for-byte, and both implementations pass the derivation, rendering, parsing, and tamper tests.
+The server vector corpus now carries exact rendered ASCII words; implementation status is recorded in `README.md`.
 
 ## 5. Keys and identifiers
 

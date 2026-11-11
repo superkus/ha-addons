@@ -146,8 +146,8 @@ verify `vectors/manifest.json`, and never edit the files there. The profile is a
 review (spec task 3.4) approves it. The Python backend now includes the pure Task 3.2 protocol primitives and the
 server/Python half of Task 3.3's exact SAS derivation, rendering, strict parsing, and verification; it does not include a
 listener, route handlers, replay storage, authorization, or business state. The reporter repository's Rust
-implementation of both tasks consumes this profile at a pinned commit and passes the same vectors, and a Rust-signed
-request verifies in Python, so Tasks 3.2 and 3.3 are complete at the primitive layer.
+implementation of both tasks consumes this profile at a pinned commit and passes its primitive-layer subset, and a
+Rust-signed request verifies in Python, so Tasks 3.2 and 3.3 are complete at the primitive layer.
 
 - `src/remote_energy_meter/protocol_v1/` provides strict canonical base64url, bounded `REM-TRANSCRIPT`, canonical
   public P-256 JWK and RFC 7638 identity, RFC 9530 Content-Digest, low-S IEEE P1363 P-256 verification, canonical JSON,
@@ -170,11 +170,12 @@ request verifies in Python, so Tasks 3.2 and 3.3 are complete at the primitive l
   schema/business-state outcomes remain assigned to later tasks.
 - `tests/conformance/test_protocol_v1_sas_data.py` pins the source and list hashes, validates every table entry and
   packaged copy, and checks the adjacent attribution, GFDL, extraction, and cross-check record.
-- `tests/conformance/test_protocol_v1_interop.py` verifies a reporter request signed by the Rust reporter and rejects
-  every one-byte mutation of its request bytes, signature, and public key. Its fixture under
-  `tests/conformance/fixtures/` is the byte-exact stdout of the reporter's
-  `cargo run --locked --example protocol_v1_sign_demo`; regenerate it only from a merged reporter commit, record that
-  commit in the test's docstring, and never hand-edit it.
+- `tests/conformance/test_protocol_v1_interop.py` verifies a reporter request signed by the Rust reporter, rejects
+  every one-byte mutation of its request bytes (with exact rejection codes pinned per field), signature, and public
+  key, and rejects a substituted public key. Its fixture under `tests/conformance/fixtures/` is the byte-exact stdout
+  of the reporter's `cargo run --locked --example protocol_v1_sign_demo`; regenerate it only from a merged reporter
+  commit, never hand-edit it, and update `REPORTER_COMMIT`, `FIXTURE_SHA256`, and `EXPECTED_IDENTITY` in the test
+  together.
 - Vectors are public, non-secret, test-only fixtures. They include public verification keys and public test-only
   symmetric values such as pairing credentials, tokens, and an MQTT key, but no named private signing-key members. The
   reported ephemeral-key generation and private-key disposal are maintainer-supplied provenance, not facts this

@@ -1143,6 +1143,10 @@ def test_completed_primitive_tasks_are_backed_by_interop_evidence_and_review_sti
     # Tasks 3.2 and 3.3 may be checked only while the Rust-signed fixture and its verifier exist.
     assert "- [x] 3.2 " in tasks
     assert "- [x] 3.3 " in tasks
+    # Task 3.2 is stateless; its checked box must keep pointing stateful replay/exact-retry at the owning tasks.
+    flat_tasks = " ".join(tasks.split())
+    assert "3.2 delivers the stateless primitive checks only." in flat_tasks
+    assert "delivered by tasks 4.1" in flat_tasks and "7.2.1" in flat_tasks and "10.2" in flat_tasks
     assert (conformance / "fixtures" / "protocol_v1_rust_signed_report.json").is_file()
     assert (conformance / "test_protocol_v1_interop.py").is_file()
     assert "test_protocol_v1_interop.py" in readme

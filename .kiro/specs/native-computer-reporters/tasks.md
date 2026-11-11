@@ -107,6 +107,9 @@ documentation pass.
     authority, exact path, whole query and every individually named query value, content type/digest, bounded
     `created`/expiry, signed nonce, and signature parameters. Reject every one-field mutation, route/purpose reuse,
     replay outside the endpoint's exact-retry rule, and any rewritten, normalized, aliased, or mismatched target.
+    - _Scope: 3.2 delivers the stateless primitive checks only. Stateful replay and exact-retry rejection are delivered
+      by tasks 4.1 (durable replay and exact-result records), 7.2.1 (signed-control nonce consumption and exact-retry
+      cache), and 10.2 (report replay and identical-retry handling)._
     - _Requirements: 3.1, 6.1, 7.5f_
   - [x] 3.3 Replace task 3.1's SAS index placeholders by implementing requirement 4.3's normative rendering: pin and
     vendor the exact 256-entry PGP Even Word List and Odd Word List identified there, preserve their zero-based index
