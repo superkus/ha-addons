@@ -54,7 +54,7 @@ def test_an_empty_payload_produces_an_empty_document(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("umask", [0o000, 0o022, 0o077])
-def test_the_document_is_owner_only_whatever_the_umask(tmp_path: Path, umask: int) -> None:
+def test_the_document_is_0600_under_umasks_that_keep_the_owner_bits(tmp_path: Path, umask: int) -> None:
     target = tmp_path / "document.json"
     previous = os.umask(umask)
     try:
@@ -63,6 +63,24 @@ def test_the_document_is_owner_only_whatever_the_umask(tmp_path: Path, umask: in
         os.umask(previous)
 
     assert stat.S_IMODE(target.stat().st_mode) == 0o600
+
+
+@pytest.mark.parametrize("umask", [0o277, 0o377, 0o777])
+def test_the_document_never_gains_group_other_or_extra_owner_bits_under_a_restrictive_umask(
+    tmp_path: Path, umask: int
+) -> None:
+    """mkstemp creates with 0600 & ~umask: a umask that strips owner bits narrows the mode, never widens it."""
+    target = tmp_path / "document.json"
+    previous = os.umask(umask)
+    try:
+        write_atomically(target, b"secret-free but private")
+    finally:
+        os.umask(previous)
+
+    # Content is not read back: under umask 0o777 the document may be mode 0000.
+    mode = stat.S_IMODE(target.stat().st_mode)
+    assert mode & 0o077 == 0
+    assert mode & ~0o600 == 0
 
 
 def test_a_previous_world_readable_document_becomes_owner_only(tmp_path: Path) -> None:

@@ -1,11 +1,13 @@
 """Crash-safe, owner-only replacement of a single file.
 
-Every durable document the add-on owns is written through :func:`write_atomically`, so each store gets the same
-guarantees from one implementation instead of a parallel writer:
+The add-on's state stores (currently the energy state file) are written through :func:`write_atomically`, so each
+store gets the same guarantees from one implementation instead of a parallel writer. The IPMI SDR cache is the
+exception: ``ipmitool`` stages it and the plugin installs it separately.
 
 * the temporary file is created in the target's own directory with ``tempfile.mkstemp``, i.e. ``O_CREAT | O_EXCL``
-  and mode ``0600``, so it cannot cross a filesystem, cannot follow or reuse an existing name, and is never readable by
-  another user — and because the rename keeps the temporary file's inode, the replaced document is ``0600`` too;
+  and mode ``0600``, which the process umask can only narrow, so it cannot cross a filesystem, cannot follow or reuse
+  an existing name, and is never readable or writable by group or others — and because the rename installs this
+  inode, the previous document's mode is not kept;
 * the payload is written, flushed, and ``fsync``-ed before the rename;
 * the rename is ``os.replace``: a crash at any point leaves either the previous document or the new one, never a
   truncated one;

@@ -29,7 +29,7 @@ All notable changes to this project are documented here. The format follows
 
 - The energy state file is now written through a shared crash-safe writer (`remote_energy_meter.atomic_file`) that the
   upcoming reporter PKI, roster, and token stores will reuse instead of a parallel writer. Behaviour is unchanged: an
-  exclusive owner-only (`0600`) temporary file in the same directory, flushed and synced, atomically renamed over the
+  exclusive owner-only temporary file in the same directory, flushed and synced, atomically renamed over the
   document, best-effort directory sync, and no leftover temporary file on failure.
 - Corrected the draft protocol-v1 reporter signature profile to omit client wall-clock parameters entirely. Reporter
   `Signature-Input` now contains exactly `keyid`, `alg`, and `tag`; freshness remains exclusively bound to server-issued
