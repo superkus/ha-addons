@@ -22,8 +22,16 @@ All notable changes to this project are documented here. The format follows
   Vendored the two RFC-cited 256-entry ASCII PGP word lists as isolated GFDL 1.2 data with source-byte and list hashes,
   complete license and attribution, reviewed extraction details, and pinned PGPfone/thblt comparison results. Wheel
   metadata and the add-on's OCI license label identify both the MIT and GFDL-1.2-only portions of the shipped artifact.
-  The published interactive vector now contains its exact rendered phrase; Rust and cross-language parity remain
-  pending.
+  The published interactive vector now contains its exact rendered phrase, and the Rust reporter reproduces it from
+  the same pinned tables.
+- Added Rust-to-Python interoperability conformance for protocol v1: a reporter request signed by the Rust reporter
+  verifies in Python with the same stable identity, signature input, and signature base; every one-byte mutation of
+  its request bytes is rejected with the exact code pinned for its field, every one-byte mutation of its signature or
+  public key is rejected, and a substituted public key is rejected. The fixture is pinned by reporter commit, SHA-256,
+  and expected identity. With the reporter's Rust implementation passing the primitive-layer subset of the same
+  server-owned vectors, specification Tasks 3.2 and 3.3 are complete at the primitive layer; the declared
+  `interactive.sas` vector mutations are not yet executed by either implementation. The profile remains a
+  draft that must not be distributed until the Task 3.4 independent security review approves it.
 
 ### Changed
 
