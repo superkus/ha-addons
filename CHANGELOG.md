@@ -39,22 +39,29 @@ All notable changes to this project are documented here. The format follows
   are rejected and never repaired. Writes name the document relative to the verified store directory's descriptor, so
   a directory removed or swapped for a symlink is neither recreated nor followed, and an existing entry that is not a
   regular owner-only `0600` file is refused and left untouched. Each document is a canonical-JSON envelope whose
-  generation rises by exactly one per save. Assuming a single running writer per document, the store detects before
-  writing a document that went back to a lower generation, vanished, or was advanced by another writer; a document
-  substituted with the same generation, a write interleaved with its own, and state lost while the add-on is stopped
-  are not detected by this layer. A save whose directory sync fails is reported as failed, and a generation it may
-  have left on disk is accepted only after a later directory sync succeeds. Each load that verifies the document,
+  generation rises by exactly one per save. A document can also be created exclusively as its first generation,
+  which never replaces an existing entry, even one another writer creates concurrently. Assuming a single running
+  writer per document, the store detects before writing a document that went back to a lower generation, vanished,
+  or was advanced by another writer; a document substituted with the same generation, a write interleaved with its
+  own, and state lost while the add-on is stopped are not detected by this layer. A save whose directory sync fails
+  is reported as failed, and a generation it may have left on disk is accepted only after a later directory sync
+  succeeds. Each load that verifies the document,
   including the one at the start of every save, deletes the document's own temporary files left by an interrupted
   write, which can hold a newer record's bytes; a load that fails closed leaves them in place as evidence for
   recovery. A new store directory that the process umask leaves unreadable by its owner is refused rather than fixed
   by path. Added a strict public canonical-JSON renderer for protocol v1 that accepts only the parser's exact value
   types and whose output the strict parser always accepts unchanged.
 - Added integrity-protected security documents (`remote_energy_meter.authenticated_store`); nothing uses them yet. A
-  separate random 256-bit state-authentication key lives in its own owner-only document, is created only explicitly
-  when no protected state exists, and is never replaced or silently regenerated. Each protected record carries an
-  HMAC-SHA-256 tag over a domain-separated transcript of its store id, schema version, generation, and canonical body,
-  so an altered record, a record moved from another store, an old record replayed under a newer generation, or one
-  written under another key fails closed. A save verifies the current record before overwriting it.
+  separate random 256-bit state-authentication key lives in its own owner-only document. It is created only
+  explicitly, and exclusively, so an existing key is never replaced, even by a concurrent creator, and a missing key
+  is never silently regenerated. Creating it only while no protected state exists is the caller's obligation, to be
+  enforced by the later bootstrap work; records left from a lost key fail closed under a new one. Each protected
+  record carries an HMAC-SHA-256 tag over a domain-separated transcript of its store id, schema version, generation,
+  and canonical body, so an altered record, a record moved from another store, a record relabelled with another
+  generation, one written under another key, a record whose key is missing, and a record that is not exactly a body
+  and a tag all fail closed. A save verifies the record it replaces before overwriting it. The tag proves authenticity,
+  not freshness: the key never rotates, so an older authentic record restored, or a record deleted, while the add-on
+  is stopped is not detected by this layer; restore checks and the post-restore quarantine own that case.
 
 ### Changed
 

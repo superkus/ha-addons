@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import errno
 import json
+import os
 import pickle
+import secrets
 import stat
 from collections.abc import Callable
 from pathlib import Path
@@ -78,6 +81,29 @@ def rewrite_key_document(key_dir: Path, **changes: Any) -> None:
     write_envelope(path, envelope)
 
 
+def refuse_directory_fsync(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make every directory fsync fail: the sync after the rename that makes a new document durable.
+
+    The seam is the descriptor's file type, not a helper name, so it holds however the writer installs the document.
+    """
+    real_fsync = os.fsync
+
+    def refusing(descriptor: int) -> None:
+        if stat.S_ISDIR(os.fstat(descriptor).st_mode):
+            raise OSError(errno.EIO, os.strerror(errno.EIO))
+        real_fsync(descriptor)
+
+    monkeypatch.setattr(os, "fsync", refusing)
+
+
+def nested_body(depth: int) -> dict[str, JsonValue]:
+    """An object nested exactly ``depth`` containers deep (the body itself counts as one)."""
+    body: dict[str, JsonValue] = {}
+    for _ in range(depth - 1):
+        body = {"n": body}
+    return body
+
+
 # --------------------------------------------------------------------------------------------------
 # the key
 # --------------------------------------------------------------------------------------------------
@@ -116,6 +142,106 @@ def test_an_existing_key_is_never_replaced(keys: StateAuthenticationKeyStore) ->
     assert fault_of(keys.create) is StoreFault.KEY_EXISTS
     assert fault_of(StateAuthenticationKeyStore(keys.directory).create) is StoreFault.KEY_EXISTS
     assert keys.path.read_bytes() == before
+
+
+def test_a_key_created_by_another_instance_while_generating_is_never_replaced(
+    key_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """SEC-1: a key that appears after the existence check but before the write must survive, not be overwritten."""
+    first, second = StateAuthenticationKeyStore(key_dir), StateAuthenticationKeyStore(key_dir)
+    real_token_bytes = secrets.token_bytes
+    winner: list[StateAuthenticationKey] = []
+
+    def race_then_generate(nbytes: int | None = None) -> bytes:
+        if nbytes == KEY_BYTES and not winner:
+            winner.append(StateAuthenticationKey(b"\x00" * KEY_BYTES))  # recursion guard, replaced below
+            winner[0] = second.create()
+        return real_token_bytes(nbytes)
+
+    monkeypatch.setattr(secrets, "token_bytes", race_then_generate)
+    fault = fault_of(first.create)
+    monkeypatch.undo()
+
+    assert fault is StoreFault.KEY_EXISTS
+    assert StateAuthenticationKeyStore(key_dir).load().tag(b"m") == winner[0].tag(b"m")
+
+
+def test_a_key_created_by_another_instance_while_writing_is_never_replaced(
+    key_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """SEC-1: the other key lands after the last existence check, just before the new key file is created."""
+    first, second = StateAuthenticationKeyStore(key_dir), StateAuthenticationKeyStore(key_dir)
+    real_open = os.open
+    winner: list[StateAuthenticationKey] = []
+    winner_bytes: list[bytes] = []
+
+    def race_before_file_creation(path: Any, flags: int, *args: Any, **kwargs: Any) -> int:
+        if flags & os.O_CREAT and not winner:
+            winner.append(StateAuthenticationKey(b"\x00" * KEY_BYTES))  # recursion guard, replaced below
+            winner[0] = second.create()
+            winner_bytes.append(second.path.read_bytes())
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", race_before_file_creation)
+    fault: StoreFault | None = None
+    try:
+        first.create()
+    except SecureStoreError as error:
+        fault = error.fault
+    monkeypatch.undo()
+
+    assert winner_bytes, "the competing key was never created"
+    assert second.path.read_bytes() == winner_bytes[0], "the competing key was replaced"
+    assert fault is StoreFault.KEY_EXISTS
+    assert StateAuthenticationKeyStore(key_dir).load().tag(b"m") == winner[0].tag(b"m")
+
+
+def test_a_key_whose_temporary_file_another_instance_removes_is_never_returned(
+    key_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Another instance's load deletes the in-flight temporary file before the link: the create fails closed."""
+    first, second = StateAuthenticationKeyStore(key_dir), StateAuthenticationKeyStore(key_dir)
+    real_link = os.link
+
+    def cleanup_then_link(*args: Any, **kwargs: Any) -> None:
+        assert fault_of(second.load) is StoreFault.KEY_MISSING  # its load removes the temporary file
+        real_link(*args, **kwargs)
+
+    monkeypatch.setattr(os, "link", cleanup_then_link)
+    assert fault_of(first.create) is StoreFault.IO_ERROR
+    monkeypatch.undo()
+
+    assert list(key_dir.iterdir()) == []
+    assert fault_of(StateAuthenticationKeyStore(key_dir).load) is StoreFault.KEY_MISSING
+
+
+def test_an_unconfirmed_key_creation_is_never_followed_by_a_second_key(
+    key_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """DATA-3(a): after a create whose rename could not be synced, a retry finds the key; it never makes another."""
+    store = StateAuthenticationKeyStore(key_dir)
+    real_token_bytes = secrets.token_bytes
+    generated: list[bytes] = []
+
+    def recording(nbytes: int | None = None) -> bytes:
+        value = real_token_bytes(nbytes)
+        if nbytes == KEY_BYTES:
+            generated.append(value)
+        return value
+
+    monkeypatch.setattr(secrets, "token_bytes", recording)
+    refuse_directory_fsync(monkeypatch)
+    assert fault_of(store.create) is StoreFault.IO_ERROR
+    assert fault_of(store.create) is StoreFault.IO_ERROR  # still unconfirmed while the directory cannot sync
+    monkeypatch.undo()
+    monkeypatch.setattr(secrets, "token_bytes", recording)
+
+    assert fault_of(store.create) is StoreFault.KEY_EXISTS
+    assert fault_of(StateAuthenticationKeyStore(key_dir).create) is StoreFault.KEY_EXISTS
+    assert len(generated) == 1
+    expected = StateAuthenticationKey(generated[0]).tag(b"m")
+    assert store.load().tag(b"m") == expected
+    assert StateAuthenticationKeyStore(key_dir).load().tag(b"m") == expected
 
 
 def test_a_key_removed_while_running_is_a_rollback_not_a_missing_first_key(keys: StateAuthenticationKeyStore) -> None:
@@ -369,6 +495,106 @@ def test_error_details_never_contain_the_body_or_the_key(record_dir: Path, keys:
     assert key_record not in message
 
 
+def test_a_save_never_overwrites_a_record_tampered_with_during_the_save(
+    record_dir: Path, keys: StateAuthenticationKeyStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """COR-1: a same-generation edit landing between the verifying read and the write is still caught."""
+    store = make_store(record_dir, keys)
+    store.save({"value": 1})
+    tampered = read_envelope(store.path)
+    tampered["record"]["body"]["value"] = 2  # generation 1 and the old tag kept: a valid envelope, a forged body
+    tampered_bytes = render_canonical_json(tampered, max_depth=16)
+    real_load = keys.load
+
+    def load_then_tamper() -> StateAuthenticationKey:
+        key = real_load()
+        write_envelope(store.path, tampered)
+        return key
+
+    monkeypatch.setattr(keys, "load", load_then_tamper)
+
+    assert fault_of(lambda: store.save({"value": 3})) is StoreFault.AUTHENTICATION_FAILED
+    assert store.path.read_bytes() == tampered_bytes
+
+
+def test_an_unconfirmed_save_is_accepted_and_verified_once_the_directory_syncs(
+    record_dir: Path, keys: StateAuthenticationKeyStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """COR-2(a)/DATA-3(b): the VersionedDocumentStore unconfirmed-outcome rule holds through the authenticated layer."""
+    store = make_store(record_dir, keys)
+    store.save({"value": 1})
+    refuse_directory_fsync(monkeypatch)
+
+    assert fault_of(lambda: store.save({"value": 2})) is StoreFault.IO_ERROR
+    assert fault_of(store.load) is StoreFault.IO_ERROR  # generation 2 is visible but not yet durable
+    monkeypatch.undo()
+
+    loaded = store.load()
+    assert loaded is not None
+    assert (loaded.generation, dict(loaded.record)) == (2, {"value": 2})
+    assert store.save({"value": 3}).generation == 3
+    reloaded = make_store(record_dir, StateAuthenticationKeyStore(keys.directory)).load()
+    assert reloaded is not None
+    assert (reloaded.generation, dict(reloaded.record)) == (3, {"value": 3})
+
+
+def test_a_save_over_an_existing_record_whose_key_vanished_writes_nothing(
+    record_dir: Path, keys: StateAuthenticationKeyStore
+) -> None:
+    """COR-2(b): a fresh process with the record but without its key must not overwrite the record."""
+    make_store(record_dir, keys).save({"value": 1})
+    keys.path.unlink()
+    before = saved_path(record_dir).read_bytes()
+
+    store = make_store(record_dir, StateAuthenticationKeyStore(keys.directory))
+
+    assert fault_of(lambda: store.save({"value": 2})) is StoreFault.KEY_MISSING
+    assert saved_path(record_dir).read_bytes() == before
+
+
+def test_a_body_at_the_nesting_bound_round_trips_and_one_level_deeper_is_refused(
+    record_dir: Path, keys: StateAuthenticationKeyStore, tmp_path: Path
+) -> None:
+    """COR-2(c): the body bound plus the two enclosing levels (envelope, record) fits the store's own bound."""
+    deepest = nested_body(authenticated_store._BODY_MAX_DEPTH)
+
+    saved = make_store(record_dir, keys).save(deepest)
+    loaded = make_store(record_dir, StateAuthenticationKeyStore(keys.directory)).load()
+
+    assert saved.generation == 1
+    assert loaded is not None
+    assert dict(loaded.record) == deepest
+
+    too_deep_store = make_store(tmp_path / "too-deep", keys)
+    too_deep = nested_body(authenticated_store._BODY_MAX_DEPTH + 1)
+    assert fault_of(lambda: too_deep_store.save(too_deep)) is StoreFault.MALFORMED
+    assert not too_deep_store.path.exists()
+
+
+def test_a_record_at_the_last_generation_cannot_be_advanced_and_is_kept(
+    record_dir: Path, keys: StateAuthenticationKeyStore
+) -> None:
+    """COR-2(d): GENERATION_EXHAUSTED from the versioned layer reaches the caller of save()."""
+    last = 2**64 - 1
+    body: dict[str, JsonValue] = {"value": 1}
+    store = make_store(record_dir, keys)
+    store.save(body)
+    envelope = read_envelope(store.path)
+    tag = keys.load().tag(store._message(last, body))
+    envelope["generation"] = last
+    envelope["record"]["tag"] = encode_base64url(tag, exact_length=len(tag))
+    write_envelope(store.path, envelope)
+    planted = store.path.read_bytes()
+
+    fresh = make_store(record_dir, StateAuthenticationKeyStore(keys.directory))
+    loaded = fresh.load()
+    assert loaded is not None
+    assert (loaded.generation, dict(loaded.record)) == (last, body)  # the planted record is authentic
+
+    assert fault_of(lambda: fresh.save({"value": 2})) is StoreFault.GENERATION_EXHAUSTED
+    assert store.path.read_bytes() == planted
+
+
 def test_a_document_cannot_share_the_key_documents_path(key_dir: Path) -> None:
     keys = StateAuthenticationKeyStore(key_dir)
 
@@ -387,3 +613,14 @@ def test_the_size_cap_is_validated(record_dir: Path, keys: StateAuthenticationKe
 def test_the_module_exports_its_public_names() -> None:
     for name in authenticated_store.__all__:
         assert hasattr(authenticated_store, name)
+
+
+def test_create_after_seeing_no_key_reports_a_key_created_meanwhile_as_existing(key_dir: Path) -> None:
+    """An instance that saw "no key", then another writer creates one: create() reports KEY_EXISTS, replaces nothing."""
+    late = StateAuthenticationKeyStore(key_dir)
+    assert fault_of(late.load) is StoreFault.KEY_MISSING
+    StateAuthenticationKeyStore(key_dir).create()
+    winner = (key_dir / KEY_DOCUMENT_NAME).read_bytes()
+
+    assert fault_of(late.create) is StoreFault.KEY_EXISTS
+    assert (key_dir / KEY_DOCUMENT_NAME).read_bytes() == winner

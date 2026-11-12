@@ -21,6 +21,7 @@ from remote_energy_meter.secure_store import (
     FILE_MODE,
     MAX_DOCUMENT_BYTES_CEILING,
     SecureStoreError,
+    StoredDocument,
     StoreFault,
     VersionedDocumentStore,
     ensure_private_directory,
@@ -1030,20 +1031,42 @@ def test_the_module_exports_its_public_names() -> None:
         assert hasattr(secure_store, name)
 
 
-def test_save_with_passes_the_generation_the_record_is_stored_under(store_dir: Path) -> None:
+def test_save_with_passes_the_generation_and_the_document_it_replaces(store_dir: Path) -> None:
     store = make_store(store_dir)
-    seen: list[int] = []
+    seen: list[tuple[int, StoredDocument | None]] = []
 
-    def build(generation: int) -> dict[str, Any]:
-        seen.append(generation)
+    def build(generation: int, current: StoredDocument | None) -> dict[str, Any]:
+        seen.append((generation, current))
         return {"bound_generation": generation}
 
     first = store.save_with(build)
     second = store.save_with(build)
 
-    assert seen == [1, 2]
+    assert [generation for generation, _current in seen] == [1, 2]
+    assert seen[0][1] is None
+    replaced = seen[1][1]
+    assert replaced is not None
+    assert (replaced.generation, dict(replaced.record)) == (1, {"bound_generation": 1})
     assert dict(first.record) == {"bound_generation": 1}
     assert dict(second.record) == {"bound_generation": 2}
+
+
+def test_save_with_passes_the_document_as_re_read_not_as_last_seen(store_dir: Path) -> None:
+    store = make_store(store_dir)
+    store.save({"value": 1})
+    plant(store_dir, envelope(1, record={"value": "edited"}))
+    seen: list[StoredDocument | None] = []
+
+    def build(generation: int, current: StoredDocument | None) -> dict[str, Any]:
+        seen.append(current)
+        return {"value": 2}
+
+    store.save_with(build)
+
+    assert len(seen) == 1
+    current = seen[0]
+    assert current is not None
+    assert (current.generation, dict(current.record)) == (1, {"value": "edited"})
 
 
 def test_an_exception_from_save_with_writes_nothing(store_dir: Path) -> None:
@@ -1051,7 +1074,7 @@ def test_an_exception_from_save_with_writes_nothing(store_dir: Path) -> None:
     store.save({"value": 1})
     before = store.path.read_bytes()
 
-    def refuse(generation: int) -> dict[str, Any]:
+    def refuse(generation: int, current: StoredDocument | None) -> dict[str, Any]:
         raise RuntimeError("builder failed")
 
     with pytest.raises(RuntimeError, match="builder failed"):
@@ -1059,3 +1082,76 @@ def test_an_exception_from_save_with_writes_nothing(store_dir: Path) -> None:
 
     assert store.path.read_bytes() == before
     assert store.save({"value": 2}).generation == 2
+
+
+# --------------------------------------------------------------------------------------------------
+# create: generation 1, never replacing an existing document
+# --------------------------------------------------------------------------------------------------
+
+
+def test_create_writes_generation_1_owner_only_and_continues_like_a_save(store_dir: Path) -> None:
+    store = make_store(store_dir)
+
+    created = store.create({"value": 1})
+
+    assert (created.generation, dict(created.record)) == (1, {"value": 1})
+    assert store.path.read_bytes() == envelope(1, {"value": 1})
+    assert stat.S_IMODE(store.path.stat().st_mode) == FILE_MODE
+    assert [entry for entry in store_dir.iterdir() if entry.name.endswith(TEMP_SUFFIX)] == []
+    assert store.save({"value": 2}).generation == 2
+
+
+def test_create_never_replaces_an_existing_document(store_dir: Path) -> None:
+    make_store(store_dir).save({"value": 1})
+    before = store_dir.joinpath(NAME).read_bytes()
+
+    assert fault_of(lambda: make_store(store_dir).create({"value": 2})) is StoreFault.CONCURRENT_MODIFICATION
+    assert store_dir.joinpath(NAME).read_bytes() == before
+
+
+def test_create_never_replaces_a_document_another_writer_creates_after_the_check(
+    store_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other document lands between the load inside create and the link that installs the new one."""
+    store = make_store(store_dir)
+    real_link = os.link
+
+    def race_then_link(*args: Any, **kwargs: Any) -> None:
+        plant(store_dir, envelope(1, {"writer": "other"}))
+        real_link(*args, **kwargs)
+
+    monkeypatch.setattr(os, "link", race_then_link)
+    assert fault_of(lambda: store.create({"writer": "self"})) is StoreFault.CONCURRENT_MODIFICATION
+    monkeypatch.undo()
+
+    assert store_dir.joinpath(NAME).read_bytes() == envelope(1, {"writer": "other"})
+    assert [entry for entry in store_dir.iterdir() if entry.name.endswith(TEMP_SUFFIX)] == []
+    # Another writer exists: this instance keeps failing closed rather than adopting its document.
+    assert fault_of(store.load) is StoreFault.CONCURRENT_MODIFICATION
+
+
+def test_an_unconfirmed_create_accepts_its_own_document_only_once_the_directory_syncs(
+    store_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = make_store(store_dir)
+    refuse_fsync(monkeypatch, is_directory, errno.EIO)
+
+    assert fault_of(lambda: store.create({"value": 1})) is StoreFault.IO_ERROR
+    assert fault_of(store.load) is StoreFault.IO_ERROR
+    monkeypatch.undo()
+
+    loaded = store.load()
+    assert loaded is not None
+    assert (loaded.generation, dict(loaded.record)) == (1, {"value": 1})
+    assert fault_of(lambda: store.create({"value": 2})) is StoreFault.CONCURRENT_MODIFICATION
+
+
+def test_a_create_that_fails_before_the_link_writes_nothing(store_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    store = make_store(store_dir)
+    refuse_file_creation(monkeypatch, errno.ENOSPC)
+
+    assert fault_of(lambda: store.create({"value": 1})) is StoreFault.IO_ERROR
+    monkeypatch.undo()
+
+    assert not store.path.exists()
+    assert store.create({"value": 1}).generation == 1

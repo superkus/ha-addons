@@ -7,17 +7,27 @@ tombstones) need tamper evidence as well. This module adds it:
 
 * :class:`StateAuthenticationKeyStore` keeps one random 32-byte key in its own owner-only document, apart from the
   records it protects (requirement 7.5a: "a dedicated random core state-authentication key stored separately"). The key
-  is created only by an explicit :meth:`~StateAuthenticationKeyStore.create` when no protected state exists yet, and is
-  never replaced: a missing key is :attr:`~remote_energy_meter.secure_store.StoreFault.KEY_MISSING`, never silently
-  regenerated, because a fresh key would make every existing record unverifiable and hide what happened.
+  is created only by an explicit :meth:`~StateAuthenticationKeyStore.create`, exclusively, so an existing key is never
+  replaced, even by a concurrent creator. ``create`` checks only the key document: calling it only while no protected
+  state exists is the caller's obligation, which the later bootstrap layer enforces. A missing key is
+  :attr:`~remote_energy_meter.secure_store.StoreFault.KEY_MISSING`, never silently regenerated, because a fresh key
+  would make every existing record unverifiable and hide what happened: if a key is lost while records exist and a new
+  one is created anyway, those records fail as ``AUTHENTICATION_FAILED``. A key that one key store instance has already
+  read and that then vanishes, or is rewritten at a higher generation, fails as ``GENERATION_ROLLBACK`` or
+  ``CONCURRENT_MODIFICATION`` through that instance, not as ``KEY_MISSING``; a fresh instance reports ``KEY_MISSING``
+  or ``MALFORMED`` for the same states.
 * :class:`AuthenticatedDocumentStore` stores ``{"body": <record>, "tag": <HMAC>}`` as the record of a versioned
   envelope. The tag is HMAC-SHA-256 under that key over a ``REM-TRANSCRIPT`` binding the store id, schema version,
-  generation, and the canonical body bytes, so a record cannot be altered, copied into another store, or replayed under
-  another generation without the key. Before a save overwrites the current document, its tag is verified, so a save
-  never erases evidence of tampering.
+  generation, and the canonical body bytes, so a record cannot be altered, copied into another store, or relabelled
+  with another generation without the key. Before a save overwrites the current document, its tag is verified, so a
+  save never erases evidence of tampering.
 
-What the tag cannot prove is freshness against a coordinated restore of both the record and the key from one backup:
-the restored pair is authentic. Restore checks and the post-restore quarantine own that case.
+What the tag cannot prove is freshness. It gives authenticity and binding to the store, schema version, and
+generation, and the key never rotates, so every record it ever tagged stays authentic. An older record restored on its
+own, or a record deleted, while no instance is running therefore loads after a restart as that older generation, or as
+never written (``None``); so does a coordinated restore of both the records and the key from one backup. Restore checks
+against independently held state and the post-restore quarantine own that case (see
+:mod:`remote_energy_meter.secure_store`).
 
 The key is ordinary process memory: Python cannot guarantee it is erased. It never appears in ``repr``, logs, or
 error details.
@@ -142,8 +152,11 @@ class StateAuthenticationKeyStore:
         detected rather than masked by a cached copy.
 
         Raises:
-            SecureStoreError: ``KEY_MISSING`` when no key exists; ``MALFORMED`` when the document is not exactly one
-                canonical 32-byte key written once; any fault of the underlying document.
+            SecureStoreError: ``KEY_MISSING`` when no key exists and this instance has not read one before;
+                ``GENERATION_ROLLBACK`` when a key this instance already read has disappeared;
+                ``CONCURRENT_MODIFICATION`` when it was rewritten at a higher generation since (a fresh instance reports
+                that as ``MALFORMED``); ``MALFORMED`` when the document is not exactly one canonical 32-byte key written
+                once; any other fault of the underlying document.
         """
         with self._lock:
             document = self._document.load()
@@ -152,18 +165,42 @@ class StateAuthenticationKeyStore:
             return self._decode(document)
 
     def create(self) -> StateAuthenticationKey:
-        """Generate, store, and return a new key. Call only when no state protected by a key exists yet.
+        """Generate, store, and return a new key, exclusively: an existing key is never replaced.
+
+        This checks only the key document. Call it only when no state protected by a key exists yet; that is the
+        caller's obligation (records left from a lost key would then fail as ``AUTHENTICATION_FAILED``).
+
+        An instance whose creation lost the race to another writer keeps reporting ``CONCURRENT_MODIFICATION`` on
+        :meth:`load`, because it never read the winner's key; read the key through a fresh instance.
 
         Raises:
-            SecureStoreError: ``KEY_EXISTS`` when a key document already exists (it is never replaced); any fault of
-                the underlying document, including ``IO_ERROR`` from the write.
+            SecureStoreError: ``KEY_EXISTS`` when a key document already exists or another writer creates one while
+                this call runs (it is never replaced); any fault of the underlying document, including ``IO_ERROR``
+                from the write.
         """
         with self._lock:
-            if self._document.load() is not None:
+            # Another writer's key, whether the pre-check sees it (this instance had seen none) or the exclusive create
+            # finds it, is an existing key: report it as such and replace nothing.
+            try:
+                existing = self._document.load()
+            except SecureStoreError as error:
+                raise self._existing_key_or(error) from None
+            if existing is not None:
                 raise SecureStoreError(StoreFault.KEY_EXISTS, f"{self.path} already exists and is never replaced")
             key = secrets.token_bytes(KEY_BYTES)
-            self._document.save({"key": encode_base64url(key, exact_length=KEY_BYTES)})
+            try:
+                # Exclusive: a key another writer installed after the check above is never overwritten.
+                self._document.create({"key": encode_base64url(key, exact_length=KEY_BYTES)})
+            except SecureStoreError as error:
+                raise self._existing_key_or(error) from None
             return StateAuthenticationKey(key)
+
+    def _existing_key_or(self, error: SecureStoreError) -> SecureStoreError:
+        """Map another writer's key (``CONCURRENT_MODIFICATION``) to ``KEY_EXISTS``; return any other fault as is."""
+        if error.fault is not StoreFault.CONCURRENT_MODIFICATION:
+            return error
+        detail = f"{self.path} was created by another writer and is never replaced"
+        return SecureStoreError(StoreFault.KEY_EXISTS, detail)
 
     def _decode(self, document: StoredDocument) -> StateAuthenticationKey:
         # Written exactly once by create(): a later generation means it was rewritten, which never happens legitimately.
@@ -188,6 +225,9 @@ class AuthenticatedDocumentStore:
     The same contract as :class:`~remote_energy_meter.secure_store.VersionedDocumentStore` (one writer, generation +1
     per save, fail closed), with every record tagged under the key in ``keys``. A document that does not exist yet
     needs no key to load; reading an existing document or writing any document requires the key.
+
+    ``store_id`` must be unique among the stores that share one key: the tag binds the store id, not the file name, so a
+    record copied between two stores with the same id and schema version would verify in either.
 
     Args:
         directory: Store directory of the document.
@@ -230,9 +270,11 @@ class AuthenticatedDocumentStore:
         """Read and verify the document and its tag; ``None`` when it has never been written.
 
         Raises:
-            SecureStoreError: Any fault of the underlying document; ``KEY_MISSING`` when the document exists but its
-                key does not; ``MALFORMED`` when the record is not exactly a body and a tag; ``AUTHENTICATION_FAILED``
-                when the tag does not verify.
+            SecureStoreError: Any fault of the underlying document; any fault of
+                :meth:`StateAuthenticationKeyStore.load` when the document exists (``KEY_MISSING`` when its key does
+                not, ``GENERATION_ROLLBACK`` or ``CONCURRENT_MODIFICATION`` when a key already read through that key
+                store has vanished or been rewritten); ``MALFORMED`` when the record is not exactly a body and a tag;
+                ``AUTHENTICATION_FAILED`` when the tag does not verify.
         """
         with self._lock:
             return self._load_locked()
@@ -240,18 +282,24 @@ class AuthenticatedDocumentStore:
     def save(self, body: Mapping[str, JsonValue]) -> StoredDocument:
         """Tag ``body`` and write it as the next generation; return the stored body.
 
-        The current document, if any, is verified first, so a save never overwrites a tampered record. The same
-        unconfirmed-outcome rule as :meth:`VersionedDocumentStore.save` applies after an ``IO_ERROR``.
+        The document this save replaces, if any, is verified under the store lock as it is re-read for the write, so a
+        save never overwrites a tampered record. The key is loaded first, so a missing key fails as ``KEY_MISSING``
+        with nothing written, whether or not a record exists. The same unconfirmed-outcome rule as
+        :meth:`VersionedDocumentStore.save` applies after an ``IO_ERROR``.
 
         Raises:
-            SecureStoreError: Any fault from :meth:`load`; ``KEY_MISSING`` when the key does not exist; ``MALFORMED``
-                when ``body`` is not canonical-JSON renderable within the cap; ``IO_ERROR`` from the write.
+            SecureStoreError: Any fault of :meth:`StateAuthenticationKeyStore.load` (``KEY_MISSING`` when the key does
+                not exist, ``GENERATION_ROLLBACK`` or ``CONCURRENT_MODIFICATION`` when a key already read through that
+                key store has vanished or been rewritten); any other fault from :meth:`load`; ``MALFORMED`` when
+                ``body`` is not canonical-JSON renderable within the cap; ``GENERATION_EXHAUSTED``; ``IO_ERROR`` from
+                the write.
         """
         with self._lock:
-            self._load_locked()
             key = self._keys.load()
 
-            def build(generation: int) -> Mapping[str, JsonValue]:
+            def build(generation: int, current: StoredDocument | None) -> Mapping[str, JsonValue]:
+                if current is not None:
+                    self._verify(current, key)
                 tag = key.tag(self._message(generation, body))
                 return {"body": dict(body), "tag": encode_base64url(tag, exact_length=TAG_BYTES)}
 
@@ -265,7 +313,10 @@ class AuthenticatedDocumentStore:
         document = self._document.load()
         if document is None:
             return None
-        key = self._keys.load()
+        return self._verify(document, self._keys.load())
+
+    def _verify(self, document: StoredDocument, key: StateAuthenticationKey) -> StoredDocument:
+        """Return the body of ``document`` once its tag verifies under ``key``, or fail closed."""
         body, encoded_tag = self._split(document)
         try:
             tag = decode_base64url(encoded_tag, exact_length=TAG_BYTES)

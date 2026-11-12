@@ -14,6 +14,7 @@ from remote_energy_meter.atomic_file import (
     FILE_MODE,
     TEMP_SUFFIX,
     UnconfirmedReplaceError,
+    create_in_directory,
     fsync_directory,
     replace_in_directory,
     temporary_name_pattern,
@@ -428,3 +429,147 @@ def test_replace_in_directory_reports_only_a_post_rename_sync_failure_as_unconfi
     monkeypatch.undo()
     assert target.read_bytes() == b"new"
     assert temp_files(tmp_path) == []
+
+
+# --------------------------------------------------------------------------------------------------
+# create_in_directory: the no-replace variant, installed with a hard link
+# --------------------------------------------------------------------------------------------------
+
+
+def create_via_descriptor(directory: Path, name: str, data: bytes) -> None:
+    descriptor = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        create_in_directory(descriptor, name, data)
+    finally:
+        os.close(descriptor)
+
+
+@pytest.mark.parametrize("umask", [0o000, 0o022, 0o777])
+def test_create_in_directory_writes_exact_bytes_with_mode_0600_and_no_debris(tmp_path: Path, umask: int) -> None:
+    target = tmp_path / "document.json"
+    previous = os.umask(umask)
+    try:
+        create_via_descriptor(tmp_path, "document.json", b"\x00new\xff")
+    finally:
+        os.umask(previous)
+
+    assert target.read_bytes() == b"\x00new\xff"
+    assert stat.S_IMODE(target.stat().st_mode) == FILE_MODE
+    assert target.stat().st_nlink == 1
+    assert temp_files(tmp_path) == []
+
+
+def test_create_in_directory_never_replaces_an_existing_entry(tmp_path: Path) -> None:
+    target = tmp_path / "document.json"
+    target.write_bytes(b"first")
+
+    with pytest.raises(FileExistsError):
+        create_via_descriptor(tmp_path, "document.json", b"second")
+
+    assert target.read_bytes() == b"first"
+    assert temp_files(tmp_path) == []
+
+
+def test_create_in_directory_never_replaces_an_entry_that_appears_after_the_temporary_file_is_written(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The race the hard link exists for: another writer installs the entry just before the link."""
+    target = tmp_path / "document.json"
+    real_link = os.link
+
+    def race_then_link(*args: Any, **kwargs: Any) -> None:
+        target.write_bytes(b"winner")
+        real_link(*args, **kwargs)
+
+    monkeypatch.setattr(os, "link", race_then_link)
+
+    with pytest.raises(FileExistsError):
+        create_via_descriptor(tmp_path, "document.json", b"loser")
+
+    monkeypatch.undo()
+    assert target.read_bytes() == b"winner"
+    assert temp_files(tmp_path) == []
+
+
+def test_create_in_directory_does_not_follow_a_symlink_at_the_target_name(tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    outside.write_bytes(b"untouched")
+    store = tmp_path / "store"
+    store.mkdir()
+    (store / "document.json").symlink_to(outside)
+
+    with pytest.raises(FileExistsError):
+        create_via_descriptor(store, "document.json", b"new")
+
+    assert outside.read_bytes() == b"untouched"
+    assert (store / "document.json").is_symlink()
+    assert temp_files(store) == []
+
+
+@pytest.mark.parametrize("failing", ["fsync_file", "link"])
+def test_create_in_directory_failing_before_the_link_installs_nothing_and_removes_debris(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failing: str
+) -> None:
+    real_fsync = os.fsync
+
+    def refuse(*args: Any, **kwargs: Any) -> None:
+        raise OSError(5, "Input/output error")
+
+    def refuse_files(descriptor: int) -> None:
+        if stat.S_ISREG(os.fstat(descriptor).st_mode):
+            refuse()
+        real_fsync(descriptor)
+
+    if failing == "link":
+        monkeypatch.setattr(os, "link", refuse)
+    else:
+        monkeypatch.setattr(os, "fsync", refuse_files)
+
+    with pytest.raises(OSError) as caught:
+        create_via_descriptor(tmp_path, "document.json", b"new")
+
+    assert not isinstance(caught.value, UnconfirmedReplaceError)
+    monkeypatch.undo()
+    assert not (tmp_path / "document.json").exists()
+    assert temp_files(tmp_path) == []
+
+
+def test_create_in_directory_reports_a_post_link_sync_failure_as_unconfirmed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_fsync = os.fsync
+
+    def refuse_directories(descriptor: int) -> None:
+        if stat.S_ISDIR(os.fstat(descriptor).st_mode):
+            raise OSError(22, "Invalid argument")
+        real_fsync(descriptor)
+
+    monkeypatch.setattr(os, "fsync", refuse_directories)
+
+    with pytest.raises(UnconfirmedReplaceError) as caught:
+        create_via_descriptor(tmp_path, "document.json", b"new")
+
+    assert caught.value.errno == 22
+    monkeypatch.undo()
+    assert (tmp_path / "document.json").read_bytes() == b"new"
+    assert temp_files(tmp_path) == []
+
+
+def test_create_in_directory_reports_a_temporary_name_it_cannot_remove_after_the_link_as_unconfirmed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The document is installed; the leftover is a second link to it, matched by the pattern so a load removes it."""
+
+    def refuse_unlink(*args: Any, **kwargs: Any) -> None:
+        raise OSError(13, "Permission denied")
+
+    monkeypatch.setattr(os, "unlink", refuse_unlink)
+
+    with pytest.raises(UnconfirmedReplaceError) as caught:
+        create_via_descriptor(tmp_path, "document.json", b"new")
+
+    assert caught.value.errno == 13
+    monkeypatch.undo()
+    assert (tmp_path / "document.json").read_bytes() == b"new"
+    [leftover] = temp_files(tmp_path)
+    assert temporary_name_pattern("document.json").fullmatch(leftover.name)

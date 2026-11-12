@@ -15,9 +15,10 @@ Three layers:
 * :func:`read_private_file` / :func:`write_private_file` read and replace one document inside such a directory. Reads
   open the name relative to the verified directory with ``O_NOFOLLOW | O_NONBLOCK`` and check the open descriptor, so
   a symlink, FIFO, device, foreign owner, or any mode other than ``0600`` is rejected, and the size is capped before
-  the content is read. Writes go through :func:`remote_energy_meter.atomic_file.replace_in_directory` relative to the
-  verified directory's descriptor, refuse to replace an insecure existing entry, and fail when the rename cannot be
-  confirmed durable.
+  the content is read. Writes go through :func:`remote_energy_meter.atomic_file.replace_in_directory` (or, for
+  :meth:`VersionedDocumentStore.create`, the no-replace :func:`~remote_energy_meter.atomic_file.create_in_directory`)
+  relative to the verified directory's descriptor, refuse to replace an insecure existing entry, and fail when the
+  rename or link cannot be confirmed durable.
 * :class:`VersionedDocumentStore` stores one canonical-JSON envelope ``{"generation", "record", "schema_version",
   "store"}``. Every successful save increments ``generation`` by exactly one. A store instance remembers the last
   generation it loaded or wrote and fails closed if the document on disk later moves backwards, jumps ahead, or
@@ -31,7 +32,9 @@ Preconditions and assumptions:
 * Each document has exactly one writer: one :class:`VersionedDocumentStore` instance in one running process. Detection
   of other writers is by generation number only. A second process that writes a higher generation is reported
   (``CONCURRENT_MODIFICATION``) on this instance's next load or save, but a write interleaved between this instance's
-  check and its rename, or a substituted document that carries the same generation, is not detected.
+  check and its rename, or a substituted document that carries the same generation, is not detected. The exception is
+  :meth:`VersionedDocumentStore.create`: it installs generation 1 with a hard link, so a document another writer
+  created after its check is never replaced (``CONCURRENT_MODIFICATION``).
 
 What this layer does not detect:
 
@@ -72,6 +75,7 @@ from remote_energy_meter.atomic_file import (
     FILE_MODE,
     TEMP_SUFFIX,
     UnconfirmedReplaceError,
+    create_in_directory,
     replace_in_directory,
     temporary_name_pattern,
 )
@@ -145,7 +149,9 @@ class StoreFault(StrEnum):
     :meth:`VersionedDocumentStore.save`."""
 
     KEY_MISSING = "key_missing"
-    """Authenticated state exists or is being written, but its state-authentication key is absent."""
+    """Authenticated state exists or is being written, but its state-authentication key is absent. Only a key store
+    instance that has not yet read a key reports this; once it has, a vanished key is ``GENERATION_ROLLBACK`` and one
+    rewritten at a higher generation ``CONCURRENT_MODIFICATION``."""
 
     KEY_EXISTS = "key_exists"
     """A new state-authentication key was to be created, but one already exists; it is never replaced."""
@@ -385,10 +391,14 @@ def write_private_file(directory: Path, name: str, data: bytes) -> None:
         raise _unconfirmed_replace(directory, name, error) from None
 
 
-def _replace_private_file(directory: Path, name: str, data: bytes) -> None:
-    """:func:`write_private_file` without the final translation: a failed post-rename sync stays an
+def _replace_private_file(directory: Path, name: str, data: bytes, *, exclusive: bool = False) -> None:
+    """:func:`write_private_file` without the final translation: a failure after the document was installed (a failed
+    post-rename sync, or for ``exclusive`` a failed step after the link) stays an
     :class:`~remote_energy_meter.atomic_file.UnconfirmedReplaceError`, so :meth:`VersionedDocumentStore.save` can tell
-    "the new document may be in place" from "nothing changed". Every other failure is a :class:`SecureStoreError`."""
+    "the new document may be in place" from "nothing changed". Every other failure is a :class:`SecureStoreError`.
+
+    With ``exclusive`` the document is installed by :func:`~remote_energy_meter.atomic_file.create_in_directory` and
+    an entry that exists by then, however it got there, is never replaced: ``CONCURRENT_MODIFICATION``."""
     path = directory / name
     directory_fd = _open_verified_directory(directory)
     try:
@@ -400,12 +410,17 @@ def _replace_private_file(directory: Path, name: str, data: bytes) -> None:
             raise SecureStoreError(StoreFault.IO_ERROR, f"cannot inspect {path}: {type(error).__name__}") from None
         else:
             _check_file_status(path, existing)
+        install = create_in_directory if exclusive else replace_in_directory
         try:
-            replace_in_directory(directory_fd, name, data)
+            install(directory_fd, name, data)
         except UnconfirmedReplaceError:
             # An OSError subclass, so it must pass through before the generic handler turns it into "nothing changed".
             raise
         except OSError as error:
+            if exclusive and isinstance(error, FileExistsError):
+                raise SecureStoreError(
+                    StoreFault.CONCURRENT_MODIFICATION, f"{path} was created by another writer and is never replaced"
+                ) from None
             raise SecureStoreError(StoreFault.IO_ERROR, f"cannot write {path}: {type(error).__name__}") from None
     finally:
         os.close(directory_fd)
@@ -485,14 +500,15 @@ class VersionedDocumentStore:
 
     def save(self, record: Mapping[str, JsonValue]) -> StoredDocument:
         """Write ``record`` as the next generation and return it; :meth:`save_with` for a generation-bound record."""
-        return self.save_with(lambda _generation: record)
+        return self.save_with(lambda _generation, _current: record)
 
-    def save_with(self, build: Callable[[int], Mapping[str, JsonValue]]) -> StoredDocument:
-        """Write ``build(generation)`` as the next generation and return it.
+    def save_with(self, build: Callable[[int, StoredDocument | None], Mapping[str, JsonValue]]) -> StoredDocument:
+        """Write ``build(generation, current)`` as the next generation and return it.
 
         ``build`` receives the generation the record will be stored under, so a layer above can bind it (for example in
-        an integrity tag). It runs under the store lock after the document on disk was re-verified; an exception from it
-        writes nothing.
+        an integrity tag), and the current document exactly as this save re-read it (``None`` if none exists), so that
+        layer can verify the very document being replaced. It runs under the store lock after the document on disk was
+        re-verified; an exception from it writes nothing.
 
         The document on disk is re-verified first, so a rollback or a second writer is detected before anything is
         written. A save whose rename happened but whose directory sync failed raises ``IO_ERROR`` and leaves its outcome
@@ -510,19 +526,41 @@ class VersionedDocumentStore:
             if previous >= _MAX_GENERATION:
                 raise SecureStoreError(StoreFault.GENERATION_EXHAUSTED, f"{self.path} cannot advance its generation")
             generation = previous + 1
-            data = self._render(generation, build(generation))
-            try:
-                _replace_private_file(self._directory, self._name, data)
-            except UnconfirmedReplaceError as error:
-                # Only a failure after the rename may leave this generation on disk: accept either on the next load.
-                self._unconfirmed_generation = generation
-                raise _unconfirmed_replace(self._directory, self._name, error) from None
-            self._known_generation = generation
-            self._unconfirmed_generation = None
-            # Return a fresh parse of what was written, not the caller's mapping, which the caller may still mutate.
-            return StoredDocument(generation=generation, record=self._decode(data).record)
+            return self._write_locked(generation, build(generation, current), exclusive=False)
+
+    def create(self, record: Mapping[str, JsonValue]) -> StoredDocument:
+        """Write ``record`` as generation 1 only if no document exists, and return it. A document is never replaced.
+
+        The document is installed with a hard link (:func:`remote_energy_meter.atomic_file.create_in_directory`), so
+        even a second writer that creates it between this method's check and its write is never overwritten. The same
+        unconfirmed-outcome rule as :meth:`save_with` applies after an ``IO_ERROR``.
+
+        Raises:
+            SecureStoreError: Any fault from :meth:`load`; ``CONCURRENT_MODIFICATION`` if the document exists, or
+                another writer creates it first; ``MALFORMED`` if the record is not canonical-JSON renderable within
+                the size cap; ``IO_ERROR``.
+        """
+        with self._lock:
+            if self._load_locked() is not None:
+                raise SecureStoreError(
+                    StoreFault.CONCURRENT_MODIFICATION, f"{self.path} already exists and is never replaced"
+                )
+            return self._write_locked(1, record, exclusive=True)
 
     # -- internals --------------------------------------------------------------------------------
+
+    def _write_locked(self, generation: int, record: Mapping[str, JsonValue], *, exclusive: bool) -> StoredDocument:
+        data = self._render(generation, record)
+        try:
+            _replace_private_file(self._directory, self._name, data, exclusive=exclusive)
+        except UnconfirmedReplaceError as error:
+            # Only a failure after the rename or link may leave this generation on disk: accept either on the next load.
+            self._unconfirmed_generation = generation
+            raise _unconfirmed_replace(self._directory, self._name, error) from None
+        self._known_generation = generation
+        self._unconfirmed_generation = None
+        # Return a fresh parse of what was written, not the caller's mapping, which the caller may still mutate.
+        return StoredDocument(generation=generation, record=self._decode(data).record)
 
     def _load_locked(self) -> StoredDocument | None:
         known = self._known_generation
