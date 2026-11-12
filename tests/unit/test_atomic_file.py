@@ -10,7 +10,15 @@ from typing import Any
 
 import pytest
 
-from remote_energy_meter.atomic_file import TEMP_SUFFIX, fsync_directory, write_atomically
+from remote_energy_meter.atomic_file import (
+    FILE_MODE,
+    TEMP_SUFFIX,
+    UnconfirmedReplaceError,
+    fsync_directory,
+    replace_in_directory,
+    temporary_name_pattern,
+    write_atomically,
+)
 
 
 def temp_files(directory: Path) -> list[Path]:
@@ -53,8 +61,9 @@ def test_an_empty_payload_produces_an_empty_document(tmp_path: Path) -> None:
     assert target.read_bytes() == b""
 
 
-@pytest.mark.parametrize("umask", [0o000, 0o022, 0o077])
-def test_the_document_is_0600_under_umasks_that_keep_the_owner_bits(tmp_path: Path, umask: int) -> None:
+@pytest.mark.parametrize("umask", [0o000, 0o022, 0o077, 0o277, 0o377, 0o777])
+def test_the_document_is_exactly_0600_under_any_umask(tmp_path: Path, umask: int) -> None:
+    """fchmod sets the mode after creation, so neither a permissive nor an owner-stripping umask changes it."""
     target = tmp_path / "document.json"
     previous = os.umask(umask)
     try:
@@ -62,25 +71,28 @@ def test_the_document_is_0600_under_umasks_that_keep_the_owner_bits(tmp_path: Pa
     finally:
         os.umask(previous)
 
-    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+    assert stat.S_IMODE(target.stat().st_mode) == FILE_MODE == 0o600
+    assert target.read_bytes() == b"secret-free but private"
 
 
-@pytest.mark.parametrize("umask", [0o277, 0o377, 0o777])
-def test_the_document_never_gains_group_other_or_extra_owner_bits_under_a_restrictive_umask(
-    tmp_path: Path, umask: int
-) -> None:
-    """mkstemp creates with 0600 & ~umask: a umask that strips owner bits narrows the mode, never widens it."""
-    target = tmp_path / "document.json"
-    previous = os.umask(umask)
+def test_the_mode_is_set_before_any_byte_is_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    observed: list[int] = []
+    real_fsync = os.fsync
+
+    def recording_fsync(descriptor: int) -> None:
+        status = os.fstat(descriptor)
+        if stat.S_ISREG(status.st_mode):
+            observed.append(stat.S_IMODE(status.st_mode))
+        real_fsync(descriptor)
+
+    monkeypatch.setattr(os, "fsync", recording_fsync)
+    previous = os.umask(0o377)
     try:
-        write_atomically(target, b"secret-free but private")
+        write_atomically(tmp_path / "document.json", b"x")
     finally:
         os.umask(previous)
 
-    # Content is not read back: under umask 0o777 the document may be mode 0000.
-    mode = stat.S_IMODE(target.stat().st_mode)
-    assert mode & 0o077 == 0
-    assert mode & ~0o600 == 0
+    assert observed == [0o600]
 
 
 def test_a_previous_world_readable_document_becomes_owner_only(tmp_path: Path) -> None:
@@ -245,3 +257,174 @@ def test_fsync_directory_closes_its_descriptor_even_when_fsync_fails(
     fsync_directory(tmp_path)
 
     assert opened and closed == opened
+
+
+# --------------------------------------------------------------------------------------------------
+# replace_in_directory: the descriptor-relative writer of the security stores
+# --------------------------------------------------------------------------------------------------
+
+
+def replace_via_descriptor(directory: Path, name: str, data: bytes) -> None:
+    descriptor = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        replace_in_directory(descriptor, name, data)
+    finally:
+        os.close(descriptor)
+
+
+@pytest.mark.parametrize("umask", [0o000, 0o022, 0o777])
+def test_replace_in_directory_writes_exact_bytes_with_mode_0600_and_no_debris(tmp_path: Path, umask: int) -> None:
+    target = tmp_path / "document.json"
+    target.write_bytes(b"previous")
+    target.chmod(0o644)
+    previous = os.umask(umask)
+    try:
+        replace_via_descriptor(tmp_path, "document.json", b"\x00new\xff")
+    finally:
+        os.umask(previous)
+
+    assert target.read_bytes() == b"\x00new\xff"
+    assert stat.S_IMODE(target.stat().st_mode) == FILE_MODE
+    assert temp_files(tmp_path) == []
+
+
+def test_replace_in_directory_writes_everything_despite_short_writes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_write = os.write
+
+    def one_byte(descriptor: int, data: Any) -> int:
+        return real_write(descriptor, bytes(data[:1]))
+
+    monkeypatch.setattr(os, "write", one_byte)
+
+    replace_via_descriptor(tmp_path, "document.json", b"several bytes")
+
+    assert (tmp_path / "document.json").read_bytes() == b"several bytes"
+
+
+def test_replace_in_directory_uses_an_unpredictable_temporary_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    created: list[str] = []
+    real_open = os.open
+
+    def recording_open(path: Any, flags: int, *args: Any, **kwargs: Any) -> int:
+        if flags & os.O_CREAT:
+            created.append(str(path))
+            assert flags & os.O_EXCL and flags & os.O_NOFOLLOW
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", recording_open)
+
+    replace_via_descriptor(tmp_path, "document.json", b"a")
+    replace_via_descriptor(tmp_path, "document.json", b"b")
+
+    assert len(created) == 2 and created[0] != created[1]
+    pattern = temporary_name_pattern("document.json")
+    for name in created:
+        assert pattern.fullmatch(name)
+
+
+def test_the_temporary_name_pattern_matches_a_real_leftover_and_nothing_else(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def refuse(*args: Any, **kwargs: Any) -> None:
+        raise OSError("rename refused")
+
+    def keep(*args: Any, **kwargs: Any) -> None:
+        pass
+
+    # A crash between the write and the cleanup leaves the writer's own temporary file behind.
+    monkeypatch.setattr(os, "replace", refuse)
+    monkeypatch.setattr(os, "unlink", keep)
+    with pytest.raises(OSError, match="rename refused"):
+        replace_via_descriptor(tmp_path, "document.json", b"x")
+    monkeypatch.undo()
+
+    [leftover] = [entry.name for entry in temp_files(tmp_path)]
+    pattern = temporary_name_pattern("document.json")
+    assert pattern.fullmatch(leftover)
+    for other in (
+        "document.json",
+        f"document.json.backup.{leftover.removeprefix('document.json.')}",
+        f"document.jsonx{leftover.removeprefix('document.json')}",
+        f"documentXjson{leftover.removeprefix('document.json')}",
+        f"document.json.{'0' * 15}{TEMP_SUFFIX}",
+        f"document.json.{'0' * 17}{TEMP_SUFFIX}",
+        f"document.json.{'A' * 16}{TEMP_SUFFIX}",
+        f"{leftover}.tmp",
+        f"other.{leftover}",
+    ):
+        assert not pattern.fullmatch(other), other
+
+
+def test_replace_in_directory_does_not_follow_a_symlink_at_the_temporary_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Even a planted symlink at the exact temporary name is refused, not written through."""
+    outside = tmp_path / "outside"
+    outside.write_bytes(b"untouched")
+    store = tmp_path / "store"
+    store.mkdir()
+    monkeypatch.setattr("remote_energy_meter.atomic_file.secrets.token_hex", lambda size: "0" * (2 * size))
+    (store / f"document.json.{'0' * 16}{TEMP_SUFFIX}").symlink_to(outside)
+
+    with pytest.raises(OSError):
+        replace_via_descriptor(store, "document.json", b"new")
+
+    assert outside.read_bytes() == b"untouched"
+    assert not (store / "document.json").exists()
+
+
+@pytest.mark.parametrize("failing", ["fsync_file", "replace"])
+def test_replace_in_directory_failing_before_the_rename_keeps_the_previous_document_and_removes_debris(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failing: str
+) -> None:
+    target = tmp_path / "document.json"
+    target.write_bytes(b"previous")
+    real_fsync = os.fsync
+
+    def refuse(*args: Any, **kwargs: Any) -> None:
+        raise OSError(5, "Input/output error")
+
+    def refuse_files(descriptor: int) -> None:
+        if stat.S_ISREG(os.fstat(descriptor).st_mode):
+            refuse()
+        real_fsync(descriptor)
+
+    if failing == "replace":
+        monkeypatch.setattr(os, "replace", refuse)
+    else:
+        monkeypatch.setattr(os, "fsync", refuse_files)
+
+    with pytest.raises(OSError) as caught:
+        replace_via_descriptor(tmp_path, "document.json", b"new")
+
+    assert not isinstance(caught.value, UnconfirmedReplaceError)
+    monkeypatch.undo()
+    assert target.read_bytes() == b"previous"
+    assert temp_files(tmp_path) == []
+
+
+def test_replace_in_directory_reports_only_a_post_rename_sync_failure_as_unconfirmed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "document.json"
+    target.write_bytes(b"previous")
+    real_fsync = os.fsync
+
+    def refuse_directories(descriptor: int) -> None:
+        if stat.S_ISDIR(os.fstat(descriptor).st_mode):
+            raise OSError(22, "Invalid argument")
+        real_fsync(descriptor)
+
+    monkeypatch.setattr(os, "fsync", refuse_directories)
+
+    with pytest.raises(UnconfirmedReplaceError) as caught:
+        replace_via_descriptor(tmp_path, "document.json", b"new")
+
+    assert caught.value.errno == 22
+    monkeypatch.undo()
+    assert target.read_bytes() == b"new"
+    assert temp_files(tmp_path) == []

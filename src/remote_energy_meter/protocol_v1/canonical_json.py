@@ -1,4 +1,4 @@
-"""Strict parsing for the REM canonical JSON subset used by signed bodies."""
+"""Strict parsing and rendering for the REM canonical JSON subset used by signed bodies and stored documents."""
 
 from __future__ import annotations
 
@@ -146,6 +146,66 @@ def _render(value: JsonValue) -> bytes:
     return (
         b"{" + b",".join(_render_string(key.decode("ascii")) + b":" + _render(child) for key, child in members) + b"}"
     )
+
+
+def _check_renderable(value: object, depth: int, max_depth: int) -> None:
+    """Check the shape of ``value`` before rendering any byte: exact types, uint64 range, string keys, and depth.
+
+    It rejects a type other than exactly ``None``, ``bool``, ``int``, ``Decimal``, ``str``, ``list`` or ``dict``; an
+    integer outside uint64; a non-``str`` object key; and nesting deeper than ``max_depth``. It does not check content:
+    a non-canonical ``Decimal``, a surrogate code point, or a non-ASCII key is rejected while rendering, and an
+    oversize output by the parser's self-check in :func:`render_canonical_json`.
+
+    ``depth`` is the number of containers enclosing ``value``; a container itself counts one level, as in the parser.
+    """
+    # Types are checked exactly: a subclass can override how it renders, so only the parser's own types are accepted.
+    kind = type(value)
+    if value is None or kind is bool or kind is str or kind is Decimal:
+        return
+    if kind is int:
+        if not 0 <= cast(int, value) <= _UINT64_MAX:
+            raise invalid_request("JSON integer is outside the uint64 profile")
+        return
+    if kind is not list and kind is not dict:
+        # Floats, tuples, sets, bytes, and subclasses of any JSON type are outside the profile.
+        raise invalid_request(f"{kind.__name__} is not a canonical JSON value")
+    level = depth + 1
+    if level > max_depth:
+        raise invalid_request("JSON nesting is too deep")
+    if kind is list:
+        for child in cast(list[object], value):
+            _check_renderable(child, level, max_depth)
+        return
+    for key, child in cast(dict[object, object], value).items():
+        if type(key) is not str:
+            raise invalid_request("JSON object member name is not a string")
+        _check_renderable(child, level, max_depth)
+
+
+def render_canonical_json(value: JsonValue, *, max_depth: int, max_length: int = _DEFAULT_MAX_LENGTH) -> bytes:
+    """Render a value as the exact canonical bytes :func:`parse_canonical_json` accepts.
+
+    The output is self-checked by parsing it back under the same bounds, so a value this function returns is always
+    accepted unchanged by the parser and ``render_canonical_json(parse_canonical_json(raw)) == raw``.
+
+    Args:
+        value: Value built from exactly (not subclasses of) ``None``, ``bool``, uint64 ``int``, finite non-negative
+            ``Decimal`` with at most six fractional digits and no trailing zero, ``str``, ``list``, and ``dict`` with
+            ASCII ``str`` keys.
+        max_depth: Maximum permitted object/array nesting depth, as for :func:`parse_canonical_json`.
+        max_length: Maximum permitted output length in bytes.
+
+    Raises:
+        ValueError: ``max_depth`` exceeds the implementation's caller-facing safety ceiling.
+        ProtocolViolation: The value is outside the profile or the output exceeds the bounds. These failures have code
+            ``invalid_request``.
+    """
+    if max_depth > MAX_DEPTH_CEILING:
+        raise ValueError(f"max_depth must not exceed {MAX_DEPTH_CEILING}")
+    _check_renderable(value, 0, max_depth)
+    rendered = _render(value)
+    parse_canonical_json(rendered, max_depth=max_depth, max_length=max_length)
+    return rendered
 
 
 def parse_canonical_json(

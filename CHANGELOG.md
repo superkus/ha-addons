@@ -32,13 +32,32 @@ All notable changes to this project are documented here. The format follows
   server-owned vectors, specification Tasks 3.2 and 3.3 are complete at the primitive layer; the declared
   `interactive.sas` vector mutations are not yet executed by either implementation. The profile remains a
   draft that must not be distributed until the Task 3.4 independent security review approves it.
+- Added the fail-closed storage foundation for the upcoming reporter and control security state
+  (`remote_energy_meter.secure_store`); nothing uses it yet. Store directories must be real directories owned by the
+  add-on user with mode exactly `0700`, and documents regular files with mode exactly `0600`; symlinks, FIFOs, foreign
+  owners, other modes, oversize documents, non-canonical or foreign-schema envelopes, and documents from another store
+  are rejected and never repaired. Writes name the document relative to the verified store directory's descriptor, so
+  a directory removed or swapped for a symlink is neither recreated nor followed, and an existing entry that is not a
+  regular owner-only `0600` file is refused and left untouched. Each document is a canonical-JSON envelope whose
+  generation rises by exactly one per save. Assuming a single running writer per document, the store detects before
+  writing a document that went back to a lower generation, vanished, or was advanced by another writer; a document
+  substituted with the same generation, a write interleaved with its own, and state lost while the add-on is stopped
+  are not detected by this layer. A save whose directory sync fails is reported as failed, and a generation it may
+  have left on disk is accepted only after a later directory sync succeeds. Each load that verifies the document,
+  including the one at the start of every save, deletes the document's own temporary files left by an interrupted
+  write, which can hold a newer record's bytes; a load that fails closed leaves them in place as evidence for
+  recovery. A new store directory that the process umask leaves unreadable by its owner is refused rather than fixed
+  by path. Added a strict public canonical-JSON renderer for protocol v1 that accepts only the parser's exact value
+  types and whose output the strict parser always accepts unchanged.
 
 ### Changed
 
-- The energy state file is now written through a shared crash-safe writer (`remote_energy_meter.atomic_file`) that the
-  upcoming reporter PKI, roster, and token stores will reuse instead of a parallel writer. Behaviour is unchanged: an
-  exclusive owner-only temporary file in the same directory, flushed and synced, atomically renamed over the
-  document, best-effort directory sync, and no leftover temporary file on failure.
+- The energy state file is now written through a shared crash-safe writer (`remote_energy_meter.atomic_file`), which
+  also provides the descriptor-relative writer of the security-store foundation. Its sequence is the one the energy
+  store already used: an exclusive owner-only temporary file in the same directory, flushed and synced, atomically
+  renamed over the document, best-effort directory sync, and no leftover temporary file on failure.
+- The shared writer now sets each document's mode to exactly `0600` before writing it, so an unusual process umask can
+  no longer leave the energy state file with fewer owner permissions; group and others still never have access.
 - Corrected the draft protocol-v1 reporter signature profile to omit client wall-clock parameters entirely. Reporter
   `Signature-Input` now contains exactly `keyid`, `alg`, and `tag`; freshness remains exclusively bound to server-issued
   pending-enrollment, challenge, session, and sequence state. Regenerated the affected public reporter HTTP vectors

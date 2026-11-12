@@ -4,7 +4,7 @@ This package deliberately contains no listener, route handler, persistence, repl
 state, authorization policy, or business operation.
 """
 
-from remote_energy_meter.protocol_v1.canonical_json import JsonValue, parse_canonical_json
+from remote_energy_meter.protocol_v1.canonical_json import JsonValue, parse_canonical_json, render_canonical_json
 from remote_energy_meter.protocol_v1.crypto import (
     P256PublicJwk,
     parse_content_digest,
@@ -50,6 +50,7 @@ __all__ = [
     "parse_content_digest",
     "parse_p256_public_jwk",
     "parse_sas",
+    "render_canonical_json",
     "render_content_digest",
     "render_sas",
     "route_profile",
