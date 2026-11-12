@@ -32,6 +32,14 @@ All notable changes to this project are documented here. The format follows
   server-owned vectors, specification Tasks 3.2 and 3.3 are complete at the primitive layer; the declared
   `interactive.sas` vector mutations are not yet executed by either implementation. The profile remains a
   draft that must not be distributed until the Task 3.4 independent security review approves it.
+- Added the fail-closed storage foundation for the upcoming reporter and control security state
+  (`remote_energy_meter.secure_store`); nothing uses it yet. Store directories must be real directories owned by the
+  add-on user with mode exactly `0700`, and documents regular files with mode exactly `0600`; symlinks, FIFOs, foreign
+  owners, other modes, oversize documents, non-canonical or foreign-schema envelopes, and documents from another store
+  are rejected and never repaired. Each document is a canonical-JSON envelope whose generation rises by exactly one per
+  save; a running store detects a rolled-back, vanished, or concurrently written document before writing. A save
+  whose directory sync fails is reported as failed. Added a strict public canonical-JSON renderer for protocol v1
+  whose output the strict parser always accepts unchanged.
 
 ### Changed
 
@@ -39,6 +47,8 @@ All notable changes to this project are documented here. The format follows
   upcoming reporter PKI, roster, and token stores will reuse instead of a parallel writer. Behaviour is unchanged: an
   exclusive owner-only temporary file in the same directory, flushed and synced, atomically renamed over the
   document, best-effort directory sync, and no leftover temporary file on failure.
+- The shared writer now sets each document's mode to exactly `0600` before writing it, so an unusual process umask can
+  no longer leave the energy state file with fewer owner permissions; group and others still never have access.
 - Corrected the draft protocol-v1 reporter signature profile to omit client wall-clock parameters entirely. Reporter
   `Signature-Input` now contains exactly `keyid`, `alg`, and `tag`; freshness remains exclusively bound to server-issued
   pending-enrollment, challenge, session, and sequence state. Regenerated the affected public reporter HTTP vectors

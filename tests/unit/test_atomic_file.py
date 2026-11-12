@@ -10,7 +10,13 @@ from typing import Any
 
 import pytest
 
-from remote_energy_meter.atomic_file import TEMP_SUFFIX, fsync_directory, write_atomically
+from remote_energy_meter.atomic_file import (
+    FILE_MODE,
+    TEMP_SUFFIX,
+    fsync_directory,
+    sync_directory_strictly,
+    write_atomically,
+)
 
 
 def temp_files(directory: Path) -> list[Path]:
@@ -53,8 +59,9 @@ def test_an_empty_payload_produces_an_empty_document(tmp_path: Path) -> None:
     assert target.read_bytes() == b""
 
 
-@pytest.mark.parametrize("umask", [0o000, 0o022, 0o077])
-def test_the_document_is_0600_under_umasks_that_keep_the_owner_bits(tmp_path: Path, umask: int) -> None:
+@pytest.mark.parametrize("umask", [0o000, 0o022, 0o077, 0o277, 0o377, 0o777])
+def test_the_document_is_exactly_0600_under_any_umask(tmp_path: Path, umask: int) -> None:
+    """fchmod sets the mode after creation, so neither a permissive nor an owner-stripping umask changes it."""
     target = tmp_path / "document.json"
     previous = os.umask(umask)
     try:
@@ -62,25 +69,28 @@ def test_the_document_is_0600_under_umasks_that_keep_the_owner_bits(tmp_path: Pa
     finally:
         os.umask(previous)
 
-    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+    assert stat.S_IMODE(target.stat().st_mode) == FILE_MODE == 0o600
+    assert target.read_bytes() == b"secret-free but private"
 
 
-@pytest.mark.parametrize("umask", [0o277, 0o377, 0o777])
-def test_the_document_never_gains_group_other_or_extra_owner_bits_under_a_restrictive_umask(
-    tmp_path: Path, umask: int
-) -> None:
-    """mkstemp creates with 0600 & ~umask: a umask that strips owner bits narrows the mode, never widens it."""
-    target = tmp_path / "document.json"
-    previous = os.umask(umask)
+def test_the_mode_is_set_before_any_byte_is_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    observed: list[int] = []
+    real_fsync = os.fsync
+
+    def recording_fsync(descriptor: int) -> None:
+        status = os.fstat(descriptor)
+        if stat.S_ISREG(status.st_mode):
+            observed.append(stat.S_IMODE(status.st_mode))
+        real_fsync(descriptor)
+
+    monkeypatch.setattr(os, "fsync", recording_fsync)
+    previous = os.umask(0o377)
     try:
-        write_atomically(target, b"secret-free but private")
+        write_atomically(tmp_path / "document.json", b"x")
     finally:
         os.umask(previous)
 
-    # Content is not read back: under umask 0o777 the document may be mode 0000.
-    mode = stat.S_IMODE(target.stat().st_mode)
-    assert mode & 0o077 == 0
-    assert mode & ~0o600 == 0
+    assert observed == [0o600]
 
 
 def test_a_previous_world_readable_document_becomes_owner_only(tmp_path: Path) -> None:
@@ -244,4 +254,75 @@ def test_fsync_directory_closes_its_descriptor_even_when_fsync_fails(
 
     fsync_directory(tmp_path)
 
+    assert opened and closed == opened
+
+
+def test_a_required_directory_sync_failure_fails_the_write_after_the_rename(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Strict mode reports an unconfirmed rename; the new document is in place, never torn, and no debris remains."""
+    target = tmp_path / "document.json"
+    target.write_bytes(b"previous")
+    real_fsync = os.fsync
+
+    def refuse_directories(descriptor: int) -> None:
+        if stat.S_ISDIR(os.fstat(descriptor).st_mode):
+            raise OSError("simulated unsupported directory fsync")
+        real_fsync(descriptor)
+
+    monkeypatch.setattr(os, "fsync", refuse_directories)
+
+    with pytest.raises(OSError, match="simulated unsupported directory fsync"):
+        write_atomically(target, b"new", require_directory_sync=True)
+    monkeypatch.undo()
+    assert target.read_bytes() == b"new"
+    assert temp_files(tmp_path) == []
+
+
+def test_a_required_directory_sync_succeeds_normally(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    synced: list[bool] = []
+    real_fsync = os.fsync
+
+    def recording_fsync(descriptor: int) -> None:
+        synced.append(stat.S_ISDIR(os.fstat(descriptor).st_mode))
+        real_fsync(descriptor)
+
+    monkeypatch.setattr(os, "fsync", recording_fsync)
+
+    write_atomically(tmp_path / "document.json", b"x", require_directory_sync=True)
+
+    assert synced == [False, True]
+
+
+def test_sync_directory_strictly_raises_for_a_directory_that_cannot_be_opened(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError):
+        sync_directory_strictly(tmp_path / "missing")
+
+
+def test_sync_directory_strictly_closes_its_descriptor_when_fsync_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    opened: list[int] = []
+    closed: list[int] = []
+    real_open = os.open
+    real_close = os.close
+
+    def recording_open(path: Any, flags: int, *args: Any) -> int:
+        descriptor = real_open(path, flags, *args)
+        opened.append(descriptor)
+        return descriptor
+
+    def recording_close(descriptor: int) -> None:
+        closed.append(descriptor)
+        real_close(descriptor)
+
+    def refuse(descriptor: int) -> None:
+        raise OSError("simulated unsupported directory fsync")
+
+    monkeypatch.setattr(os, "open", recording_open)
+    monkeypatch.setattr(os, "close", recording_close)
+    monkeypatch.setattr(os, "fsync", refuse)
+
+    with pytest.raises(OSError, match="simulated"):
+        sync_directory_strictly(tmp_path)
     assert opened and closed == opened
