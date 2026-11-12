@@ -1,0 +1,247 @@
+"""The shared crash-safe, owner-only file writer every durable store uses."""
+
+from __future__ import annotations
+
+import os
+import stat
+import tempfile
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from remote_energy_meter.atomic_file import TEMP_SUFFIX, fsync_directory, write_atomically
+
+
+def temp_files(directory: Path) -> list[Path]:
+    return [entry for entry in directory.iterdir() if entry.name.endswith(TEMP_SUFFIX)]
+
+
+def test_writes_exact_bytes_and_leaves_no_temporary_file(tmp_path: Path) -> None:
+    target = tmp_path / "document.json"
+    payload = b'{"a":1}\n\x00\xff'
+
+    write_atomically(target, payload)
+
+    assert target.read_bytes() == payload
+    assert temp_files(tmp_path) == []
+
+
+def test_creates_missing_parent_directories(tmp_path: Path) -> None:
+    target = tmp_path / "nested" / "deeper" / "document.json"
+
+    write_atomically(target, b"x")
+
+    assert target.read_bytes() == b"x"
+
+
+def test_replaces_an_existing_document_completely(tmp_path: Path) -> None:
+    target = tmp_path / "document.json"
+    target.write_bytes(b"a much longer previous document")
+
+    write_atomically(target, b"short")
+
+    assert target.read_bytes() == b"short"
+
+
+def test_an_empty_payload_produces_an_empty_document(tmp_path: Path) -> None:
+    target = tmp_path / "document.json"
+    target.write_bytes(b"previous")
+
+    write_atomically(target, b"")
+
+    assert target.read_bytes() == b""
+
+
+@pytest.mark.parametrize("umask", [0o000, 0o022, 0o077])
+def test_the_document_is_0600_under_umasks_that_keep_the_owner_bits(tmp_path: Path, umask: int) -> None:
+    target = tmp_path / "document.json"
+    previous = os.umask(umask)
+    try:
+        write_atomically(target, b"secret-free but private")
+    finally:
+        os.umask(previous)
+
+    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+
+
+@pytest.mark.parametrize("umask", [0o277, 0o377, 0o777])
+def test_the_document_never_gains_group_other_or_extra_owner_bits_under_a_restrictive_umask(
+    tmp_path: Path, umask: int
+) -> None:
+    """mkstemp creates with 0600 & ~umask: a umask that strips owner bits narrows the mode, never widens it."""
+    target = tmp_path / "document.json"
+    previous = os.umask(umask)
+    try:
+        write_atomically(target, b"secret-free but private")
+    finally:
+        os.umask(previous)
+
+    # Content is not read back: under umask 0o777 the document may be mode 0000.
+    mode = stat.S_IMODE(target.stat().st_mode)
+    assert mode & 0o077 == 0
+    assert mode & ~0o600 == 0
+
+
+def test_a_previous_world_readable_document_becomes_owner_only(tmp_path: Path) -> None:
+    """The rename installs the temporary file's inode, so the old document's mode is not inherited."""
+    target = tmp_path / "document.json"
+    target.write_bytes(b"old")
+    target.chmod(0o644)
+
+    write_atomically(target, b"new")
+
+    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+
+
+def test_the_temporary_file_is_created_exclusively_in_the_target_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[dict[str, Any]] = []
+    real_mkstemp = tempfile.mkstemp
+
+    def recording_mkstemp(**kwargs: Any) -> tuple[int, str]:
+        calls.append(kwargs)
+        return real_mkstemp(**kwargs)
+
+    monkeypatch.setattr(tempfile, "mkstemp", recording_mkstemp)
+    target = tmp_path / "document.json"
+
+    write_atomically(target, b"x")
+
+    # mkstemp is the O_CREAT | O_EXCL, mode-0600 primitive; the same directory keeps the rename on one filesystem.
+    assert calls == [{"dir": tmp_path, "prefix": "document.json.", "suffix": TEMP_SUFFIX}]
+
+
+def test_a_failed_rename_keeps_the_previous_document_and_removes_the_temporary_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "document.json"
+    target.write_bytes(b"previous")
+
+    def refuse(self: Path, destination: Any) -> Path:
+        raise OSError("simulated interruption at the rename")
+
+    monkeypatch.setattr(Path, "replace", refuse)
+
+    with pytest.raises(OSError, match="simulated interruption at the rename"):
+        write_atomically(target, b"new")
+    assert target.read_bytes() == b"previous"
+    assert temp_files(tmp_path) == []
+
+
+def test_a_failed_file_fsync_keeps_the_previous_document_and_removes_the_temporary_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "document.json"
+    target.write_bytes(b"previous")
+
+    def refuse(descriptor: int) -> None:
+        raise OSError("simulated interruption at fsync")
+
+    monkeypatch.setattr(os, "fsync", refuse)
+
+    with pytest.raises(OSError, match="simulated interruption at fsync"):
+        write_atomically(target, b"new")
+    monkeypatch.undo()
+    assert target.read_bytes() == b"previous"
+    assert temp_files(tmp_path) == []
+
+
+def test_a_first_write_that_fails_leaves_nothing_behind(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    target = tmp_path / "document.json"
+
+    def refuse(self: Path, destination: Any) -> Path:
+        raise OSError("simulated interruption at the rename")
+
+    monkeypatch.setattr(Path, "replace", refuse)
+
+    with pytest.raises(OSError):
+        write_atomically(target, b"new")
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_an_interrupt_during_the_write_still_removes_the_temporary_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Cleanup covers BaseException, so Ctrl-C or task cancellation mid-write leaves no debris either."""
+    target = tmp_path / "document.json"
+
+    def interrupt(descriptor: int) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(os, "fsync", interrupt)
+
+    with pytest.raises(KeyboardInterrupt):
+        write_atomically(target, b"new")
+    monkeypatch.undo()
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_the_directory_entry_is_fsynced_after_the_rename(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    synced: list[bool] = []
+    real_fsync = os.fsync
+    target = tmp_path / "document.json"
+
+    def recording_fsync(descriptor: int) -> None:
+        is_directory = stat.S_ISDIR(os.fstat(descriptor).st_mode)
+        # The directory sync must observe the completed rename.
+        if is_directory:
+            assert target.read_bytes() == b"x"
+        synced.append(is_directory)
+        real_fsync(descriptor)
+
+    monkeypatch.setattr(os, "fsync", recording_fsync)
+
+    write_atomically(target, b"x")
+
+    assert synced == [False, True]
+
+
+def test_an_unsupported_directory_fsync_is_tolerated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    real_fsync = os.fsync
+
+    def refuse_directories(descriptor: int) -> None:
+        if stat.S_ISDIR(os.fstat(descriptor).st_mode):
+            raise OSError("simulated unsupported directory fsync")
+        real_fsync(descriptor)
+
+    monkeypatch.setattr(os, "fsync", refuse_directories)
+    target = tmp_path / "document.json"
+
+    write_atomically(target, b"x")
+
+    assert target.read_bytes() == b"x"
+
+
+def test_fsync_directory_ignores_a_directory_that_cannot_be_opened(tmp_path: Path) -> None:
+    fsync_directory(tmp_path / "missing")
+
+
+def test_fsync_directory_closes_its_descriptor_even_when_fsync_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    closed: list[int] = []
+    opened: list[int] = []
+    real_open = os.open
+    real_close = os.close
+
+    def recording_open(path: Any, flags: int, *args: Any) -> int:
+        descriptor = real_open(path, flags, *args)
+        opened.append(descriptor)
+        return descriptor
+
+    def recording_close(descriptor: int) -> None:
+        closed.append(descriptor)
+        real_close(descriptor)
+
+    def refuse(descriptor: int) -> None:
+        raise OSError("simulated unsupported directory fsync")
+
+    monkeypatch.setattr(os, "open", recording_open)
+    monkeypatch.setattr(os, "close", recording_close)
+    monkeypatch.setattr(os, "fsync", refuse)
+
+    fsync_directory(tmp_path)
+
+    assert opened and closed == opened

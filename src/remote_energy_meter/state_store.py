@@ -10,11 +10,12 @@ caller sets (Requirement 7.3).
 
 A power cut in the middle of a write leaves a truncated file, and a truncated file reads as a corrupt entry, which
 Requirement 7.6 answers by resetting the affected device to 0 kWh. In other words, a naive write turns a crash during a
-flush into permanent data loss. Every flush therefore writes a temporary file in the *same* directory, ``fsync``s it,
-and renames it over the target with ``os.replace`` semantics (via :meth:`pathlib.Path.replace`), which POSIX and Windows
-both define as atomic within a filesystem. A reader afterwards sees either the whole previous document or the whole new
-one. The directory entry is ``fsync``ed too where the platform allows it, so the rename itself survives a power cut and
-not just the file contents.
+flush into permanent data loss. Every flush therefore goes through
+:func:`remote_energy_meter.atomic_file.write_atomically`, which writes a temporary file in the *same* directory,
+``fsync``s it, and renames it over the target with ``os.replace`` semantics (via :meth:`pathlib.Path.replace`), which
+POSIX and Windows both define as atomic within a filesystem. A reader afterwards sees either the whole previous document
+or the whole new one. The directory entry is ``fsync``ed too where the platform allows it, so the rename itself survives
+a power cut and not just the file contents.
 
 ## Why a bad entry is per-device
 
@@ -57,11 +58,8 @@ five minutes.
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import logging
-import os
-import tempfile
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -70,6 +68,7 @@ from pathlib import Path
 from time import monotonic as _default_monotonic
 from typing import Any, Final
 
+from remote_energy_meter.atomic_file import write_atomically
 from remote_energy_meter.diagnostics.logger import DEVICE_ID_FIELD, get_logger
 from remote_energy_meter.energy import KWH_DECIMAL_PLACES
 from remote_energy_meter.persistence import CURRENT_SCHEMA_VERSION, DeviceEnergyState, EnergyStateFile
@@ -108,8 +107,6 @@ SHUTDOWN_FLUSH_TIMEOUT_S: Final = 5.0
 #: orders of magnitude larger is a mistake or a hostile mount, and parsing it would cost memory inside the 30 second
 #: startup budget of Requirement 1.3.
 MAX_DOCUMENT_BYTES: Final = 1 << 20
-
-_TEMP_SUFFIX: Final = ".tmp"
 
 
 # --------------------------------------------------------------------------------------------------
@@ -548,7 +545,7 @@ class EnergyStateStore:
         device_count = len(snapshot)
         try:
             text = serialize_state(build_state_file(snapshot, self._clock()))
-            _write_atomically(self._path, text)
+            write_atomically(self._path, text.encode("utf-8"))
         except Exception as error:
             detail = f"{type(error).__name__}: {error}"
             self._log.warning(
@@ -793,51 +790,3 @@ def _rejected(
 ) -> tuple[DeviceEnergyState, DeviceRejection]:
     """A device that starts at 0 kWh, with the reason it does (Requirement 7.6)."""
     return DeviceEnergyState.zeroed(), DeviceRejection(device_id=device_id, rejection=rejection, detail=detail)
-
-
-def _write_atomically(path: Path, text: str) -> None:
-    """Replace ``path`` with ``text``, atomically.
-
-    Temp file in the same directory (so the rename cannot cross a filesystem), written, flushed, ``fsync``ed, then
-    renamed over the target with ``os.replace`` semantics. A crash at any point leaves either the old document or the
-    new one, never a truncated one. The temp file is removed on any failure, so a failing mount does not accumulate
-    debris next to the document.
-
-    The directory entry is ``fsync``ed afterwards where the platform supports it, so the rename itself is durable and
-    not merely the file contents. Filesystems that reject a directory ``fsync`` — some network mounts among them — are
-    tolerated: the contents are already durable and the rename is still atomic.
-    """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = text.encode("utf-8")
-
-    descriptor, temp_name = tempfile.mkstemp(dir=path.parent, prefix=f"{path.name}.", suffix=_TEMP_SUFFIX)
-    temp_path = Path(temp_name)
-    try:
-        with os.fdopen(descriptor, "wb") as handle:
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
-        # Path.replace is os.replace: the atomic, same-filesystem rename this whole function exists for.
-        temp_path.replace(path)
-    except BaseException:
-        with contextlib.suppress(OSError):
-            temp_path.unlink(missing_ok=True)
-        raise
-
-    _fsync_directory(path.parent)
-
-
-def _fsync_directory(directory: Path) -> None:
-    """Flush a directory entry so a rename survives a power cut. Best effort by design."""
-    try:
-        descriptor = os.open(directory, os.O_RDONLY)
-    except OSError:
-        return
-    try:
-        os.fsync(descriptor)
-    except OSError:
-        # Directory fsync is unsupported on some filesystems and network mounts. The document contents are already
-        # durable and the rename is atomic regardless, so this is a durability nicety, not a correctness requirement.
-        pass
-    finally:
-        os.close(descriptor)
