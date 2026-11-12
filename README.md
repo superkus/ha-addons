@@ -150,14 +150,15 @@ implementation of both tasks consumes this profile at a pinned commit and passes
 Rust-signed request verifies in Python, so Tasks 3.2 and 3.3 are complete at the primitive layer.
 
 - `src/remote_energy_meter/protocol_v1/` provides strict canonical base64url, bounded `REM-TRANSCRIPT`, canonical
-  public P-256 JWK and RFC 7638 identity, RFC 9530 Content-Digest, low-S IEEE P1363 P-256 verification, canonical JSON,
-  signed-route profiles, and the narrow reporter/control RFC 9421 verifier. Reporter signatures carry exactly
-  `keyid`, `alg`, and `tag`, never a client wall-clock timestamp; reporter freshness remains in server-issued protocol
-  state. Callers bind each accepted key to its trusted stable RFC 7638 identity; successful verification keeps that
-  identity separate from the rotatable request `keyid` and returns an immutable snapshot containing the exact request,
-  component, signature-input, signature, and signature-base bytes for later replay and business-state layers. It also
-  derives the interactive SAS from the transcript hash and ordered nonces, renders the exact six alternating PGP words,
-  parses only exact single-space ASCII phrases, and compares SAS authentication bytes in constant time.
+  public P-256 JWK and RFC 7638 identity, RFC 9530 Content-Digest, low-S IEEE P1363 P-256 verification, canonical JSON
+  parsing and rendering, signed-route profiles, and the narrow reporter/control RFC 9421 verifier. Reporter signatures
+  carry exactly `keyid`, `alg`, and `tag`, never a client wall-clock timestamp; reporter freshness remains in
+  server-issued protocol state. Callers bind each accepted key to its trusted stable RFC 7638 identity; successful
+  verification keeps that identity separate from the rotatable request `keyid` and returns an immutable snapshot
+  containing the exact request, component, signature-input, signature, and signature-base bytes for later replay and
+  business-state layers. It also derives the interactive SAS from the transcript hash and ordered nonces, renders the
+  exact six alternating PGP words, parses only exact single-space ASCII phrases, and compares SAS authentication bytes
+  in constant time.
 - `docs/protocol/v1/pgp-word-list/` contains the two normative 256-entry newline-terminated ASCII lists, their source
   and extraction record, pinned independent comparison results, and the full GFDL 1.2 text. Byte-identical copies ship
   as Python package resources. Only those two list data files are GFDL; the repository code remains MIT.

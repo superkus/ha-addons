@@ -86,6 +86,22 @@ def test_list_and_dict_subclasses_are_rejected() -> None:
     _assert_invalid(Items([1]))
 
 
+def test_int_and_str_subclasses_are_rejected() -> None:
+    """A subclass can render bytes that differ from its value, so scalars follow the same exact-type rule."""
+
+    class Disguised(int):
+        def __str__(self) -> str:
+            return "7"
+
+    class Text(str):
+        pass
+
+    _assert_invalid(Disguised(5))
+    _assert_invalid(Text("x"))
+    _assert_invalid({"nested": Disguised(5)})
+    _assert_invalid([Text("x")])
+
+
 @pytest.mark.parametrize(
     ("value", "max_depth"),
     [
