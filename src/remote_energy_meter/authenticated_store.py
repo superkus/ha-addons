@@ -15,7 +15,8 @@ tombstones) need tamper evidence as well. This module adds it:
   one is created anyway, those records fail as ``AUTHENTICATION_FAILED``. A key that one key store instance has already
   read and that then vanishes, or is rewritten at a higher generation, fails as ``GENERATION_ROLLBACK`` or
   ``CONCURRENT_MODIFICATION`` through that instance, not as ``KEY_MISSING``; a fresh instance reports ``KEY_MISSING``
-  or ``MALFORMED`` for the same states.
+  or ``MALFORMED`` for the same states. Likewise, a key another writer creates after an instance saw none fails as
+  ``CONCURRENT_MODIFICATION`` on that instance's ``load`` (``KEY_EXISTS`` on its ``create``); a fresh instance loads it.
 * :class:`AuthenticatedDocumentStore` stores ``{"body": <record>, "tag": <HMAC>}`` as the record of a versioned
   envelope. The tag is HMAC-SHA-256 under that key over a ``REM-TRANSCRIPT`` binding the store id, schema version,
   generation, and the canonical body bytes, so a record cannot be altered, copied into another store, or relabelled
@@ -155,8 +156,9 @@ class StateAuthenticationKeyStore:
             SecureStoreError: ``KEY_MISSING`` when no key exists and this instance has not read one before;
                 ``GENERATION_ROLLBACK`` when a key this instance already read has disappeared;
                 ``CONCURRENT_MODIFICATION`` when it was rewritten at a higher generation since (a fresh instance reports
-                that as ``MALFORMED``); ``MALFORMED`` when the document is not exactly one canonical 32-byte key written
-                once; any other fault of the underlying document.
+                that as ``MALFORMED``) or when a key appeared after this instance saw none (a fresh instance loads it);
+                ``MALFORMED`` when the document is not exactly one canonical 32-byte key written once; any other fault
+                of the underlying document.
         """
         with self._lock:
             document = self._document.load()
@@ -170,17 +172,18 @@ class StateAuthenticationKeyStore:
         This checks only the key document. Call it only when no state protected by a key exists yet; that is the
         caller's obligation (records left from a lost key would then fail as ``AUTHENTICATION_FAILED``).
 
-        An instance whose creation lost the race to another writer keeps reporting ``CONCURRENT_MODIFICATION`` on
-        :meth:`load`, because it never read the winner's key; read the key through a fresh instance.
+        An instance that saw no key, or whose creation lost the race to another writer, keeps reporting
+        ``CONCURRENT_MODIFICATION`` on :meth:`load`, because it never read the other writer's key; read the key through
+        a fresh instance.
 
         Raises:
-            SecureStoreError: ``KEY_EXISTS`` when a key document already exists or another writer creates one while
-                this call runs (it is never replaced); any fault of the underlying document, including ``IO_ERROR``
-                from the write.
+            SecureStoreError: ``KEY_EXISTS`` when a key document already exists, including one another writer created
+                after this instance last saw none or while this call runs (it is never replaced); any fault of the
+                underlying document, including ``IO_ERROR`` from the write.
         """
         with self._lock:
-            # Another writer's key, whether the pre-check sees it (this instance had seen none) or the exclusive create
-            # finds it, is an existing key: report it as such and replace nothing.
+            # A key this instance has not read (another writer's, or one rewritten after this instance read it), whether
+            # the pre-check sees it or the exclusive create finds it, is an existing key: report it, replace nothing.
             try:
                 existing = self._document.load()
             except SecureStoreError as error:

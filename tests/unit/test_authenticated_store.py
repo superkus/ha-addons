@@ -619,8 +619,15 @@ def test_create_after_seeing_no_key_reports_a_key_created_meanwhile_as_existing(
     """An instance that saw "no key", then another writer creates one: create() reports KEY_EXISTS, replaces nothing."""
     late = StateAuthenticationKeyStore(key_dir)
     assert fault_of(late.load) is StoreFault.KEY_MISSING
-    StateAuthenticationKeyStore(key_dir).create()
+    winner_key = StateAuthenticationKeyStore(key_dir).create()
     winner = (key_dir / KEY_DOCUMENT_NAME).read_bytes()
 
     assert fault_of(late.create) is StoreFault.KEY_EXISTS
     assert (key_dir / KEY_DOCUMENT_NAME).read_bytes() == winner
+
+    # The late instance still knows generation 0, so it cannot load the key it lost the race for;
+    # the document is untouched and a fresh instance loads the winner's key.
+    assert fault_of(late.load) is StoreFault.CONCURRENT_MODIFICATION
+    assert (key_dir / KEY_DOCUMENT_NAME).read_bytes() == winner
+    message = b"same message for both keys"
+    assert StateAuthenticationKeyStore(key_dir).load().tag(message) == winner_key.tag(message)
