@@ -891,6 +891,66 @@ def test_leftover_temporary_files_of_the_document_are_removed_on_load(store_dir:
     assert all(path.exists() for path in unrelated)
 
 
+def test_a_temporary_file_left_by_the_real_writer_is_removed_on_the_next_load(
+    store_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Cleanup must recognise the names the writer actually creates, not only a hand-written example of them.
+
+    A failed rename whose cleanup unlink also fails is how the writer leaves its own temporary file behind.
+    """
+    store = make_store(store_dir)
+    store.save({"value": 1})
+    refuse_rename(monkeypatch)
+
+    def refuse_unlink(*args: Any, **kwargs: Any) -> None:
+        raise OSError(errno.EIO, os.strerror(errno.EIO))
+
+    monkeypatch.setattr(os, "unlink", refuse_unlink)
+    assert fault_of(lambda: store.save({"value": 2})) is StoreFault.IO_ERROR
+    monkeypatch.undo()
+
+    leftovers = [entry for entry in store_dir.iterdir() if entry.name.endswith(TEMP_SUFFIX)]
+    assert len(leftovers) == 1
+    assert leftovers[0].name.startswith(f"{NAME}.")
+    assert leftovers[0].read_bytes() == envelope(2, {"value": 2})
+
+    loaded = store.load()
+
+    assert loaded is not None
+    assert (loaded.generation, dict(loaded.record)) == (1, {"value": 1})
+    assert [entry.name for entry in store_dir.iterdir()] == [NAME]
+
+
+@pytest.mark.parametrize(
+    ("damaged", "expected"),
+    [
+        (b"not json", StoreFault.MALFORMED),
+        (envelope(1, {"value": 1}), StoreFault.GENERATION_ROLLBACK),
+    ],
+    ids=["malformed", "rollback"],
+)
+def test_a_leftover_temporary_file_is_kept_while_the_load_fails_closed(
+    store_dir: Path, damaged: bytes, expected: StoreFault
+) -> None:
+    """A load that fails closed leaves the leftovers as recovery evidence; only a verified load removes them."""
+    store = make_store(store_dir)
+    store.save({"value": 1})
+    store.save({"value": 2})
+    current = store.path.read_bytes()
+    leftover = plant(store_dir, b"bytes of an interrupted write", name=f"{NAME}.0123456789abcdef{TEMP_SUFFIX}")
+    plant(store_dir, damaged)
+
+    assert fault_of(store.load) is expected
+    assert leftover.read_bytes() == b"bytes of an interrupted write"
+
+    plant(store_dir, current)
+    loaded = store.load()
+
+    assert loaded is not None
+    assert (loaded.generation, dict(loaded.record)) == (2, {"value": 2})
+    assert not leftover.exists()
+
+
 def test_a_leftover_symlink_with_a_temporary_name_is_unlinked_not_followed(store_dir: Path, tmp_path: Path) -> None:
     target = tmp_path / "outside"
     target.write_bytes(b"must survive")

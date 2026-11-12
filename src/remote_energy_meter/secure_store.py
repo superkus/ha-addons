@@ -3,13 +3,15 @@
 The reporter and control stores (PKI, roster, tokens, revocations, control authority, replay and result records) keep
 secrets and authority under ``/data``. Unlike the energy store, which resets a bad entry to zero so metering keeps
 running, these stores **fail closed**: any doubt about a document's integrity stops the feature that depends on it.
-Nothing here repairs, recreates, or silently ignores state.
+Nothing here repairs or silently ignores state, and nothing is recreated once a generation is known; the only thing
+ever created is a missing store directory before any generation is known (see below).
 
 Three layers:
 
 * :func:`ensure_private_directory` creates or verifies a store directory: a real directory (not a symlink) owned by the
-  effective user with mode exactly ``0700``. A directory with any other mode is reported, never ``chmod``-ed back,
-  because a widened mode is evidence the contents can no longer be trusted.
+  effective user with mode exactly ``0700``. An existing directory with any other mode is reported, never
+  ``chmod``-ed back, because a widened mode is evidence the contents can no longer be trusted. A directory it creates
+  gets its mode set only through a no-follow descriptor, never by path.
 * :func:`read_private_file` / :func:`write_private_file` read and replace one document inside such a directory. Reads
   open the name relative to the verified directory with ``O_NOFOLLOW | O_NONBLOCK`` and check the open descriptor, so
   a symlink, FIFO, device, foreign owner, or any mode other than ``0600`` is rejected, and the size is capped before
@@ -44,7 +46,8 @@ What this layer does not detect:
 
 A crash during a write can leave a temporary ``<name>.<random>.tmp`` file in the store directory. It is never read as
 the document, but it can hold a newer record's bytes, so :class:`VersionedDocumentStore` deletes its own document's
-temporary files on every load.
+temporary files after every load that verifies the document, including the load at the start of each save. A load that
+fails closed leaves them in place on purpose, as evidence for recovery.
 
 Errors are :class:`SecureStoreError` with a :class:`StoreFault`. Their ``detail`` may name paths, the store id,
 generation and ``schema_version`` numbers, size caps, file modes, and the type name of an underlying exception; it never
@@ -69,6 +72,7 @@ from remote_energy_meter.atomic_file import (
     TEMP_SUFFIX,
     UnconfirmedReplaceError,
     replace_in_directory,
+    temporary_name_pattern,
 )
 from remote_energy_meter.protocol_v1 import JsonValue, ProtocolViolation, parse_canonical_json, render_canonical_json
 
@@ -194,11 +198,15 @@ def ensure_private_directory(directory: Path) -> None:
     """Create ``directory`` with mode ``0700`` if it is absent, then verify it.
 
     Only the last path component is created; its parent (for example ``/data``) must already exist. An existing
-    directory is verified exactly as found and never modified.
+    directory is verified exactly as found and never modified. A directory this call creates gets its mode set to
+    ``0700`` through a no-follow descriptor, because ``mkdir`` applies the process umask. If the umask leaves it
+    unopenable by its owner, it is refused and left in place, never ``chmod``-ed by path; to recover, fix the umask and
+    remove the empty directory.
 
     Raises:
-        SecureStoreError: ``DIRECTORY_INSECURE`` when the parent is missing or the directory fails verification;
-            ``IO_ERROR`` when the filesystem fails.
+        SecureStoreError: ``DIRECTORY_INSECURE`` when the parent is missing, a directory this call created cannot be
+            opened by its owner (umask), or the directory fails verification; ``IO_ERROR`` when the filesystem fails,
+            including setting the new directory's mode.
     """
     try:
         directory.mkdir(mode=DIRECTORY_MODE)
@@ -439,7 +447,7 @@ class VersionedDocumentStore:
         self._store_id = store_id
         self._schema_version = schema_version
         self._max_bytes = max_bytes
-        self._temporary_name = re.compile(re.escape(name) + r"\.[0-9a-f]{16}" + re.escape(TEMP_SUFFIX) + r"\Z")
+        self._temporary_name = temporary_name_pattern(name)
         self._lock = threading.Lock()
         # Highest generation this instance has confirmed on disk: None before the first load, 0 for "no document".
         self._known_generation: int | None = None
@@ -454,10 +462,12 @@ class VersionedDocumentStore:
     def load(self) -> StoredDocument | None:
         """Read and verify the document; ``None`` when it has never been written.
 
+        Once the document verifies, this document's leftover temporary files are deleted (see the module docstring).
+
         Raises:
             SecureStoreError: Any fault. In particular ``GENERATION_ROLLBACK`` if the document is older than, or has
-                disappeared since, one this instance saw, and ``CONCURRENT_MODIFICATION`` if it is newer than any this
-                instance wrote.
+                disappeared since, one this instance saw, ``CONCURRENT_MODIFICATION`` if it is newer than any this
+                instance wrote, and ``IO_ERROR`` if the leftover temporary files cannot be removed.
         """
         with self._lock:
             return self._load_locked()

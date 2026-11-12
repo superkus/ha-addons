@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+import re
 import secrets
 import tempfile
 from pathlib import Path
@@ -37,6 +38,9 @@ from typing import Final
 
 TEMP_SUFFIX: Final = ".tmp"
 """Suffix of the in-flight temporary file, ``<target name>.<random>.tmp`` in the target's directory."""
+
+_TEMP_TOKEN_BYTES: Final = 8
+"""Random bytes in a :func:`replace_in_directory` temporary name, written as twice as many lowercase hex digits."""
 
 FILE_MODE: Final = 0o600
 """Exact permission bits of every document this module writes."""
@@ -96,7 +100,7 @@ def replace_in_directory(directory_fd: int, name: str, data: bytes) -> None:
         OSError: Any earlier step failed. The previous document, if any, is unchanged and the temporary file has been
             removed.
     """
-    temp_name = f"{name}.{secrets.token_hex(8)}{TEMP_SUFFIX}"
+    temp_name = f"{name}.{secrets.token_hex(_TEMP_TOKEN_BYTES)}{TEMP_SUFFIX}"
     descriptor = os.open(temp_name, _TEMP_FLAGS, FILE_MODE, dir_fd=directory_fd)
     try:
         try:
@@ -116,6 +120,15 @@ def replace_in_directory(directory_fd: int, name: str, data: bytes) -> None:
         os.fsync(directory_fd)
     except OSError as error:
         raise UnconfirmedReplaceError(error.errno, error.strerror) from error
+
+
+def temporary_name_pattern(name: str) -> re.Pattern[str]:
+    """Return the pattern whose ``fullmatch`` accepts exactly the temporary names :func:`replace_in_directory` makes.
+
+    It lets a caller recognise and remove a temporary file left by a crash for ``name`` without matching any other
+    entry, such as a sibling document whose name merely starts with ``name``.
+    """
+    return re.compile(rf"{re.escape(name)}\.[0-9a-f]{{{2 * _TEMP_TOKEN_BYTES}}}{re.escape(TEMP_SUFFIX)}")
 
 
 def fsync_directory(directory: Path) -> None:

@@ -16,6 +16,7 @@ from remote_energy_meter.atomic_file import (
     UnconfirmedReplaceError,
     fsync_directory,
     replace_in_directory,
+    temporary_name_pattern,
     write_atomically,
 )
 
@@ -320,9 +321,42 @@ def test_replace_in_directory_uses_an_unpredictable_temporary_name(
     replace_via_descriptor(tmp_path, "document.json", b"b")
 
     assert len(created) == 2 and created[0] != created[1]
+    pattern = temporary_name_pattern("document.json")
     for name in created:
-        assert name.startswith("document.json.") and name.endswith(TEMP_SUFFIX)
-        assert len(name) >= len("document.json.") + 16 + len(TEMP_SUFFIX)
+        assert pattern.fullmatch(name)
+
+
+def test_the_temporary_name_pattern_matches_a_real_leftover_and_nothing_else(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def refuse(*args: Any, **kwargs: Any) -> None:
+        raise OSError("rename refused")
+
+    def keep(*args: Any, **kwargs: Any) -> None:
+        pass
+
+    # A crash between the write and the cleanup leaves the writer's own temporary file behind.
+    monkeypatch.setattr(os, "replace", refuse)
+    monkeypatch.setattr(os, "unlink", keep)
+    with pytest.raises(OSError, match="rename refused"):
+        replace_via_descriptor(tmp_path, "document.json", b"x")
+    monkeypatch.undo()
+
+    [leftover] = [entry.name for entry in temp_files(tmp_path)]
+    pattern = temporary_name_pattern("document.json")
+    assert pattern.fullmatch(leftover)
+    for other in (
+        "document.json",
+        f"document.json.backup.{leftover.removeprefix('document.json.')}",
+        f"document.jsonx{leftover.removeprefix('document.json')}",
+        f"documentXjson{leftover.removeprefix('document.json')}",
+        f"document.json.{'0' * 15}{TEMP_SUFFIX}",
+        f"document.json.{'0' * 17}{TEMP_SUFFIX}",
+        f"document.json.{'A' * 16}{TEMP_SUFFIX}",
+        f"{leftover}.tmp",
+        f"other.{leftover}",
+    ):
+        assert not pattern.fullmatch(other), other
 
 
 def test_replace_in_directory_does_not_follow_a_symlink_at_the_temporary_name(

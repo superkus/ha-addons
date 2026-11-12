@@ -43,11 +43,12 @@ All notable changes to this project are documented here. The format follows
   writing a document that went back to a lower generation, vanished, or was advanced by another writer; a document
   substituted with the same generation, a write interleaved with its own, and state lost while the add-on is stopped
   are not detected by this layer. A save whose directory sync fails is reported as failed, and a generation it may
-  have left on disk is accepted only after a later directory sync succeeds. Each load deletes the document's own
-  temporary files left by an interrupted write, which can hold a newer record's bytes. A new store directory that the
-  process umask leaves unreadable by its owner is refused rather than fixed by path. Added a strict public
-  canonical-JSON renderer for protocol v1 that accepts only the parser's exact value types and whose output the strict
-  parser always accepts unchanged.
+  have left on disk is accepted only after a later directory sync succeeds. Each load that verifies the document,
+  including the one at the start of every save, deletes the document's own temporary files left by an interrupted
+  write, which can hold a newer record's bytes; a load that fails closed leaves them in place as evidence for
+  recovery. A new store directory that the process umask leaves unreadable by its owner is refused rather than fixed
+  by path. Added a strict public canonical-JSON renderer for protocol v1 that accepts only the parser's exact value
+  types and whose output the strict parser always accepts unchanged.
 
 ### Changed
 
