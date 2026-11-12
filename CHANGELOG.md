@@ -49,6 +49,12 @@ All notable changes to this project are documented here. The format follows
   recovery. A new store directory that the process umask leaves unreadable by its owner is refused rather than fixed
   by path. Added a strict public canonical-JSON renderer for protocol v1 that accepts only the parser's exact value
   types and whose output the strict parser always accepts unchanged.
+- Added integrity-protected security documents (`remote_energy_meter.authenticated_store`); nothing uses them yet. A
+  separate random 256-bit state-authentication key lives in its own owner-only document, is created only explicitly
+  when no protected state exists, and is never replaced or silently regenerated. Each protected record carries an
+  HMAC-SHA-256 tag over a domain-separated transcript of its store id, schema version, generation, and canonical body,
+  so an altered record, a record moved from another store, an old record replayed under a newer generation, or one
+  written under another key fails closed. A save verifies the current record before overwriting it.
 
 ### Changed
 

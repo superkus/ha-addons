@@ -41,7 +41,8 @@ What this layer does not detect:
 * The rollback of a *whole* restored backup: the restored file is internally consistent. Restore checks against
   independently held state and the post-restore quarantine own that case.
 * Content edits. This layer does not authenticate content: an edit that keeps a valid envelope (for example a changed
-  digit in a record value) loads as written. Stores whose records need tamper evidence add an integrity tag on top of
+  digit in a record value) loads as written. Stores whose records need tamper evidence use
+  :class:`remote_energy_meter.authenticated_store.AuthenticatedDocumentStore`, which adds an integrity tag on top of
   this layer.
 
 A crash during a write can leave a temporary ``<name>.<random>.tmp`` file in the store directory. It is never read as
@@ -61,7 +62,7 @@ import os
 import re
 import stat
 import threading
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -142,6 +143,16 @@ class StoreFault(StrEnum):
     IO_ERROR = "io_error"
     """The filesystem failed. A write with this fault may or may not have taken effect; see
     :meth:`VersionedDocumentStore.save`."""
+
+    KEY_MISSING = "key_missing"
+    """Authenticated state exists or is being written, but its state-authentication key is absent."""
+
+    KEY_EXISTS = "key_exists"
+    """A new state-authentication key was to be created, but one already exists; it is never replaced."""
+
+    AUTHENTICATION_FAILED = "authentication_failed"
+    """A record's integrity tag does not verify under the state-authentication key: the record was altered, moved to
+    another store or generation, or written under a different key."""
 
 
 class SecureStoreError(Exception):
@@ -473,7 +484,15 @@ class VersionedDocumentStore:
             return self._load_locked()
 
     def save(self, record: Mapping[str, JsonValue]) -> StoredDocument:
-        """Write ``record`` as the next generation and return it.
+        """Write ``record`` as the next generation and return it; :meth:`save_with` for a generation-bound record."""
+        return self.save_with(lambda _generation: record)
+
+    def save_with(self, build: Callable[[int], Mapping[str, JsonValue]]) -> StoredDocument:
+        """Write ``build(generation)`` as the next generation and return it.
+
+        ``build`` receives the generation the record will be stored under, so a layer above can bind it (for example in
+        an integrity tag). It runs under the store lock after the document on disk was re-verified; an exception from it
+        writes nothing.
 
         The document on disk is re-verified first, so a rollback or a second writer is detected before anything is
         written. A save whose rename happened but whose directory sync failed raises ``IO_ERROR`` and leaves its outcome
@@ -491,7 +510,7 @@ class VersionedDocumentStore:
             if previous >= _MAX_GENERATION:
                 raise SecureStoreError(StoreFault.GENERATION_EXHAUSTED, f"{self.path} cannot advance its generation")
             generation = previous + 1
-            data = self._render(generation, record)
+            data = self._render(generation, build(generation))
             try:
                 _replace_private_file(self._directory, self._name, data)
             except UnconfirmedReplaceError as error:

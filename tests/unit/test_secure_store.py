@@ -1028,3 +1028,34 @@ def test_store_construction_validates_the_document_name(store_dir: Path) -> None
 def test_the_module_exports_its_public_names() -> None:
     for name in secure_store.__all__:
         assert hasattr(secure_store, name)
+
+
+def test_save_with_passes_the_generation_the_record_is_stored_under(store_dir: Path) -> None:
+    store = make_store(store_dir)
+    seen: list[int] = []
+
+    def build(generation: int) -> dict[str, Any]:
+        seen.append(generation)
+        return {"bound_generation": generation}
+
+    first = store.save_with(build)
+    second = store.save_with(build)
+
+    assert seen == [1, 2]
+    assert dict(first.record) == {"bound_generation": 1}
+    assert dict(second.record) == {"bound_generation": 2}
+
+
+def test_an_exception_from_save_with_writes_nothing(store_dir: Path) -> None:
+    store = make_store(store_dir)
+    store.save({"value": 1})
+    before = store.path.read_bytes()
+
+    def refuse(generation: int) -> dict[str, Any]:
+        raise RuntimeError("builder failed")
+
+    with pytest.raises(RuntimeError, match="builder failed"):
+        store.save_with(refuse)
+
+    assert store.path.read_bytes() == before
+    assert store.save({"value": 2}).generation == 2
