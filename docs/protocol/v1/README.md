@@ -5,8 +5,10 @@ integration's control channel, and MQTT v2. It is specification task 3.1 of
 `.kiro/specs/native-computer-reporters/`. Task 3.2's Python primitive layer and the server/Python half of Task 3.3's
 SAS derivation, exact word rendering, strict parser, and verification are implemented in
 `src/remote_energy_meter/protocol_v1/`. The pinned normative PGP word tables and their provenance are under
-`pgp-word-list/`. Rust and cross-language parity remain pending, so Tasks 3.2 and 3.3 stay incomplete. Task 3.4's
-independent security review must approve the profile before anything that speaks it is distributed.
+`pgp-word-list/`. The reporter repository's Rust implementation of both tasks executes the primitive-layer subset of this
+corpus from a vendored copy, pinned to a commit, whose vectors and word tables are byte-identical to these files, and a
+Rust-signed request verifies here, so Tasks 3.2 and 3.3 are complete at the primitive layer. Task 3.4's independent
+security review must approve the profile before anything that speaks it is distributed.
 
 Status: **draft, not approved for distribution.** This repository includes pure production cryptographic and wire
 primitives, but no listener, route handler, replay store, authorization policy, or protocol business state. The runtime
@@ -50,9 +52,22 @@ members, and the mathematical validity of every published P-256 signature and it
 transcript digest/HKDF bytes/rendering, executes the relevant one-field mutations against the Python implementation,
 accepts each fixed low-S signature, and rejects every high-S twin.
 `tests/conformance/test_protocol_v1_sas_data.py` pins both 256-entry lists, verifies ASCII/case/order/uniqueness and
-package byte identity, and checks the adjacent provenance and GFDL artifacts. Rust, cross-language, AEAD, stateful
+package byte identity, and checks the adjacent provenance and GFDL artifacts.
+`tests/conformance/test_protocol_v1_interop.py` verifies a request signed by the reporter's Rust implementation (its
+`protocol_v1_sign_demo` example, stored byte-exact under `tests/conformance/fixtures/` and pinned by reporter commit,
+SHA-256, and expected stable identity) with identical signature input and base bytes, and checks the signature as low-S
+independently of the package. It rejects every one-byte mutation of the request bytes with the exact rejection codes
+pinned per field, every one-byte mutation of the raw signature, and every one-byte mutation of the public-key
+coordinates at JWK parse. It also rejects a substituted public key, both when its thumbprint differs from the signed
+`keyid` and when the `keyid` is rewritten to match it, so that only the ECDSA check can fail. This fixture is the only
+artifact that one implementation produced and the other verified; the vectors were produced by a maintainer tool, and
+both implementations verify them independently. The reporter's Rust tests verify these vectors: HTTP signatures and
+their in-scope one-field mutations, transcripts and their structural and signed-field mutations, JWKs, Content-Digest,
+and the `interactive.sas` derivation and rendering. They also render and parse every word-list index in every SAS
+position and run one-word-per-position tamper cases. Neither implementation executes the declared `interactive.sas`
+vector mutations yet. AEAD, managed-token HMAC, stateful
 replay, route schema/business-state outcomes, Draft 2020-12 validation, and reproduction of the maintainer-reported
-key-generation run remain outside this Python increment. Implementations must not treat this provenance statement as
+key-generation run remain outside these increments. Implementations must not treat this provenance statement as
 key-destruction evidence.
 
 ## Vector format (`rem-vector-set-v1`)
@@ -116,8 +131,13 @@ response) it is `internal_error`, and the client must never treat it as success.
 ## Updating the profile
 
 1. Change the documents, normative word-table data, and vectors. Verify source and list hashes from
-   `pgp-word-list/notice.md`. Recompute every changed value with the Python implementation and, once it exists, an
-   independent Rust implementation; re-verify from the published bytes, and never commit a private key.
-2. Run `PYTHONDONTWRITEBYTECODE=1 pytest -p no:cacheprovider tests/conformance/test_protocol_v1_artifacts.py tests/conformance/test_protocol_v1_runtime.py tests/conformance/test_protocol_v1_sas_data.py`.
+   `pgp-word-list/notice.md`. Recompute every changed value with the Python implementation and the independent Rust
+   implementation; re-verify from the published bytes, and never commit a private key.
+2. Run `PYTHONDONTWRITEBYTECODE=1 pytest -p no:cacheprovider tests/conformance/test_protocol_v1_artifacts.py tests/conformance/test_protocol_v1_runtime.py tests/conformance/test_protocol_v1_sas_data.py tests/conformance/test_protocol_v1_interop.py`.
 3. Recompute every SHA-256 in `vectors/manifest.json` **last**, after all other files are final.
-4. Once task 3.4 approves version 1, published bytes never change; see `wire-profile.md` section 14.
+4. In the reporter repository, re-vendor the changed files, re-pin them to the new server commit, and run its
+   conformance tests. If the change affects the signed reporter request, regenerate
+   `tests/conformance/fixtures/protocol_v1_rust_signed_report.json` from the unmodified output of a merged reporter
+   commit, never by hand, and update `REPORTER_COMMIT`, `FIXTURE_SHA256`, and `EXPECTED_IDENTITY` in
+   `test_protocol_v1_interop.py` together.
+5. Once task 3.4 approves version 1, published bytes never change; see `wire-profile.md` section 14.
