@@ -24,6 +24,9 @@ descriptor instead of a path, for the security stores: every step (create, renam
 relative to that descriptor, so a directory removed or swapped for a symlink after it was verified is never recreated
 or followed, and the directory sync is strict. It raises :class:`UnconfirmedReplaceError` only when that sync fails
 after the rename, so a caller can tell "the new document may already be in place" from "nothing changed".
+:func:`create_in_directory` is its no-replace variant: it installs the same temporary file with a hard link, so an
+existing entry is never overwritten (``FileExistsError``) even when two writers race. It raises
+:class:`UnconfirmedReplaceError` when a step after the link fails (removing the temporary name or the directory sync).
 """
 
 from __future__ import annotations
@@ -50,11 +53,12 @@ _TEMP_FLAGS: Final = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O
 
 
 class UnconfirmedReplaceError(OSError):
-    """The rename succeeded but the directory sync after it failed.
+    """The rename (or, for :func:`create_in_directory`, the link) succeeded but a step after it failed.
 
     The new document is already visible under its name, but not yet durable: a power cut could still bring the
-    previous one back. Every other failure of :func:`replace_in_directory` happens before the rename and leaves the
-    previous document in place.
+    previous state back (the previous document, or for :func:`create_in_directory` no entry). Every other failure of
+    :func:`replace_in_directory` and :func:`create_in_directory` happens before the document is installed and leaves
+    the previous state in place.
     """
 
 
@@ -100,6 +104,52 @@ def replace_in_directory(directory_fd: int, name: str, data: bytes) -> None:
         OSError: Any earlier step failed. The previous document, if any, is unchanged and the temporary file has been
             removed.
     """
+    temp_name = _write_temporary(directory_fd, name, data)
+    try:
+        os.replace(temp_name, name, src_dir_fd=directory_fd, dst_dir_fd=directory_fd)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(temp_name, dir_fd=directory_fd)
+        raise
+    try:
+        os.fsync(directory_fd)
+    except OSError as error:
+        raise UnconfirmedReplaceError(error.errno, error.strerror) from error
+
+
+def create_in_directory(directory_fd: int, name: str, data: bytes) -> None:
+    """Create the entry ``name`` of the directory open as ``directory_fd`` with exactly ``data``, mode ``0600``.
+
+    The same temporary file as :func:`replace_in_directory`, but it is installed with a hard link instead of a rename,
+    so an existing entry is never replaced: whoever links first wins, and every later creator gets
+    :class:`FileExistsError`. The temporary name is then unlinked and the directory synced.
+
+    Raises:
+        FileExistsError: ``name`` already exists; it is unchanged and the temporary file has been removed.
+        UnconfirmedReplaceError: The link happened, but removing the temporary name or the directory sync after it
+            failed. The new document is visible; a leftover temporary name is another link to the same bytes.
+        OSError: Any earlier step failed. Nothing was installed and the temporary file has been removed.
+    """
+    temp_name = _write_temporary(directory_fd, name, data)
+    try:
+        os.link(temp_name, name, src_dir_fd=directory_fd, dst_dir_fd=directory_fd, follow_symlinks=False)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(temp_name, dir_fd=directory_fd)
+        raise
+    try:
+        os.unlink(temp_name, dir_fd=directory_fd)
+        os.fsync(directory_fd)
+    except OSError as error:
+        raise UnconfirmedReplaceError(error.errno, error.strerror) from error
+
+
+def _write_temporary(directory_fd: int, name: str, data: bytes) -> str:
+    """Write ``data`` to a new, synced ``0600`` temporary file for ``name`` and return its name.
+
+    The file is created exclusively without following a symlink; on any failure it is removed before the error
+    propagates.
+    """
     temp_name = f"{name}.{secrets.token_hex(_TEMP_TOKEN_BYTES)}{TEMP_SUFFIX}"
     descriptor = os.open(temp_name, _TEMP_FLAGS, FILE_MODE, dir_fd=directory_fd)
     try:
@@ -111,15 +161,11 @@ def replace_in_directory(directory_fd: int, name: str, data: bytes) -> None:
             os.fsync(descriptor)
         finally:
             os.close(descriptor)
-        os.replace(temp_name, name, src_dir_fd=directory_fd, dst_dir_fd=directory_fd)
     except BaseException:
         with contextlib.suppress(OSError):
             os.unlink(temp_name, dir_fd=directory_fd)
         raise
-    try:
-        os.fsync(directory_fd)
-    except OSError as error:
-        raise UnconfirmedReplaceError(error.errno, error.strerror) from error
+    return temp_name
 
 
 def temporary_name_pattern(name: str) -> re.Pattern[str]:
